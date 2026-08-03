@@ -13,18 +13,52 @@ import {
 
 import { itemValidation } from "../middleware/itemValidation.js";
 
+import {
+  requireAdmin
+} from "../middleware/authMiddleware.js";
+
 const itemsRouter = Router();
 
+
+itemsRouter.get(
+  "/new",
+  requireAdmin,
+  showCreateItemForm
+);
+
+itemsRouter.post(
+  "/new",
+  requireAdmin,
+  itemValidation,
+  addItem
+);
+
+itemsRouter.get(
+  "/:id/edit",
+  requireAdmin,
+  showEditItemForm
+);
+
+itemsRouter.post(
+  "/:id/edit",
+  requireAdmin,
+  itemValidation,
+  editItem
+);
+
+itemsRouter.get(
+  "/:id/delete",
+  requireAdmin,
+  showDeleteItemPage
+);
+
+itemsRouter.post(
+  "/:id/delete",
+  requireAdmin,
+  removeItem
+);
+
 itemsRouter.get("/", showItems);
-
-itemsRouter.get("/new", showCreateItemForm);
-itemsRouter.post("/new", itemValidation, addItem);
-
-itemsRouter.get("/:id/edit", showEditItemForm);
-itemsRouter.post("/:id/edit", itemValidation, editItem);
-
-itemsRouter.get("/:id/delete", showDeleteItemPage);
-itemsRouter.post("/:id/delete", removeItem);
 
 itemsRouter.get("/:id", showItem);
 

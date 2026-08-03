@@ -23,12 +23,19 @@
   </header>
 
   <main class="container page-content">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Inventario</p>
-        <h1>Productos</h1>
-        <p>Consulta todos los productos disponibles en la tienda.</p>
-      </div>
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Inventario</p>
+      <h1>Productos</h1>
+      <p>Consulta todos los productos disponibles en la tienda.</p>
+    </div>
+
+    <% if (isAdmin) { %>
+      <a href="/items/new" class="button">
+        Crear producto
+      </a>
+    <% } %>
+  </div>
 
       <a href="/items/new" class="button">
         Crear producto

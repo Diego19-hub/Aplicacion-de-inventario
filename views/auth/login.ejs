@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title><%= title %> | Boxing Inventory</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/" class="logo">Boxing Inventory</a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/">Inicio</a>
+        <a href="/categories">Categorías</a>
+        <a href="/items">Productos</a>
+        <a href="/auth/register">Crear cuenta</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container auth-page">
+    <section class="auth-container">
+      <div>
+        <p class="eyebrow">Bienvenido</p>
+        <h1>Iniciar sesión</h1>
+
+        <p class="form-description">
+          Accede con tu usuario o correo electrónico.
+        </p>
+      </div>
+
+      <% if (errors.length > 0) { %>
+        <div class="error-summary" role="alert">
+          <strong>No se pudo iniciar sesión:</strong>
+
+          <ul>
+            <% errors.forEach((error) => { %>
+              <li><%= error.msg %></li>
+            <% }) %>
+          </ul>
+        </div>
+      <% } %>
+
+      <form
+        action="/auth/login"
+        method="POST"
+        class="inventory-form"
+      >
+        <div class="form-group">
+          <label for="identifier">Usuario o correo</label>
+
+          <input
+            type="text"
+            id="identifier"
+            name="identifier"
+            value="<%= formData.identifier %>"
+            autocomplete="username"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+
+          <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            required
+          >
+        </div>
+
+        <button type="submit" class="button auth-button">
+          Iniciar sesión
+        </button>
+      </form>
+
+      <p class="auth-alternative">
+        ¿No tienes una cuenta?
+        <a href="/auth/register">Créala aquí</a>
+      </p>
+    </section>
+  </main>
+</body>
+</html>

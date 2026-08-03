@@ -27,13 +27,14 @@
       ← Regresar a categorías
     </a>
 
-    <section class="category-header">
-      <div>
-        <p class="eyebrow">Categoría</p>
-        <h1><%= category.name %></h1>
-        <p><%= category.description %></p>
-      </div>
+  <section class="category-header">
+    <div>
+      <p class="eyebrow">Categoría</p>
+      <h1><%= category.name %></h1>
+      <p><%= category.description %></p>
+    </div>
 
+    <% if (isAdmin) { %>
       <div class="actions">
         <a
           href="/categories/<%= category.id %>/edit"
@@ -49,7 +50,8 @@
           Eliminar
         </a>
       </div>
-    </section>
+    <% } %>
+</section>
 
     <section aria-labelledby="products-title">
       <div class="section-heading">

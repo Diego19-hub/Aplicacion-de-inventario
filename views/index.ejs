@@ -13,11 +13,33 @@
   <header class="main-header">
     <div class="container header-content">
       <a href="/" class="logo">Boxing Inventory</a>
-
-      <nav aria-label="Navegación principal">
+      <nav class="main-nav" aria-label="Navegación principal">
         <a href="/">Inicio</a>
         <a href="/categories">Categorías</a>
         <a href="/items">Productos</a>
+
+        <% if (currentUser) { %>
+          <span class="current-user">
+            Hola, <%= currentUser.username %>
+
+            <% if (isAdmin) { %>
+              (Administrador)
+            <% } %>
+          </span>
+
+          <form
+            action="/auth/logout"
+            method="POST"
+            class="logout-form"
+          >
+            <button type="submit" class="logout-button">
+              Cerrar sesión
+            </button>
+          </form>
+        <% } else { %>
+          <a href="/auth/login">Iniciar sesión</a>
+          <a href="/auth/register">Registro</a>
+        <% } %>
       </nav>
     </div>
   </header>
@@ -71,9 +93,11 @@
           <p>Selecciona una categoría para consultar sus productos.</p>
         </div>
 
-        <a href="/categories/new" class="button">
-          Crear categoría
-        </a>
+        <% if (isAdmin) { %>
+          <a href="/categories/new" class="button">
+            Crear categoría
+          </a>
+        <% } %>
       </div>
 
       <% if (categories.length === 0) { %>

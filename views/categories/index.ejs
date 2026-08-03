@@ -25,14 +25,16 @@
   <main class="container page-content">
     <div class="section-heading">
       <div>
-        <p class="eyebrow">Administración</p>
-        <h1>Categorías</h1>
-        <p>Consulta y administra las categorías del inventario.</p>
-      </div>
+          <p class="eyebrow">Administración</p>
+          <h1>Categorías</h1>
+          <p>Consulta las categorías del inventario.</p>
+        </div>
 
-      <a href="/categories/new" class="button">
-        Crear categoría
-      </a>
+        <% if (isAdmin) { %>
+          <a href="/categories/new" class="button">
+            Crear categoría
+          </a>
+        <% } %>
     </div>
 
     <% if (categories.length === 0) { %>

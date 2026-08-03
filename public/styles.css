@@ -691,3 +691,70 @@ button.button {
     width: 100%;
   }
 }
+
+.auth-page {
+  display: flex;
+  justify-content: center;
+  padding-block: 64px;
+}
+
+.auth-container {
+  display: grid;
+  gap: 28px;
+  width: min(100%, 560px);
+}
+
+.auth-container h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 6vw, 4rem);
+}
+
+.auth-button {
+  width: 100%;
+}
+
+.auth-alternative {
+  margin: 0;
+  color: #aeb4bf;
+  text-align: center;
+}
+
+.auth-alternative a {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.current-user {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+.logout-form {
+  margin: 0;
+}
+
+.logout-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #d1d5db;
+  font: inherit;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 750px) {
+  .main-nav {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
