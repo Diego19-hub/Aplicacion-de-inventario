@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title><%= title %> | Boxing Inventory</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/" class="logo">Boxing Inventory</a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/">Inicio</a>
+        <a href="/categories">Categorías</a>
+        <a href="/items">Productos</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container page-content">
+    <a href="/items" class="back-link">
+      ← Regresar a productos
+    </a>
+
+    <section class="item-details">
+      <div class="item-details-main">
+        <p class="eyebrow"><%= item.brand %></p>
+        <h1><%= item.name %></h1>
+
+        <p class="item-description">
+          <%= item.description %>
+        </p>
+
+        <a
+          href="/categories/<%= item.category_id %>"
+          class="category-link"
+        >
+          Categoría: <%= item.category_name %>
+        </a>
+      </div>
+
+      <aside class="item-details-panel">
+        <dl>
+          <div>
+            <dt>Precio</dt>
+            <dd>
+              <%= Number(item.price).toLocaleString("es-MX", {
+                style: "currency",
+                currency: "MXN"
+              }) %>
+            </dd>
+          </div>
+
+          <div>
+            <dt>Existencias</dt>
+
+            <dd class="<%= item.stock === 0 ? 'stock-empty' : '' %>">
+              <%= item.stock === 0
+                ? "Sin existencias"
+                : `${item.stock} unidades` %>
+            </dd>
+          </div>
+
+          <div>
+            <dt>Valor disponible</dt>
+            <dd>
+              <%= (Number(item.price) * item.stock).toLocaleString("es-MX", {
+                style: "currency",
+                currency: "MXN"
+              }) %>
+            </dd>
+          </div>
+
+          <div>
+            <dt>Fecha de registro</dt>
+            <dd>
+              <%= new Date(item.created_at).toLocaleDateString("es-MX") %>
+            </dd>
+          </div>
+        </dl>
+
+        <div class="details-actions">
+          <a
+            href="/items/<%= item.id %>/edit"
+            class="button button-secondary"
+          >
+            Editar
+          </a>
+
+          <a
+            href="/items/<%= item.id %>/delete"
+            class="button button-danger"
+          >
+            Eliminar
+          </a>
+        </div>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title><%= title %> | Boxing Inventory</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/" class="logo">Boxing Inventory</a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/">Inicio</a>
+        <a href="/categories">Categorías</a>
+        <a href="/items">Productos</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container form-page">
+    <a href="/categories/<%= category.id %>" class="back-link">
+      ← Regresar a la categoría
+    </a>
+
+    <section class="delete-container">
+      <p class="eyebrow">Acción destructiva</p>
+      <h1>Eliminar categoría</h1>
+
+      <% if (error) { %>
+        <div class="error-summary" role="alert">
+          <strong>No se puede eliminar:</strong>
+          <p><%= error %></p>
+        </div>
+      <% } %>
+
+      <div class="delete-card">
+        <h2><%= category.name %></h2>
+        <p><%= category.description %></p>
+
+        <dl class="category-information">
+          <div>
+            <dt>Productos asociados</dt>
+            <dd><%= category.item_count %></dd>
+          </div>
+        </dl>
+      </div>
+
+      <% if (category.item_count > 0) { %>
+        <div class="warning-message">
+          <strong>Esta categoría no puede eliminarse.</strong>
+
+          <p>
+            Primero elimina sus productos o muévelos a otra categoría.
+          </p>
+        </div>
+
+        <div class="form-actions">
+          <a
+            href="/categories/<%= category.id %>"
+            class="button button-secondary"
+          >
+            Regresar
+          </a>
+        </div>
+      <% } else { %>
+        <div class="warning-message">
+          <strong>Esta acción no se puede deshacer.</strong>
+
+          <p>
+            La categoría será eliminada permanentemente.
+          </p>
+        </div>
+
+        <form
+          action="/categories/<%= category.id %>/delete"
+          method="POST"
+          class="form-actions"
+        >
+          <a
+            href="/categories/<%= category.id %>"
+            class="button button-secondary"
+          >
+            Cancelar
+          </a>
+
+          <button type="submit" class="button button-danger">
+            Eliminar categoría
+          </button>
+        </form>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

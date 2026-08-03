@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title><%= title %> | Boxing Inventory</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/" class="logo">Boxing Inventory</a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/">Inicio</a>
+        <a href="/categories">Categorías</a>
+        <a href="/items">Productos</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container page-content">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Inventario</p>
+        <h1>Productos</h1>
+        <p>Consulta todos los productos disponibles en la tienda.</p>
+      </div>
+
+      <a href="/items/new" class="button">
+        Crear producto
+      </a>
+    </div>
+
+    <% if (items.length === 0) { %>
+      <p class="empty-message">
+        No existen productos todavía.
+      </p>
+    <% } else { %>
+      <div class="items-grid">
+        <% items.forEach((item) => { %>
+          <article class="item-card">
+            <div>
+              <span class="brand"><%= item.brand %></span>
+
+              <h2>
+                <a href="/items/<%= item.id %>">
+                  <%= item.name %>
+                </a>
+              </h2>
+
+              <p><%= item.description %></p>
+
+              <a
+                href="/categories/<%= item.category_id %>"
+                class="category-link"
+              >
+                <%= item.category_name %>
+              </a>
+            </div>
+
+            <div class="item-information">
+              <strong>
+                <%= Number(item.price).toLocaleString("es-MX", {
+                  style: "currency",
+                  currency: "MXN"
+                }) %>
+              </strong>
+
+              <% if (item.stock === 0) { %>
+                <span class="stock stock-empty">
+                  Sin existencias
+                </span>
+              <% } else { %>
+                <span class="stock">
+                  <%= item.stock %> disponibles
+                </span>
+              <% } %>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

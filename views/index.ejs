@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title><%= title %></title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/" class="logo">Boxing Inventory</a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/">Inicio</a>
+        <a href="/categories">Categorías</a>
+        <a href="/items">Productos</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <p class="eyebrow">Panel de administración</p>
+      <h1>Inventario de artículos de boxeo</h1>
+      <p>
+        Administra las categorías, productos, precios y existencias
+        de la tienda.
+      </p>
+    </section>
+
+    <section aria-labelledby="summary-title">
+      <h2 id="summary-title">Resumen</h2>
+
+      <div class="summary-grid">
+        <article class="summary-card">
+          <span>Categorías</span>
+          <strong><%= summary.category_count %></strong>
+        </article>
+
+        <article class="summary-card">
+          <span>Productos</span>
+          <strong><%= summary.item_count %></strong>
+        </article>
+
+        <article class="summary-card">
+          <span>Unidades disponibles</span>
+          <strong><%= summary.total_stock %></strong>
+        </article>
+
+        <article class="summary-card">
+          <span>Valor del inventario</span>
+
+          <strong>
+            <%= Number(summary.inventory_value).toLocaleString("es-MX", {
+              style: "currency",
+              currency: "MXN"
+            }) %>
+          </strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="categories-section" aria-labelledby="categories-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="categories-title">Categorías</h2>
+          <p>Selecciona una categoría para consultar sus productos.</p>
+        </div>
+
+        <a href="/categories/new" class="button">
+          Crear categoría
+        </a>
+      </div>
+
+      <% if (categories.length === 0) { %>
+        <p class="empty-message">No existen categorías todavía.</p>
+      <% } else { %>
+        <div class="category-grid">
+          <% categories.forEach((category) => { %>
+            <article class="category-card">
+              <h3>
+                <a href="/categories/<%= category.id %>">
+                  <%= category.name %>
+                </a>
+              </h3>
+
+              <p><%= category.description %></p>
+
+              <span class="badge">
+                <%= category.item_count %>
+                <%= category.item_count === 1 ? "producto" : "productos" %>
+              </span>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>
