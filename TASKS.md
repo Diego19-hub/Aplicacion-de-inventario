@@ -40,7 +40,7 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 2 — Negocios, membresías y roles
 
-- [ ] CRUD de negocios. Criterio: solo `super_admin` administra todos los negocios. Dependencia: Fase 1.
+- [x] Panel inicial de negocios. Criterio: solo `super_admin` crea, consulta, edita, suspende y reactiva negocios sin adquirir membresía empresarial. Dependencia: Fase 1.
 - [x] Membresías y roles por negocio. Criterio: usuario solo accede a negocios activos donde es miembro activo; el rol se valida en servidor. Dependencia: `business_members`.
 - [x] Verificar negocio activo en rutas. Criterio: el middleware valida la membresía en cada solicitud y las consultas incluyen `business_id`. Dependencia: membresías.
 

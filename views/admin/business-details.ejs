@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title><%= title %> | Boxing Inventory</title><link rel="stylesheet" href="/styles.css"></head>
+<body>
+  <header class="main-header"><div class="container header-content"><a href="/admin" class="logo">Boxing Inventory</a><nav aria-label="Administración"><a href="/admin">Panel</a><a href="/admin/businesses">Negocios</a></nav></div></header>
+  <main class="container page-content"><a href="/admin/businesses" class="back-link">← Regresar a negocios</a>
+    <section class="category-header"><div><p class="eyebrow">Negocio #<%= business.id %></p><h1><%= business.name %></h1><p><%= business.slug %> · <span class="badge"><%= business.status %></span></p></div><div class="actions"><a href="/admin/businesses/<%= business.id %>/edit" class="button button-secondary">Editar</a><% if (business.status === "active") { %><a href="/admin/businesses/<%= business.id %>/suspend" class="button button-danger">Suspender</a><% } else if (business.status === "suspended") { %><a href="/admin/businesses/<%= business.id %>/reactivate" class="button">Reactivar</a><% } %></div></section>
+    <section class="item-details"><div class="item-details-main"><h2>Información</h2><dl class="admin-details"><div><dt>Propietario activo</dt><dd><%= business.owner_username ? `${business.owner_username} (${business.owner_email})` : "Sin owner activo" %></dd></div><div><dt>Razón social</dt><dd><%= business.legal_name || "No registrada" %></dd></div><div><dt>RFC o identificación fiscal</dt><dd><%= business.tax_id || "No registrado" %></dd></div><div><dt>Moneda</dt><dd><%= business.currency %></dd></div><div><dt>Zona horaria</dt><dd><%= business.timezone %></dd></div><div><dt>Creado</dt><dd><%= new Date(business.created_at).toLocaleString("es-MX") %></dd></div><div><dt>Actualizado</dt><dd><%= new Date(business.updated_at).toLocaleString("es-MX") %></dd></div></dl></div><aside class="item-details-panel"><dl><div><dt>Miembros</dt><dd><%= business.members_count %></dd></div><div><dt>Categorías</dt><dd><%= business.categories_count %></dd></div><div><dt>Productos</dt><dd><%= business.items_count %></dd></div></dl></aside></section>
+  </main>
+</body>
+</html>

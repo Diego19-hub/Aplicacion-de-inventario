@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Boxing Inventory</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/admin" class="logo">Boxing Inventory</a>
+      <nav aria-label="Administración"><a href="/admin">Panel</a><a href="/admin/businesses">Negocios</a><a href="/admin/businesses/new">Crear negocio</a></nav>
+    </div>
+  </header>
+  <main class="container page-content">
+    <div class="section-heading">
+      <div><p class="eyebrow">Superadministración</p><h1>Negocios</h1><p>Administra información y estado sin acceder a su inventario.</p></div>
+      <a href="/admin/businesses/new" class="button">Crear negocio</a>
+    </div>
+    <form action="/admin/businesses" method="GET" class="inventory-form">
+      <div class="form-row">
+        <div class="form-group"><label for="search">Buscar</label><input id="search" name="search" value="<%= filters.search %>" placeholder="Nombre, slug o propietario"></div>
+        <div class="form-group"><label for="status">Estado</label><select id="status" name="status"><% ["all", "active", "suspended", "archived"].forEach((status) => { %><option value="<%= status %>" <%= filters.status === status ? "selected" : "" %>><%= status === "all" ? "Todos" : status %></option><% }) %></select></div>
+      </div>
+      <div class="form-actions"><button type="submit" class="button">Aplicar filtros</button></div>
+    </form>
+    <% if (businesses.length === 0) { %>
+      <p class="empty-message">No se encontraron negocios con esos filtros.</p>
+    <% } else { %>
+      <div class="admin-table-wrapper"><table class="admin-table"><thead><tr><th>ID</th><th>Negocio</th><th>Propietario activo</th><th>Estado</th><th>Miembros</th><th>Productos</th><th>Creado</th><th>Acciones</th></tr></thead><tbody>
+      <% businesses.forEach((business) => { %><tr><td><%= business.id %></td><td><strong><%= business.name %></strong><br><small><%= business.slug %></small></td><td><%= business.owner_username ? `${business.owner_username} (${business.owner_email})` : "Sin owner activo" %></td><td><span class="badge"><%= business.status %></span></td><td><%= business.active_members %></td><td><%= business.items_count %></td><td><%= new Date(business.created_at).toLocaleDateString("es-MX") %></td><td><a href="/admin/businesses/<%= business.id %>">Ver</a></td></tr><% }) %>
+      </tbody></table></div>
+    <% } %>
+    <% const query = `search=${encodeURIComponent(filters.search)}&status=${encodeURIComponent(filters.status)}`; %>
+    <div class="pagination" aria-label="Paginación"><% if (pagination.hasPrevious) { %><a href="/admin/businesses?<%= query %>&page=<%= pagination.page - 1 %>" class="button button-secondary">Anterior</a><% } %><span>Página <%= pagination.page %> de <%= pagination.totalPages %></span><% if (pagination.hasNext) { %><a href="/admin/businesses?<%= query %>&page=<%= pagination.page + 1 %>" class="button button-secondary">Siguiente</a><% } %></div>
+  </main>
+</body>
+</html>

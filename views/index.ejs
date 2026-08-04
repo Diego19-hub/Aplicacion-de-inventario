@@ -19,6 +19,9 @@
         <a href="/items">Productos</a>
 
         <% if (currentUser) { %>
+          <% if (isSuperAdmin) { %>
+            <a href="/admin">Administración</a>
+          <% } %>
           <span class="current-user">
             Hola, <%= currentUser.username %>
 

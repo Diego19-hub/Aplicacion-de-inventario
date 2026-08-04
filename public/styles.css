@@ -435,6 +435,10 @@ nav a:hover {
   color: #8f96a3;
 }
 
+.form-group .field-error {
+  color: #fecaca;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -608,6 +612,64 @@ button.button {
   font-weight: 800;
 }
 
+.admin-table-wrapper {
+  overflow-x: auto;
+  margin-top: 24px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #30333a;
+  border-radius: 14px;
+  background-color: #1a1d24;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 14px;
+  border-bottom: 1px solid #30333a;
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: #aeb4bf;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.admin-table small,
+.admin-details dt {
+  color: #aeb4bf;
+}
+
+.admin-details {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+}
+
+.admin-details div {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #30333a;
+}
+
+.admin-details dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
 @media (max-width: 560px) {
   .form-row {
     grid-template-columns: 1fr;
@@ -616,6 +678,11 @@ button.button {
   .form-actions {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+
+  .pagination {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .form-actions .button {

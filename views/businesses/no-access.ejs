@@ -9,6 +9,9 @@
 <body>
   <main class="container form-page">
     <section class="form-container">
+      <% if (isSuperAdmin) { %>
+        <a href="/admin" class="button">Administración</a>
+      <% } %>
       <p class="eyebrow">Acceso restringido</p>
       <h1>No tienes acceso a un negocio activo</h1>
       <p class="form-description">

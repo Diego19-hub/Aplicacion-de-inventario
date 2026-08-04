@@ -19,6 +19,14 @@ export function requireAuth(req, res, next) {
   });
 }
 
+export function requireSuperAdmin(req, res, next) {
+  if (req.session.user?.platformRole === "super_admin") {
+    return next();
+  }
+
+  return next(new AppError("No tienes permisos de superadministración.", 403));
+}
+
 export async function requireActiveBusiness(req, res, next) {
   if (!req.session.user) {
     return requireAuth(req, res, next);
@@ -38,7 +46,10 @@ export async function requireActiveBusiness(req, res, next) {
 
     if (!membership) {
       delete req.session.activeBusinessId;
-      return next(new AppError("No tienes acceso al negocio seleccionado.", 403));
+      return req.session.save((error) => {
+        if (error) return next(error);
+        res.redirect("/businesses/select");
+      });
     }
 
     req.business = {

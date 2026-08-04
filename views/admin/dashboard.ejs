@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Boxing Inventory</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/admin" class="logo">Boxing Inventory</a>
+      <nav aria-label="Administración">
+        <a href="/admin">Panel</a>
+        <a href="/admin/businesses">Negocios</a>
+        <a href="/admin/businesses/new">Crear negocio</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container page-content">
+    <section class="hero">
+      <p class="eyebrow">Superadministración</p>
+      <h1>Panel administrativo</h1>
+      <p>Consulta el estado general de los negocios y sus inventarios.</p>
+    </section>
+    <section class="summary-grid" aria-label="Estadísticas administrativas">
+      <article class="summary-card"><span>Negocios</span><strong><%= stats.businesses_total %></strong></article>
+      <article class="summary-card"><span>Activos</span><strong><%= stats.businesses_active %></strong></article>
+      <article class="summary-card"><span>Suspendidos</span><strong><%= stats.businesses_suspended %></strong></article>
+      <article class="summary-card"><span>Archivados</span><strong><%= stats.businesses_archived %></strong></article>
+      <article class="summary-card"><span>Usuarios registrados</span><strong><%= stats.users_total %></strong></article>
+      <article class="summary-card"><span>Membresías activas</span><strong><%= stats.active_memberships %></strong></article>
+      <article class="summary-card"><span>Productos</span><strong><%= stats.items_total %></strong></article>
+    </section>
+  </main>
+</body>
+</html>
