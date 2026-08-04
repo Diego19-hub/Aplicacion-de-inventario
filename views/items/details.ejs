@@ -18,6 +18,8 @@
         <a href="/">Inicio</a>
         <a href="/categories">Categorías</a>
         <a href="/items">Productos</a>
+        <span class="current-user"><%= currentBusiness.name %></span>
+        <a href="/businesses/select">Cambiar negocio</a>
       </nav>
     </div>
   </header>
@@ -84,21 +86,25 @@
           </div>
         </dl>
 
-      <% if (isAdmin) { %>
+      <% if (canManageInventory || canDeleteInventory) { %>
         <div class="details-actions">
+          <% if (canManageInventory) { %>
           <a
             href="/items/<%= item.id %>/edit"
             class="button button-secondary"
           >
             Editar
           </a>
+          <% } %>
 
+          <% if (canDeleteInventory) { %>
           <a
             href="/items/<%= item.id %>/delete"
             class="button button-danger"
           >
             Eliminar
           </a>
+          <% } %>
         </div>
       <% } %>
       </aside>

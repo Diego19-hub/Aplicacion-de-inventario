@@ -14,47 +14,50 @@ import {
 import { itemValidation } from "../middleware/itemValidation.js";
 
 import {
-  requireAdmin
+  requireAuth,
+  requireActiveBusiness,
+  requireBusinessRole
 } from "../middleware/authMiddleware.js";
 
 const itemsRouter = Router();
 
+itemsRouter.use(requireAuth, requireActiveBusiness);
 
 itemsRouter.get(
   "/new",
-  requireAdmin,
+  requireBusinessRole("owner", "admin", "manager"),
   showCreateItemForm
 );
 
 itemsRouter.post(
   "/new",
-  requireAdmin,
+  requireBusinessRole("owner", "admin", "manager"),
   itemValidation,
   addItem
 );
 
 itemsRouter.get(
   "/:id/edit",
-  requireAdmin,
+  requireBusinessRole("owner", "admin", "manager"),
   showEditItemForm
 );
 
 itemsRouter.post(
   "/:id/edit",
-  requireAdmin,
+  requireBusinessRole("owner", "admin", "manager"),
   itemValidation,
   editItem
 );
 
 itemsRouter.get(
   "/:id/delete",
-  requireAdmin,
+  requireBusinessRole("owner", "admin"),
   showDeleteItemPage
 );
 
 itemsRouter.post(
   "/:id/delete",
-  requireAdmin,
+  requireBusinessRole("owner", "admin"),
   removeItem
 );
 

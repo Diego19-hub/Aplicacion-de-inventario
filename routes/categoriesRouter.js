@@ -16,48 +16,52 @@ import {
 } from "../middleware/categoryValidation.js";
 
 import {
-  requireAdmin
+  requireAuth,
+  requireActiveBusiness,
+  requireBusinessRole
 } from "../middleware/authMiddleware.js";
 
 const categoriesRouter = Router();
+
+categoriesRouter.use(requireAuth, requireActiveBusiness);
 
 categoriesRouter.get("/", showCategories);
 
 categoriesRouter.get(
   "/new",
-  requireAdmin,
+  requireBusinessRole("owner", "admin", "manager"),
   showCreateCategoryForm
 );
 
 categoriesRouter.post(
   "/new",
-  requireAdmin,
+  requireBusinessRole("owner", "admin", "manager"),
   categoryValidation,
   addCategory
 );
 
 categoriesRouter.get(
   "/:id/edit",
-  requireAdmin,
+  requireBusinessRole("owner", "admin", "manager"),
   showEditCategoryForm
 );
 
 categoriesRouter.post(
   "/:id/edit",
-  requireAdmin,
+  requireBusinessRole("owner", "admin", "manager"),
   categoryValidation,
   editCategory
 );
 
 categoriesRouter.get(
   "/:id/delete",
-  requireAdmin,
+  requireBusinessRole("owner", "admin"),
   showDeleteCategoryPage
 );
 
 categoriesRouter.post(
   "/:id/delete",
-  requireAdmin,
+  requireBusinessRole("owner", "admin"),
   removeCategory
 );
 

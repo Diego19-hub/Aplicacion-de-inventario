@@ -3,7 +3,7 @@ import pool from "./pool.js";
 export async function findUserByUsername(username) {
   const result = await pool.query(
     `
-      SELECT id, username, email, password_hash, role
+      SELECT id, username, email, password_hash, platform_role
       FROM users
       WHERE LOWER(username) = LOWER($1)
     `,
@@ -16,7 +16,7 @@ export async function findUserByUsername(username) {
 export async function findUserByEmail(email) {
   const result = await pool.query(
     `
-      SELECT id, username, email, password_hash, role
+      SELECT id, username, email, password_hash, platform_role
       FROM users
       WHERE LOWER(email) = LOWER($1)
     `,
@@ -31,7 +31,7 @@ export async function createUser({ username, email, passwordHash }) {
     `
       INSERT INTO users (username, email, password_hash)
       VALUES ($1, $2, $3)
-      RETURNING id, username, email, role, created_at
+      RETURNING id, username, email, platform_role, created_at
     `,
     [username, email, passwordHash]
   );
@@ -42,7 +42,7 @@ export async function createUser({ username, email, passwordHash }) {
 export async function findUserByIdentifier(identifier) {
   const result = await pool.query(
     `
-      SELECT id, username, email, password_hash, role
+      SELECT id, username, email, password_hash, platform_role
       FROM users
       WHERE
         LOWER(username) = LOWER($1)

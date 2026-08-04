@@ -10,6 +10,7 @@ import {
   findUserByIdentifier,
   createUser
 } from "../db/authQueries.js";
+import { getActiveBusinessesForUser } from "../db/businessQueries.js";
 
 
 function regenerateSession(req) {
@@ -28,6 +29,22 @@ function saveSession(req) {
       else resolve();
     });
   });
+}
+
+async function redirectAfterAuthentication(req, res) {
+  const businesses = await getActiveBusinessesForUser(req.session.user.id);
+
+  if (businesses.length === 0) {
+    return res.redirect("/businesses/no-access");
+  }
+
+  if (businesses.length === 1) {
+    req.session.activeBusinessId = businesses[0].id;
+    await saveSession(req);
+    return res.redirect(req.session.returnTo || "/");
+  }
+
+  return res.redirect("/businesses/select");
 }
 
 export function showRegisterForm(req, res) {
@@ -103,20 +120,17 @@ export async function registerUser(req, res, next) {
       passwordHash
     });
 
-    const returnTo = req.session.returnTo || "/";
-
     await regenerateSession(req);
 
     req.session.user = {
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      platformRole: user.platform_role
     };
 
     await saveSession(req);
-
-    res.redirect(returnTo);
+    return redirectAfterAuthentication(req, res);
   } catch (error) {
     if (error.code === "23505") {
       return res.status(409).render("auth/register", {
@@ -203,18 +217,21 @@ export async function loginUser(req, res, next) {
       });
     }
 
+    const returnTo = req.session.returnTo || "/";
+
     await regenerateSession(req);
 
     req.session.user = {
       id: user.id,
       username: user.username,
       email: user.email,
-      role: user.role
+      platformRole: user.platform_role
     };
 
-    await saveSession(req);
+    req.session.returnTo = returnTo;
 
-    res.redirect("/");
+    await saveSession(req);
+    return redirectAfterAuthentication(req, res);
   } catch (error) {
     next(error);
   }

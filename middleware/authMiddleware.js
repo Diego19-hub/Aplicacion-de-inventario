@@ -1,4 +1,5 @@
 import AppError from "../utils/AppError.js";
+import { getActiveBusinessMembership } from "../db/businessQueries.js";
 
 export function requireAuth(req, res, next) {
   if (req.session.user) {
@@ -18,19 +19,66 @@ export function requireAuth(req, res, next) {
   });
 }
 
-export function requireAdmin(req, res, next) {
+export async function requireActiveBusiness(req, res, next) {
   if (!req.session.user) {
     return requireAuth(req, res, next);
   }
 
-  if (req.session.user.role !== "admin") {
-    return next(
-      new AppError(
-        "No tienes permisos para realizar esta acción.",
-        403
-      )
-    );
+  const businessId = Number(req.session.activeBusinessId);
+
+  if (!Number.isInteger(businessId) || businessId < 1) {
+    return res.redirect("/businesses/select");
   }
 
-  next();
+  try {
+    const membership = await getActiveBusinessMembership(
+      req.session.user.id,
+      businessId
+    );
+
+    if (!membership) {
+      delete req.session.activeBusinessId;
+      return next(new AppError("No tienes acceso al negocio seleccionado.", 403));
+    }
+
+    req.business = {
+      id: membership.id,
+      name: membership.name,
+      slug: membership.slug,
+      currency: membership.currency,
+      timezone: membership.timezone,
+      status: membership.status
+    };
+    req.membership = {
+      id: membership.membership_id,
+      role: membership.role,
+      status: membership.membership_status
+    };
+    res.locals.currentBusiness = req.business;
+    res.locals.currentMembership = req.membership;
+    res.locals.canManageInventory = ["owner", "admin", "manager"].includes(
+      req.membership.role
+    );
+    res.locals.canDeleteInventory = ["owner", "admin"].includes(
+      req.membership.role
+    );
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function requireBusinessRole(...roles) {
+  return (req, res, next) => {
+    if (!req.membership) {
+      return next(new AppError("Selecciona un negocio activo antes de continuar.", 403));
+    }
+
+    if (!roles.includes(req.membership.role)) {
+      return next(new AppError("No tienes permisos para realizar esta acción.", 403));
+    }
+
+    next();
+  };
 }

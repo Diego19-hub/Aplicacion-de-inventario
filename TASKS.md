@@ -32,21 +32,19 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ### Diseño técnico
 
-### Diseño técnico
-
 - [x] Diseñar `businesses`, `business_members` y `business_invitations`. Criterio: relaciones, restricciones, roles, estados, índices, RLS y migraciones revisadas y probadas localmente. Dependencia: reglas empresariales aprobadas.
-- [~] Definir alcance por `business_id`. Criterio: cada tabla, consulta y operación de dominio queda aislada por negocio. Dependencia: middleware de negocio activo y adaptación de consultas.
+- [x] Definir alcance por `business_id`. Criterio: categorías, productos y consultas del inventario quedan aislados por negocio activo. Dependencia: middleware de negocio activo y adaptación de consultas.
 - [x] Planificar migración del MVP. Criterio: migración y rollback probados en una base local desechable, sin modificar producción. Dependencia: esquema multiempresa revisado.
 
 ## Fase 2 — Negocios, membresías y roles
 
 - [ ] CRUD de negocios. Criterio: solo `super_admin` administra todos los negocios. Dependencia: Fase 1.
-- [ ] Membresías y roles por negocio. Criterio: usuario solo accede a negocios donde es miembro. Dependencia: `business_members`.
-- [ ] Verificar negocio activo en rutas. Criterio: URLs manipuladas no permiten acceso cruzado. Dependencia: membresías.
+- [x] Membresías y roles por negocio. Criterio: usuario solo accede a negocios activos donde es miembro activo; el rol se valida en servidor. Dependencia: `business_members`.
+- [x] Verificar negocio activo en rutas. Criterio: el middleware valida la membresía en cada solicitud y las consultas incluyen `business_id`. Dependencia: membresías.
 
 ## Fase 3 — Productos, SKU, búsqueda, filtros y listado general
 
-- [ ] Migrar productos y categorías a `business_id`. Criterio: consultas y restricciones aíslan datos. Dependencia: Fase 2.
+- [x] Migrar productos y categorías a `business_id`. Criterio: todas las consultas CRUD incluyen el negocio activo y los recursos ajenos responden 404. Dependencia: Fase 2.
 - [ ] Añadir SKU único por negocio. Criterio: índice compuesto `(business_id, sku)` y validación. Dependencia: productos multiempresa.
 - [ ] Búsqueda, filtros y paginación. Criterio: filtra por nombre, SKU y categoría sin mezclar negocios. Dependencia: índices.
 
@@ -70,7 +68,7 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 7 — Experiencia de usuario y diseño
 
-- [ ] Selector de negocio y estados de permiso. Criterio: interfaz identifica negocio activo y acciones permitidas. Dependencia: Fase 2.
+- [x] Selector de negocio y estados de permiso. Criterio: la interfaz identifica el negocio activo y muestra únicamente las acciones permitidas por rol. Dependencia: Fase 2.
 - [ ] Accesibilidad y formularios. Criterio: errores claros, teclado y diseño adaptable. Dependencia: flujos estabilizados.
 
 ## Fase 8 — Decidir frontend entre EJS, React y Astro
@@ -80,6 +78,6 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 9 — Pruebas, seguridad y producción
 
-- [ ] Pruebas de rutas, autorización y aislamiento. Criterio: acceso cruzado falla y flujos permitidos pasan. Dependencia: Fase 2.
+- [~] Pruebas de rutas, autorización y aislamiento. Criterio: falta automatizar los flujos de roles, negocio múltiple y sesión manipulada; las comprobaciones estáticas ya pasan. Dependencia: Fase 2.
 - [ ] Revisar migraciones, índices y consultas. Criterio: seguridad y rendimiento revisados antes de producción. Dependencia: esquema final.
 - [ ] Preparar Vercel/Supabase. Criterio: entorno, migraciones, sesiones, backups y monitoreo verificados fuera de producción. Dependencia: pruebas completas.

@@ -6,8 +6,8 @@ import {
 export async function showHomePage(req, res, next) {
   try {
     const [summary, categories] = await Promise.all([
-      getInventorySummary(),
-      getAllCategories()
+      getInventorySummary(req.business.id),
+      getAllCategories(req.business.id)
     ]);
 
     res.render("index", {

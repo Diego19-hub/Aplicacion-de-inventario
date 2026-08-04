@@ -11,6 +11,7 @@ import indexRouter from "./routes/indexRouter.js";
 import categoriesRouter from "./routes/categoriesRouter.js";
 import itemsRouter from "./routes/itemsRouter.js";
 import authRouter from "./routes/authRouter.js";
+import businessesRouter from "./routes/businessesRouter.js";
 
 import {
   notFoundHandler,
@@ -97,13 +98,17 @@ app.use((req, res, next) => {
   const currentUser = req.session.user ?? null;
 
   res.locals.currentUser = currentUser;
-  res.locals.isAdmin = currentUser?.role === "admin";
+  res.locals.currentBusiness = null;
+  res.locals.currentMembership = null;
+  res.locals.canManageInventory = false;
+  res.locals.canDeleteInventory = false;
 
   next();
 });
 
 app.use("/", indexRouter);
 app.use("/auth", authRouter);
+app.use("/businesses", businessesRouter);
 app.use("/categories", categoriesRouter);
 app.use("/items", itemsRouter);
 

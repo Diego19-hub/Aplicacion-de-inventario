@@ -22,10 +22,13 @@
           <span class="current-user">
             Hola, <%= currentUser.username %>
 
-            <% if (isAdmin) { %>
-              (Administrador)
+            <% if (currentMembership) { %>
+              (<%= currentMembership.role %>)
             <% } %>
           </span>
+
+          <span class="current-user"><%= currentBusiness.name %></span>
+          <a href="/businesses/select">Cambiar negocio</a>
 
           <form
             action="/auth/logout"
@@ -98,7 +101,7 @@
           <p>Selecciona una categoría para consultar sus productos.</p>
         </div>
 
-        <% if (isAdmin) { %>
+        <% if (canManageInventory) { %>
           <a href="/categories/new" class="button">
             Crear categoría
           </a>
