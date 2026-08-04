@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import helmet from "helmet";
 
 import pool from "./db/pool.js";
 
@@ -14,12 +15,21 @@ import {
   notFoundHandler,
   errorHandler
 } from "./middleware/errorMiddleware.js";
-import helmet from "helmet";
-
 
 const app = express();
+
 const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === "production";
+const sessionSecret = process.env.SESSION_SECRET;
+
+// Comprobación segura: no muestra el valor del secreto
+console.log("SESSION_SECRET configurado:", Boolean(sessionSecret));
+
+if (!sessionSecret) {
+  throw new Error(
+    "Falta SESSION_SECRET. Configúrala en las variables de entorno."
+  );
+}
 
 if (isProduction) {
   app.set("trust proxy", 1);
@@ -55,7 +65,7 @@ app.use(
   session({
     store: sessionStore,
     name: "boxing_inventory_session",
-    secret: process.env.SESSION_SECRET,
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -84,6 +94,12 @@ app.use("/items", itemsRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-});
+// Solo abre un puerto cuando se ejecuta localmente
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+  });
+}
+
+// Vercel utiliza esta exportación
+export default app;
