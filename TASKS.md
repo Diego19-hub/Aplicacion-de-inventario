@@ -20,9 +20,21 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 1 — Diseñar el modelo multiempresa
 
-- [ ] Diseñar `businesses` y `business_members`. Criterio: relaciones, restricciones, índices y migraciones revisadas. Dependencia: Fase 0.
-- [ ] Definir alcance por `business_id`. Criterio: cada tabla y consulta de dominio queda aislada por negocio. Dependencia: modelo de negocios.
-- [ ] Planificar migración del MVP. Criterio: respaldo y migración local revisados. Dependencia: esquema válido.
+### Reglas aprobadas
+
+- [x] Definir creación de negocios. Solo `super_admin` puede crear, suspender, archivar y cambiar al propietario principal.
+- [x] Definir propiedad. Cada negocio tiene un propietario principal y una cuenta puede pertenecer a varios negocios.
+- [x] Definir incorporación de empleados. El propietario invita usuarios con roles empresariales.
+- [x] Definir vigencia de invitaciones. Las invitaciones expiran 30 días después de su creación.
+- [x] Definir acceso inicial. El registro público crea una cuenta, pero no concede acceso a ningún inventario.
+- [x] Definir configuración predeterminada. Moneda `MXN` y zona horaria `America/Mexico_City`.
+- [x] Definir suspensión. Los negocios suspendidos conservan sus datos, pero no permiten modificaciones.
+
+### Diseño técnico
+
+- [~] Diseñar `businesses`, `business_members` y `business_invitations`. Criterio: relaciones, restricciones, roles, estados, índices y migraciones revisadas. Dependencia: reglas empresariales aprobadas.
+- [~] Definir alcance por `business_id`. Criterio: cada tabla, consulta y operación de dominio queda aislada por negocio. Dependencia: modelo de negocios.
+- [ ] Planificar migración del MVP. Criterio: respaldo, migración de datos existentes, rollback y pruebas locales documentados. Dependencia: esquema multiempresa revisado.
 
 ## Fase 2 — Negocios, membresías y roles
 
