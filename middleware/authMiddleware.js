@@ -56,10 +56,10 @@ export async function requireActiveBusiness(req, res, next) {
     };
     res.locals.currentBusiness = req.business;
     res.locals.currentMembership = req.membership;
-    res.locals.canManageInventory = ["owner", "admin", "manager"].includes(
+    res.locals.canManageInventory = ["owner", "manager"].includes(
       req.membership.role
     );
-    res.locals.canDeleteInventory = ["owner", "admin"].includes(
+    res.locals.canDeleteInventory = ["owner"].includes(
       req.membership.role
     );
 

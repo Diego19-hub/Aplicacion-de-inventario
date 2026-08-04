@@ -25,39 +25,39 @@ itemsRouter.use(requireAuth, requireActiveBusiness);
 
 itemsRouter.get(
   "/new",
-  requireBusinessRole("owner", "admin", "manager"),
+  requireBusinessRole("owner", "manager"),
   showCreateItemForm
 );
 
 itemsRouter.post(
   "/new",
-  requireBusinessRole("owner", "admin", "manager"),
+  requireBusinessRole("owner", "manager"),
   itemValidation,
   addItem
 );
 
 itemsRouter.get(
   "/:id/edit",
-  requireBusinessRole("owner", "admin", "manager"),
+  requireBusinessRole("owner", "manager"),
   showEditItemForm
 );
 
 itemsRouter.post(
   "/:id/edit",
-  requireBusinessRole("owner", "admin", "manager"),
+  requireBusinessRole("owner", "manager"),
   itemValidation,
   editItem
 );
 
 itemsRouter.get(
   "/:id/delete",
-  requireBusinessRole("owner", "admin"),
+  requireBusinessRole("owner"),
   showDeleteItemPage
 );
 
 itemsRouter.post(
   "/:id/delete",
-  requireBusinessRole("owner", "admin"),
+  requireBusinessRole("owner"),
   removeItem
 );
 

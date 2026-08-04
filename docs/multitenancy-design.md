@@ -11,13 +11,13 @@ users ──< business_invitations (invited_by) >── businesses
 businesses ──< categories ──< items
 ```
 
-`users.platform_role` expresa privilegios globales: `user` o `super_admin`. `business_members.role` expresa permisos en un negocio: `owner`, `admin`, `manager`, `employee` o `viewer`. No se usará el rol global para decidir permisos cotidianos dentro de un negocio.
+`users.platform_role` expresa privilegios globales: `user` o `super_admin`. `business_members.role` expresa permisos en un negocio: `owner`, `manager` o `viewer`. No se usará el rol global para decidir permisos cotidianos dentro de un negocio ni para conceder acceso automático a un negocio.
 
 ### Tablas propuestas
 
 - `businesses`: nombre, `slug` único, datos legales opcionales, moneda `MXN`, zona `America/Mexico_City`, estado `active`/`suspended`/`archived`, creador y marcas de tiempo.
-- `business_members`: asociación única `(business_id, user_id)`, rol, estado `active`/`suspended`/`removed`, fechas de ingreso y creación. Un índice parcial garantiza como máximo un `owner` activo por negocio.
-- `business_invitations`: correo en minúsculas, rol ofrecido sin `owner`, hash de token, invitador, estado `pending`/`accepted`/`revoked`/`expired`, vencimiento de 30 días y fecha de aceptación.
+- `business_members`: asociación única `(business_id, user_id)`, rol `owner`/`manager`/`viewer`, estado `active`/`suspended`/`removed`, fechas de ingreso y creación. Un índice parcial garantiza como máximo un `owner` activo por negocio.
+- `business_invitations`: correo en minúsculas, rol ofrecido `manager`/`viewer` (sin `owner`), hash de token, invitador, estado `pending`/`accepted`/`revoked`/`expired`, vencimiento de 30 días y fecha de aceptación.
 
 Las tres tablas nuevas habilitan RLS sin `FORCE ROW LEVEL SECURITY` y no tienen políticas públicas en esta fase. Si los roles `anon` o `authenticated` existen, la migración revoca sus privilegios sobre estas tablas. La aplicación seguirá usando conexión PostgreSQL privada; las políticas RLS por negocio se diseñarán junto con una futura exposición de Data API.
 
@@ -27,6 +27,8 @@ Las tres tablas nuevas habilitan RLS sin `FORCE ROW LEVEL SECURITY` y no tienen 
 - Un negocio suspendido o archivado conserva sus datos. Un middleware futuro deberá negar mutaciones antes de llegar a controllers o consultas.
 - Solo `owner` invita miembros y modifica roles empresariales. Un `owner` no puede crear otro `owner`; solo `super_admin` puede transferir la propiedad principal.
 - El registro público crea `users` con `platform_role = 'user'`; no crea membresías ni concede acceso a inventarios.
+- Una cuenta registrada sin membresía no es `viewer`: no tiene acceso a ningún inventario hasta tener una membresía activa.
+- `viewer` solo consulta; `manager` consulta, crea y edita categorías y productos; `owner` conserva además la eliminación actual.
 - Los tokens de invitación se generan con aleatoriedad criptográfica, son de un solo uso y solo se persiste su hash SHA-256.
 - Una invitación se acepta solo con `status = 'pending'`, `expires_at > CURRENT_TIMESTAMP` y correo igual al de la cuenta autenticada.
 - Al listar, crear o aceptar invitaciones, la aplicación marcará de forma diferida las vencidas como `expired`; la primera versión no requiere un job.
@@ -49,6 +51,8 @@ La migración habilita RLS solo en `businesses`, `business_members` y `business_
 6. Convertir las columnas a `NOT NULL`, reemplazar la unicidad global de categoría por `(business_id, lower(name))` y añadir claves foráneas directas y compuestas.
 7. Conservar IDs, nombres, precios, existencias, relaciones y fechas existentes.
 
+La migración `002_simplify_business_roles_up.sql` convierte los roles empresariales anteriores `admin` a `manager` y `employee` a `viewer`, tanto en membresías como en invitaciones. Después restringe las membresías a `owner`/`manager`/`viewer` y las invitaciones a `manager`/`viewer`. Su rollback solo amplía de nuevo las restricciones: no puede recuperar cuál fila era `admin` o `employee`.
+
 El borrador `up` es transaccional y usa límites de bloqueo y de consulta para el MVP actual. Para bases grandes se requerirá una estrategia por etapas porque `ALTER TABLE`, índices no concurrentes y validaciones pueden adquirir bloqueos.
 
 ## Restricciones e índices
@@ -67,9 +71,10 @@ El borrador `up` es transaccional y usa límites de bloqueo y de consulta para e
 ## Riesgos e incompatibilidades actuales
 
 - `db/schema.sql` define `categories.name` como único global y no tiene `business_id`; las consultas actuales tampoco lo filtran. Por eso no se modifica ese archivo ni Express en esta tarea.
-- El rol actual `users.role` solo admite `user` y `admin`; `super_admin` no cabe en `VARCHAR(10)`, por lo que la migración lo amplía antes de convertir datos.
+- Antes de `001`, `users.role` solo admitía `user` y `admin`; `super_admin` no cabe en `VARCHAR(10)`, por lo que esa migración amplía el tipo antes de convertir datos.
 - Las rutas actuales editan `items.stock` directamente; esto contradice el modelo futuro de movimientos y queda fuera del alcance de esta migración.
-- La aplicación actual no guarda un negocio activo ni comprueba membresías; aplicar el SQL sin la siguiente fase no crea aislamiento efectivo por sí solo.
+- El middleware valida el negocio activo y la membresía en cada solicitud; el valor de sesión por sí solo no autoriza acceso.
+- El archivado de productos sigue pendiente y deberá ser una operación exclusiva de `owner`; la eliminación actual no se modifica en esta etapa.
 - El índice parcial de invitaciones requiere transicionar invitaciones vencidas a `expired` antes de reemitirlas; no se incluye un job en este alcance.
 - Un trigger PostgreSQL actualiza `businesses.updated_at`; no usa `SECURITY DEFINER`.
 - Con RLS habilitado y sin políticas, una futura cuenta privada que no sea propietaria de las tablas necesitará políticas o una estrategia de rol antes de acceder a ellas.

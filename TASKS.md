@@ -9,6 +9,8 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 - ID interno único para productos y SKU visible único dentro de cada negocio.
 - El stock cambia por movimientos, no por edición directa.
 - La migración a Astro no está aprobada.
+- Los roles empresariales definitivos son `viewer`, `manager` y `owner`; `super_admin` es únicamente un rol global.
+- El archivado de productos será una tarea futura exclusiva para `owner`; la eliminación actual se conserva hasta entonces.
 
 ## Fase 0 — Estabilizar y documentar el MVP actual
 
@@ -47,6 +49,8 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 - [x] Migrar productos y categorías a `business_id`. Criterio: todas las consultas CRUD incluyen el negocio activo y los recursos ajenos responden 404. Dependencia: Fase 2.
 - [ ] Añadir SKU único por negocio. Criterio: índice compuesto `(business_id, sku)` y validación. Dependencia: productos multiempresa.
 - [ ] Búsqueda, filtros y paginación. Criterio: filtra por nombre, SKU y categoría sin mezclar negocios. Dependencia: índices.
+- [x] Simplificar roles empresariales a `viewer`, `manager` y `owner`. Criterio: esquema, middleware, invitaciones y vistas utilizan únicamente estos tres roles.
+- [ ] Implementar archivado de productos exclusivo para `owner`. Criterio: permite archivar, consultar, filtrar y restaurar productos sin borrarlos físicamente. Dependencia: modelo de archivado y auditoría definidos.
 
 ## Fase 4 — Movimientos de inventario y existencias
 

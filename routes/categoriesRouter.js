@@ -29,39 +29,39 @@ categoriesRouter.get("/", showCategories);
 
 categoriesRouter.get(
   "/new",
-  requireBusinessRole("owner", "admin", "manager"),
+  requireBusinessRole("owner", "manager"),
   showCreateCategoryForm
 );
 
 categoriesRouter.post(
   "/new",
-  requireBusinessRole("owner", "admin", "manager"),
+  requireBusinessRole("owner", "manager"),
   categoryValidation,
   addCategory
 );
 
 categoriesRouter.get(
   "/:id/edit",
-  requireBusinessRole("owner", "admin", "manager"),
+  requireBusinessRole("owner", "manager"),
   showEditCategoryForm
 );
 
 categoriesRouter.post(
   "/:id/edit",
-  requireBusinessRole("owner", "admin", "manager"),
+  requireBusinessRole("owner", "manager"),
   categoryValidation,
   editCategory
 );
 
 categoriesRouter.get(
   "/:id/delete",
-  requireBusinessRole("owner", "admin"),
+  requireBusinessRole("owner"),
   showDeleteCategoryPage
 );
 
 categoriesRouter.post(
   "/:id/delete",
-  requireBusinessRole("owner", "admin"),
+  requireBusinessRole("owner"),
   removeCategory
 );
 
