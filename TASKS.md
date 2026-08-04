@@ -32,9 +32,11 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ### Diseño técnico
 
-- [~] Diseñar `businesses`, `business_members` y `business_invitations`. Criterio: relaciones, restricciones, roles, estados, índices y migraciones revisadas. Dependencia: reglas empresariales aprobadas.
-- [~] Definir alcance por `business_id`. Criterio: cada tabla, consulta y operación de dominio queda aislada por negocio. Dependencia: modelo de negocios.
-- [ ] Planificar migración del MVP. Criterio: respaldo, migración de datos existentes, rollback y pruebas locales documentados. Dependencia: esquema multiempresa revisado.
+### Diseño técnico
+
+- [x] Diseñar `businesses`, `business_members` y `business_invitations`. Criterio: relaciones, restricciones, roles, estados, índices, RLS y migraciones revisadas y probadas localmente. Dependencia: reglas empresariales aprobadas.
+- [~] Definir alcance por `business_id`. Criterio: cada tabla, consulta y operación de dominio queda aislada por negocio. Dependencia: middleware de negocio activo y adaptación de consultas.
+- [x] Planificar migración del MVP. Criterio: migración y rollback probados en una base local desechable, sin modificar producción. Dependencia: esquema multiempresa revisado.
 
 ## Fase 2 — Negocios, membresías y roles
 
