@@ -23,8 +23,6 @@ const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === "production";
 const sessionSecret = process.env.SESSION_SECRET;
 
-// Comprobación segura: no muestra el valor del secreto
-console.log("SESSION_SECRET configurado:", Boolean(sessionSecret));
 
 if (!sessionSecret) {
   throw new Error(

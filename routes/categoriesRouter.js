@@ -11,20 +11,55 @@ import {
   removeCategory
 } from "../controllers/categoriesController.js";
 
-import { categoryValidation } from "../middleware/categoryValidation.js";
+import {
+  categoryValidation
+} from "../middleware/categoryValidation.js";
+
+import {
+  requireAdmin
+} from "../middleware/authMiddleware.js";
 
 const categoriesRouter = Router();
 
 categoriesRouter.get("/", showCategories);
 
-categoriesRouter.get("/new", showCreateCategoryForm);
-categoriesRouter.post("/new", categoryValidation, addCategory);
+categoriesRouter.get(
+  "/new",
+  requireAdmin,
+  showCreateCategoryForm
+);
 
-categoriesRouter.get("/:id/edit", showEditCategoryForm);
-categoriesRouter.post("/:id/edit", categoryValidation, editCategory);
+categoriesRouter.post(
+  "/new",
+  requireAdmin,
+  categoryValidation,
+  addCategory
+);
 
-categoriesRouter.get("/:id/delete", showDeleteCategoryPage);
-categoriesRouter.post("/:id/delete", removeCategory);
+categoriesRouter.get(
+  "/:id/edit",
+  requireAdmin,
+  showEditCategoryForm
+);
+
+categoriesRouter.post(
+  "/:id/edit",
+  requireAdmin,
+  categoryValidation,
+  editCategory
+);
+
+categoriesRouter.get(
+  "/:id/delete",
+  requireAdmin,
+  showDeleteCategoryPage
+);
+
+categoriesRouter.post(
+  "/:id/delete",
+  requireAdmin,
+  removeCategory
+);
 
 categoriesRouter.get("/:id", showCategory);
 

@@ -14,9 +14,9 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 - [x] Documentar arquitectura, stack, seguridad y estado real. Criterio: README y AGENTS describen solo código verificado. Dependencia: ninguna.
 - [x] Verificar CSRF actual. Criterio: `csrf-sync` instalado, middleware tras parser y sesión, siete POST con `_csrf`. Dependencia: sesiones Express.
-- [!] Corregir `db/schema.sql`: contiene JavaScript y no es SQL válido. Criterio: ejecuta como SQL sin código ajeno. Dependencia: revisar el flujo actual de esquema.
-- [ ] Alinear autorización de categorías con la política MVP. Criterio: cada mutación exige el permiso previsto del lado servidor. Dependencia: definición de permisos.
-- [ ] Retirar diagnósticos no necesarios en producción. Criterio: ningún secreto ni estado de secretos se registra. Dependencia: ninguna.
+- [x] Corregir `db/schema.sql`. Criterio: contiene únicamente SQL válido y se ejecuta correctamente contra la base local. Dependencia: ninguna.
+- [x] Alinear autorización de categorías con la política MVP. Criterio: crear, editar y eliminar categorías exige `requireAdmin` del lado servidor. Dependencia: middleware de autenticación.
+- [x] Retirar diagnósticos no necesarios en producción. Criterio: se eliminó el log temporal de `SESSION_SECRET` y se conservó la validación de configuración. Dependencia: ninguna.
 
 ## Fase 1 — Diseñar el modelo multiempresa
 

@@ -22,16 +22,3 @@ CREATE TABLE IF NOT EXISTS items (
 
 CREATE INDEX IF NOT EXISTS items_category_id_index
 ON items(category_id);
-
-export async function createCategory(name, description) {
-  const result = await pool.query(
-    `
-      INSERT INTO categories (name, description)
-      VALUES ($1, $2)
-      RETURNING id, name, description, created_at
-    `,
-    [name, description]
-  );
-
-  return result.rows[0];
-}
