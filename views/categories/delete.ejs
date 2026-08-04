@@ -81,6 +81,11 @@
           method="POST"
           class="form-actions"
         >
+          <input
+            type="hidden"
+            name="_csrf"
+            value="<%= csrfToken %>"
+          >
           <a
             href="/categories/<%= category.id %>"
             class="button button-secondary"

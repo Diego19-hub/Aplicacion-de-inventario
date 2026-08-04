@@ -32,6 +32,11 @@
             method="POST"
             class="logout-form"
           >
+            <input
+              type="hidden"
+              name="_csrf"
+              value="<%= csrfToken %>"
+            >
             <button type="submit" class="logout-button">
               Cerrar sesión
             </button>

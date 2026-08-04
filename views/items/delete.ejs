@@ -80,6 +80,11 @@
         method="POST"
         class="form-actions"
       >
+        <input
+          type="hidden"
+          name="_csrf"
+          value="<%= csrfToken %>"
+        >
         <a
           href="/items/<%= item.id %>"
           class="button button-secondary"

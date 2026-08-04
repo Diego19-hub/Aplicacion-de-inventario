@@ -91,6 +91,11 @@
           method="POST"
           class="inventory-form"
         >
+          <input
+            type="hidden"
+            name="_csrf"
+            value="<%= csrfToken %>"
+          >
           <div class="form-group">
             <label for="name">Nombre</label>
 

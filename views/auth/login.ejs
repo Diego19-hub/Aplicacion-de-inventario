@@ -51,6 +51,11 @@
         method="POST"
         class="inventory-form"
       >
+        <input
+          type="hidden"
+          name="_csrf"
+          value="<%= csrfToken %>"
+        >
         <div class="form-group">
           <label for="identifier">Usuario o correo</label>
 

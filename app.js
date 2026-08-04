@@ -3,6 +3,7 @@ import express from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import helmet from "helmet";
+import { csrfSync } from "csrf-sync";
 
 import pool from "./db/pool.js";
 
@@ -55,6 +56,17 @@ const sessionStore = new PostgreSQLStore({
   createTableIfMissing: true
 });
 
+const {
+  csrfSynchronisedProtection
+} = csrfSync({
+  getTokenFromRequest: (req) => {
+    return (
+      req.body?._csrf ??
+      req.headers["x-csrf-token"]
+    );
+  }
+});
+
 app.set("view engine", "ejs");
 
 app.use(express.urlencoded({ extended: true }));
@@ -76,6 +88,12 @@ app.use(
     }
   })
 );
+app.use(csrfSynchronisedProtection);
+
+app.use((req, res, next) => {
+  res.locals.csrfToken = req.csrfToken();
+  next();
+});
 
 app.use((req, res, next) => {
   const currentUser = req.session.user ?? null;
