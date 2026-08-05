@@ -1,13 +1,50 @@
 import { validationResult, matchedData } from "express-validator";
 import AppError from "../utils/AppError.js";
 import {
-  getAllItems,
+  getPaginatedItems,
+  countFilteredItems,
   getItemById,
   getAllCategories,
   createItem,
   updateItem,
   deleteItem
 } from "../db/queries.js";
+
+const ITEMS_PER_PAGE = 12;
+
+function readListFilters(query) {
+  const text = typeof query.q === "string" ? query.q.trim().slice(0, 100) : "";
+  const categoryValue = typeof query.category === "string" ? query.category.trim() : "";
+  const categoryId = categoryValue === ""
+    ? null
+    : /^[1-9]\d{0,8}$/.test(categoryValue) && Number.isSafeInteger(Number(categoryValue))
+      ? Number(categoryValue)
+      : -1;
+  const pageValue = typeof query.page === "string" ? query.page : "";
+  const page = /^[1-9]\d{0,5}$/.test(pageValue) ? Number(pageValue) : 1;
+  return { categoryId, page, query: text };
+}
+
+function paginationPages(currentPage, totalPages) {
+  const visible = new Set([1, totalPages]);
+  for (let page = currentPage - 2; page <= currentPage + 2; page += 1) {
+    if (page >= 1 && page <= totalPages) visible.add(page);
+  }
+
+  const pages = [...visible].sort((first, second) => first - second);
+  return pages.flatMap((page, index) => (
+    index > 0 && page - pages[index - 1] > 1 ? [null, page] : [page]
+  ));
+}
+
+function itemsUrl({ query, categoryId, page }) {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (categoryId !== null) params.set("category", String(categoryId));
+  if (page > 1) params.set("page", String(page));
+  const queryString = params.toString();
+  return queryString ? `/items?${queryString}` : "/items";
+}
 
 function itemFormValues(item = {}) {
   return {
@@ -24,8 +61,35 @@ function itemFormValues(item = {}) {
 
 export async function showItems(req, res, next) {
   try {
-    const items = await getAllItems(req.business.id);
-    res.render("items/index", { title: "Productos", items });
+    const filters = readListFilters(req.query);
+    const totalItems = await countFilteredItems({
+      businessId: req.business.id,
+      query: filters.query,
+      categoryId: filters.categoryId
+    });
+    const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    const page = Math.min(filters.page, totalPages);
+    const [items, categories] = await Promise.all([
+      getPaginatedItems({
+        businessId: req.business.id,
+        query: filters.query,
+        categoryId: filters.categoryId,
+        limit: ITEMS_PER_PAGE,
+        offset: (page - 1) * ITEMS_PER_PAGE
+      }),
+      getAllCategories(req.business.id)
+    ]);
+    const currentFilters = { ...filters, page };
+    res.render("items/index", {
+      title: "Productos",
+      items,
+      categories,
+      totalItems,
+      hasFilters: Boolean(filters.query) || filters.categoryId !== null,
+      filters: currentFilters,
+      pagination: { page, totalPages, pages: paginationPages(page, totalPages) },
+      itemsUrl
+    });
   } catch (error) {
     next(error);
   }

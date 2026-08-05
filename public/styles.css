@@ -670,6 +670,36 @@ button.button {
   margin-top: 24px;
 }
 
+.item-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) auto;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid #30333a;
+  border-radius: 14px;
+  background-color: #1a1d24;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.results-count {
+  color: #aeb4bf;
+}
+
+.pagination-current {
+  cursor: default;
+}
+
+.pagination-ellipsis {
+  color: #aeb4bf;
+  font-weight: 700;
+}
+
 @media (max-width: 560px) {
   .form-row {
     grid-template-columns: 1fr;
@@ -683,6 +713,10 @@ button.button {
   .pagination {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .item-filters {
+    grid-template-columns: 1fr;
   }
 
   .form-actions .button {

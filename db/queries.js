@@ -120,7 +120,26 @@ export async function deleteCategory(id, businessId) {
   return result.rows[0];
 }
 
-export async function getAllItems(businessId) {
+function itemListFilters({ businessId, query, categoryId }) {
+  const values = [businessId];
+  const filters = ["items.business_id = $1"];
+
+  if (query) {
+    values.push(`%${query}%`);
+    filters.push(`(items.name ILIKE $${values.length} OR items.sku ILIKE $${values.length})`);
+  }
+
+  if (categoryId !== null) {
+    values.push(categoryId);
+    filters.push(`items.category_id = $${values.length}`);
+  }
+
+  return { values, where: filters.join(" AND ") };
+}
+
+export async function getPaginatedItems({ businessId, query, categoryId, limit, offset }) {
+  const { values, where } = itemListFilters({ businessId, query, categoryId });
+  values.push(limit, offset);
   const result = await pool.query(
     `
       SELECT
@@ -131,13 +150,23 @@ export async function getAllItems(businessId) {
       INNER JOIN categories
         ON categories.id = items.category_id
        AND categories.business_id = items.business_id
-      WHERE items.business_id = $1
-      ORDER BY items.name
+      WHERE ${where}
+      ORDER BY LOWER(items.name), items.id
+      LIMIT $${values.length - 1} OFFSET $${values.length}
     `,
-    [businessId]
+    values
   );
 
   return result.rows;
+}
+
+export async function countFilteredItems({ businessId, query, categoryId }) {
+  const { values, where } = itemListFilters({ businessId, query, categoryId });
+  const result = await pool.query(
+    `SELECT COUNT(*)::INTEGER AS count FROM items WHERE ${where}`,
+    values
+  );
+  return result.rows[0].count;
 }
 
 export async function getItemById(id, businessId) {
