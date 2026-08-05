@@ -1,4 +1,5 @@
 import pool from "./pool.js";
+import { categorySkuPrefix } from "../utils/sku.js";
 
 export async function getInventorySummary(businessId) {
   const result = await pool.query(
@@ -65,7 +66,7 @@ export async function getCategoryById(id, businessId) {
 export async function getItemsByCategoryId(categoryId, businessId) {
   const result = await pool.query(
     `
-      SELECT id, name, description, brand, price, stock
+      SELECT id, sku, name, description, brand, price, stock
       FROM items
       WHERE category_id = $1
         AND business_id = $2
@@ -123,7 +124,7 @@ export async function getAllItems(businessId) {
   const result = await pool.query(
     `
       SELECT
-        items.id, items.name, items.description, items.brand,
+        items.id, items.sku, items.name, items.description, items.brand,
         items.price, items.stock, items.category_id,
         categories.name AS category_name
       FROM items
@@ -143,7 +144,7 @@ export async function getItemById(id, businessId) {
   const result = await pool.query(
     `
       SELECT
-        items.id, items.name, items.description, items.brand,
+        items.id, items.sku, items.name, items.description, items.brand,
         items.price, items.stock, items.category_id, items.created_at,
         categories.name AS category_name
       FROM items
@@ -160,43 +161,79 @@ export async function getItemById(id, businessId) {
 }
 
 export async function createItem(
-  { name, description, brand, price, stock, categoryId },
+  { sku, name, description, brand, price, stock, categoryId },
   businessId
 ) {
-  const result = await pool.query(
-    `
-      INSERT INTO items (
-        name, description, brand, price, stock, category_id, business_id
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id
-    `,
-    [name, description, brand, price, stock, categoryId, businessId]
-  );
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const categoryResult = await client.query(
+      `SELECT name FROM categories
+       WHERE id = $1 AND business_id = $2 FOR KEY SHARE`,
+      [categoryId, businessId]
+    );
+    const category = categoryResult.rows[0];
+    if (!category) {
+      await client.query("ROLLBACK");
+      return null;
+    }
 
-  return result.rows[0];
+    let resolvedSku = sku;
+    if (!resolvedSku) {
+      const prefix = categorySkuPrefix(category.name);
+      const pattern = `^${prefix}-([0-9]+)$`;
+      await client.query(
+        "SELECT pg_advisory_xact_lock($1, hashtext($2))",
+        [businessId, prefix]
+      );
+      const sequenceResult = await client.query(
+        `SELECT COALESCE(MAX((substring(sku FROM $2))::BIGINT), 0) + 1 AS next_number
+         FROM items
+         WHERE business_id = $1 AND sku ~ $2`,
+        [businessId, pattern]
+      );
+      resolvedSku = `${prefix}-${String(sequenceResult.rows[0].next_number).padStart(4, "0")}`;
+    }
+
+    const result = await client.query(
+      `INSERT INTO items (
+        sku, name, description, brand, price, stock, category_id, business_id
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id`,
+      [resolvedSku, name, description, brand, price, stock, categoryId, businessId]
+    );
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function updateItem(
   id,
   businessId,
-  { name, description, brand, price, stock, categoryId }
+  { sku, name, description, brand, price, stock, categoryId }
 ) {
   const result = await pool.query(
     `
       UPDATE items
       SET
-        name = $1,
-        description = $2,
-        brand = $3,
-        price = $4,
-        stock = $5,
-        category_id = $6
-      WHERE id = $7
-        AND business_id = $8
+        sku = $1,
+        name = $2,
+        description = $3,
+        brand = $4,
+        price = $5,
+        stock = $6,
+        category_id = $7
+      WHERE id = $8
+        AND business_id = $9
       RETURNING id
     `,
-    [name, description, brand, price, stock, categoryId, id, businessId]
+    [sku, name, description, brand, price, stock, categoryId, id, businessId]
   );
 
   return result.rows[0];

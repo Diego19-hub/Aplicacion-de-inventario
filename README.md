@@ -4,13 +4,13 @@ MVP de inventario de productos de boxeo hecho con Express, EJS y PostgreSQL. Ges
 
 ## Estado y problema que resuelve
 
-El MVP permite administrar categorías y productos con precio y existencias. Incluye cuentas de usuario, sesiones y un rol global. Resuelve el registro básico de inventario, pero aún no aísla datos por negocio, no tiene SKU por empresa ni historial de movimientos.
+La aplicación permite administrar categorías y productos con precio, existencias y SKU. Incluye cuentas de usuario y sesiones. Resuelve el registro básico de inventario, pero aún no tiene historial de movimientos.
 
 La visión v2 es una sola base PostgreSQL para muchos negocios. Los datos del dominio se separarán con `business_id`; las pertenencias y permisos estarán en `business_members`. `super_admin` será un rol global independiente de los roles de cada negocio.
 
 ## Funcionalidades verificadas
 
-- Listado, creación, edición y eliminación de categorías y productos mediante rutas, controladores y EJS.
+- Listado, creación, edición y eliminación de categorías y productos mediante rutas, controladores y EJS. El SKU es único por negocio, editable y se genera automáticamente si se omite al crear.
 - Registro, inicio y cierre de sesión con bcrypt y sesiones PostgreSQL.
 - Roles globales `user` y `super_admin`; los permisos cotidianos dependen de la membresía activa (`owner`, `manager` o `viewer`).
 - El owner del negocio activo administra miembros e invitaciones; estas usan un token de un solo uso almacenado exclusivamente como hash SHA-256 y vencen a los 30 días.
@@ -74,7 +74,7 @@ npm run dev
 
 ## Base de datos
 
-Tablas actuales: `categories`, `items`, `users` y `user_sessions` (creada por el almacén de sesiones). `items.category_id` referencia `categories.id` y tiene índice. Actualmente el stock se edita directamente; v2 deberá cambiarlo exclusivamente mediante movimientos.
+Tablas actuales: `businesses`, `business_members`, `business_invitations`, `categories`, `items`, `users` y `user_sessions` (creada por el almacén de sesiones). `items` usa `business_id`, conserva su ID interno y tiene un `sku` único por negocio sin distinguir mayúsculas/minúsculas. Actualmente el stock se edita directamente; v2 deberá cambiarlo exclusivamente mediante movimientos.
 
 ## Seguridad y autorización
 

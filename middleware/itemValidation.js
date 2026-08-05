@@ -1,6 +1,19 @@
 import { body } from "express-validator";
+import { normalizeSku } from "../utils/sku.js";
 
 export const itemValidation = [
+  body("sku")
+    .customSanitizer(normalizeSku)
+    .custom((sku, { req }) => {
+      if (sku === "" && !req.params.id) return true;
+      if (sku === "") {
+        throw new Error("El SKU es obligatorio al editar un producto.");
+      }
+      if (sku.length > 64 || !/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(sku)) {
+        throw new Error("El SKU debe tener hasta 64 caracteres: letras, números y guiones simples.");
+      }
+      return true;
+    }),
   body("name")
     .trim()
     .isLength({ min: 2, max: 100 })

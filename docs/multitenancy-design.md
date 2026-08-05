@@ -62,6 +62,7 @@ El borrador `up` es transaccional y usa límites de bloqueo y de consulta para e
 - `business_invitations.token_hash` es único; `(business_id, email_normalized)` es único mientras el estado sea `pending`.
 - Todas las claves foráneas tienen índices que favorecen joins y borrados restringidos: creador, usuario miembro, invitador y negocio/categoría de producto.
 - `categories (business_id, lower(name))` evita nombres duplicados normalizados dentro del mismo negocio.
+- `items (business_id, lower(sku))` evita SKU duplicados sin distinguir mayúsculas/minúsculas. El SKU no sustituye el ID interno; el alta automática usa un prefijo normalizado de categoría y un advisory lock por negocio/prefijo.
 - La FK compuesta de `items` garantiza que categoría y producto compartan negocio.
 
 ## Rollback

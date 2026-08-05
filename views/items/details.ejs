@@ -49,6 +49,11 @@
       <aside class="item-details-panel">
         <dl>
           <div>
+            <dt>SKU</dt>
+            <dd><%= item.sku %></dd>
+          </div>
+
+          <div>
             <dt>Precio</dt>
             <dd>
               <%= Number(item.price).toLocaleString("es-MX", {

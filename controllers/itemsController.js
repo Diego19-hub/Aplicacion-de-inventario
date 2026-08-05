@@ -12,6 +12,7 @@ import {
 function itemFormValues(item = {}) {
   return {
     id: item.id,
+    sku: item.sku ?? "",
     name: item.name ?? "",
     description: item.description ?? "",
     brand: item.brand ?? "",
@@ -61,8 +62,9 @@ export async function showCreateItemForm(req, res, next) {
 
 export async function addItem(req, res, next) {
   const validationErrors = validationResult(req);
+  let categories = [];
   try {
-    const categories = await getAllCategories(req.business.id);
+    categories = await getAllCategories(req.business.id);
     if (!validationErrors.isEmpty()) {
       return res.status(400).render("items/form", {
         title: "Crear producto",
@@ -73,6 +75,14 @@ export async function addItem(req, res, next) {
     }
 
     const item = await createItem(matchedData(req), req.business.id);
+    if (!item) {
+      return res.status(400).render("items/form", {
+        title: "Crear producto",
+        item: itemFormValues({ ...req.body, categoryId: Number(req.body.categoryId) || "" }),
+        categories,
+        errors: [{ path: "categoryId", msg: "La categoría seleccionada no existe." }]
+      });
+    }
     res.redirect(`/items/${item.id}`);
   } catch (error) {
     if (error.code === "23503") {
@@ -81,6 +91,14 @@ export async function addItem(req, res, next) {
         item: itemFormValues({ ...req.body, categoryId: Number(req.body.categoryId) || "" }),
         categories,
         errors: [{ path: "categoryId", msg: "La categoría seleccionada no existe." }]
+      });
+    }
+    if (error.code === "23505") {
+      return res.status(409).render("items/form", {
+        title: "Crear producto",
+        item: itemFormValues({ ...req.body, categoryId: Number(req.body.categoryId) || "" }),
+        categories,
+        errors: [{ path: "sku", msg: "Ese SKU ya existe en este negocio." }]
       });
     }
     next(error);
@@ -117,8 +135,9 @@ export async function editItem(req, res, next) {
   }
 
   const validationErrors = validationResult(req);
+  let categories = [];
   try {
-    const categories = await getAllCategories(req.business.id);
+    categories = await getAllCategories(req.business.id);
     if (!validationErrors.isEmpty()) {
       return res.status(400).render("items/form", {
         title: "Editar producto",
@@ -138,6 +157,14 @@ export async function editItem(req, res, next) {
         item: itemFormValues({ id: itemId, ...req.body, categoryId: Number(req.body.categoryId) || "" }),
         categories,
         errors: [{ path: "categoryId", msg: "La categoría seleccionada no existe." }]
+      });
+    }
+    if (error.code === "23505") {
+      return res.status(409).render("items/form", {
+        title: "Editar producto",
+        item: itemFormValues({ id: itemId, ...req.body, categoryId: Number(req.body.categoryId) || "" }),
+        categories,
+        errors: [{ path: "sku", msg: "Ese SKU ya existe en este negocio." }]
       });
     }
     next(error);

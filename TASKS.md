@@ -47,7 +47,7 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 ## Fase 3 — Productos, SKU, búsqueda, filtros y listado general
 
 - [x] Migrar productos y categorías a `business_id`. Criterio: todas las consultas CRUD incluyen el negocio activo y los recursos ajenos responden 404. Dependencia: Fase 2.
-- [ ] Añadir SKU único por negocio. Criterio: índice compuesto `(business_id, sku)` y validación. Dependencia: productos multiempresa.
+- [~] Añadir SKU único por negocio. Criterio: migración y aplicación implementadas; pendiente probar up/down en PostgreSQL local y automatizar escenarios de concurrencia. Dependencia: productos multiempresa.
 - [ ] Búsqueda, filtros y paginación. Criterio: filtra por nombre, SKU y categoría sin mezclar negocios. Dependencia: índices.
 - [x] Simplificar roles empresariales a `viewer`, `manager` y `owner`. Criterio: esquema, middleware, invitaciones y vistas utilizan únicamente estos tres roles.
 - [ ] Implementar archivado de productos exclusivo para `owner`. Criterio: permite archivar, consultar, filtrar y restaurar productos sin borrarlos físicamente. Dependencia: modelo de archivado y auditoría definidos.
