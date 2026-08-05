@@ -7,8 +7,9 @@ export function requireAuth(req, res, next) {
   }
 
   // Solo guardamos rutas GET para evitar redirigir después a un endpoint POST.
-  req.session.returnTo =
-    req.method === "GET" ? req.originalUrl : "/";
+  req.session.returnTo = req.method === "GET" && isSafeReturnTo(req.originalUrl)
+    ? req.originalUrl
+    : "/";
 
   req.session.save((error) => {
     if (error) {
@@ -17,6 +18,13 @@ export function requireAuth(req, res, next) {
 
     res.redirect("/auth/login");
   });
+}
+
+export function isSafeReturnTo(value) {
+  return typeof value === "string"
+    && value.startsWith("/")
+    && !value.startsWith("//")
+    && !value.includes("\\\\");
 }
 
 export function requireSuperAdmin(req, res, next) {

@@ -18,6 +18,10 @@
         <a href="/categories">Categorías</a>
         <a href="/items">Productos</a>
 
+        <% if (currentMembership?.role === "owner") { %>
+          <a href="/members">Miembros</a>
+        <% } %>
+
         <% if (currentUser) { %>
           <% if (isSuperAdmin) { %>
             <a href="/admin">Administración</a>

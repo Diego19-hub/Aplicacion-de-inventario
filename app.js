@@ -13,6 +13,8 @@ import itemsRouter from "./routes/itemsRouter.js";
 import authRouter from "./routes/authRouter.js";
 import businessesRouter from "./routes/businessesRouter.js";
 import adminRouter from "./routes/adminRouter.js";
+import membersRouter from "./routes/membersRouter.js";
+import invitationsRouter from "./routes/invitationsRouter.js";
 
 import {
   notFoundHandler,
@@ -112,6 +114,8 @@ app.use("/", indexRouter);
 app.use("/auth", authRouter);
 app.use("/admin", adminRouter);
 app.use("/businesses", businessesRouter);
+app.use("/members", membersRouter);
+app.use("/invitations", invitationsRouter);
 app.use("/categories", categoriesRouter);
 app.use("/items", itemsRouter);
 

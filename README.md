@@ -12,7 +12,8 @@ La visión v2 es una sola base PostgreSQL para muchos negocios. Los datos del do
 
 - Listado, creación, edición y eliminación de categorías y productos mediante rutas, controladores y EJS.
 - Registro, inicio y cierre de sesión con bcrypt y sesiones PostgreSQL.
-- Roles globales actuales `user` y `admin`; las mutaciones de productos requieren `admin`.
+- Roles globales `user` y `super_admin`; los permisos cotidianos dependen de la membresía activa (`owner`, `manager` o `viewer`).
+- El owner del negocio activo administra miembros e invitaciones; estas usan un token de un solo uso almacenado exclusivamente como hash SHA-256 y vencen a los 30 días.
 - Validación de formularios, CSRF en los siete formularios POST, Helmet y rate limiting para autenticación.
 
 ## Stack y arquitectura
@@ -79,7 +80,7 @@ Tablas actuales: `categories`, `items`, `users` y `user_sessions` (creada por el
 
 Las contraseñas se hashean con bcrypt. Las sesiones se guardan en PostgreSQL, se regeneran al autenticar y usan cookie `httpOnly`, `sameSite=lax` y `secure` en producción. CSRF se aplica después de `express.urlencoded()` y de la sesión, y cada formulario POST incluye `_csrf`.
 
-La autorización debe ser de servidor: los botones ocultos no conceden permisos. El modelo actual no comprueba pertenencia a un negocio porque ese modelo aún no existe.
+La autorización es de servidor: los botones ocultos no conceden permisos. Cada acción de inventario y de miembros valida la membresía activa y el negocio activo; los recursos administrativos se consultan siempre dentro de su `business_id`.
 
 ## Vercel y Supabase
 

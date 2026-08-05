@@ -11,6 +11,7 @@ import {
   createUser
 } from "../db/authQueries.js";
 import { getActiveBusinessesForUser } from "../db/businessQueries.js";
+import { isSafeReturnTo } from "../middleware/authMiddleware.js";
 
 
 function regenerateSession(req) {
@@ -34,6 +35,12 @@ function saveSession(req) {
 async function redirectAfterAuthentication(req, res) {
   const businesses = await getActiveBusinessesForUser(req.session.user.id);
 
+  const returnTo = isSafeReturnTo(req.session.returnTo) ? req.session.returnTo : "/";
+
+  if (returnTo.startsWith("/invitations/")) {
+    return res.redirect(returnTo);
+  }
+
   if (businesses.length === 0) {
     return res.redirect("/businesses/no-access");
   }
@@ -41,7 +48,7 @@ async function redirectAfterAuthentication(req, res) {
   if (businesses.length === 1) {
     req.session.activeBusinessId = businesses[0].id;
     await saveSession(req);
-    return res.redirect(req.session.returnTo || "/");
+    return res.redirect(returnTo);
   }
 
   return res.redirect("/businesses/select");
@@ -120,6 +127,8 @@ export async function registerUser(req, res, next) {
       passwordHash
     });
 
+    const returnTo = isSafeReturnTo(req.session.returnTo) ? req.session.returnTo : "/";
+
     await regenerateSession(req);
 
     req.session.user = {
@@ -128,6 +137,7 @@ export async function registerUser(req, res, next) {
       email: user.email,
       platformRole: user.platform_role
     };
+    req.session.returnTo = returnTo;
 
     await saveSession(req);
     return redirectAfterAuthentication(req, res);
@@ -217,7 +227,7 @@ export async function loginUser(req, res, next) {
       });
     }
 
-    const returnTo = req.session.returnTo || "/";
+    const returnTo = isSafeReturnTo(req.session.returnTo) ? req.session.returnTo : "/";
 
     await regenerateSession(req);
 
