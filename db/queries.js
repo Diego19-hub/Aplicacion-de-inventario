@@ -195,7 +195,7 @@ export async function getItemById(id, businessId) {
 }
 
 export async function createItem(
-  { sku, name, description, brand, price, stock, categoryId },
+  { sku, name, description, brand, price, categoryId },
   businessId
 ) {
   const client = await pool.connect();
@@ -235,7 +235,7 @@ export async function createItem(
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id`,
-      [resolvedSku, name, description, brand, price, stock, categoryId, businessId]
+      [resolvedSku, name, description, brand, price, 0, categoryId, businessId]
     );
     await client.query("COMMIT");
     return result.rows[0];
@@ -250,7 +250,7 @@ export async function createItem(
 export async function updateItem(
   id,
   businessId,
-  { sku, name, description, brand, price, stock, categoryId }
+  { sku, name, description, brand, price, categoryId }
 ) {
   const result = await pool.query(
     `
@@ -261,14 +261,13 @@ export async function updateItem(
         description = $3,
         brand = $4,
         price = $5,
-        stock = $6,
-        category_id = $7
-      WHERE id = $8
-        AND business_id = $9
+        category_id = $6
+      WHERE id = $7
+        AND business_id = $8
         AND status = 'active'
       RETURNING id
     `,
-    [sku, name, description, brand, price, stock, categoryId, id, businessId]
+    [sku, name, description, brand, price, categoryId, id, businessId]
   );
 
   return result.rows[0];

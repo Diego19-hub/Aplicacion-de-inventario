@@ -91,9 +91,14 @@
           </div>
         </dl>
 
+      <div class="details-actions">
+        <a href="/items/<%= item.id %>/movements" class="button button-secondary">Ver movimientos</a>
+      </div>
+
       <% if (canManageInventory || canDeleteInventory) { %>
         <div class="details-actions">
           <% if (canManageInventory) { %>
+          <a href="/items/<%= item.id %>/movements/new" class="button">Registrar movimiento</a>
           <a
             href="/items/<%= item.id %>/edit"
             class="button button-secondary"

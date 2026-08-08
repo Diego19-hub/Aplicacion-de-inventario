@@ -30,14 +30,20 @@ export const itemValidation = [
     .isFloat({ min: 0, max: 99999999.99 })
     .withMessage("El precio debe ser un número válido mayor o igual a 0.")
     .toFloat(),
-  body("stock")
-    .isInt({ min: 0, max: 1000000 })
-    .withMessage("Las existencias deben ser un número entero entre 0 y 1000000.")
-    .toInt(),
   body("categoryId")
     .isInt({ min: 1 })
     .withMessage("Selecciona una categoría válida.")
     .toInt()
+];
+
+export const movementValidation = [
+  body("movementType").isIn(["entry", "exit", "adjustment"]).withMessage("Selecciona un tipo de movimiento válido."),
+  body("quantity").isInt({ min: 0, max: 1000000 }).withMessage("La cantidad debe ser un entero no negativo.").toInt().custom((quantity, { req }) => {
+    if (["entry", "exit"].includes(req.body.movementType) && quantity < 1) throw new Error("La entrada o salida debe ser mayor a cero.");
+    return true;
+  }),
+  body("reason").trim().isLength({ min: 5, max: 500 }).withMessage("El motivo debe tener entre 5 y 500 caracteres."),
+  body("reference").optional({ values: "falsy" }).trim().isLength({ min: 1, max: 120 }).withMessage("La referencia debe tener hasta 120 caracteres.")
 ];
 
 export const archiveItemValidation = [

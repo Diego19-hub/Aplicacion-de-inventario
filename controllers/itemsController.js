@@ -57,7 +57,6 @@ function itemFormValues(item = {}) {
     description: item.description ?? "",
     brand: item.brand ?? "",
     price: item.price ?? "",
-    stock: item.stock ?? "",
     categoryId: item.categoryId ?? item.category_id ?? ""
   };
 }

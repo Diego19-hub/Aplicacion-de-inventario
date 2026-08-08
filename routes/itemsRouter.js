@@ -17,6 +17,8 @@ import {
 } from "../controllers/itemsController.js";
 
 import { archiveItemValidation, itemValidation } from "../middleware/itemValidation.js";
+import { movementValidation } from "../middleware/itemValidation.js";
+import { addMovement, showArchivedMovements, showMovementForm, showMovements } from "../controllers/movementsController.js";
 
 import {
   requireAuth,
@@ -46,6 +48,11 @@ itemsRouter.get(
   requireBusinessRole("owner"),
   showArchivedItems
 );
+
+itemsRouter.get("/:id/archived/movements", requireBusinessRole("owner"), showArchivedMovements);
+itemsRouter.get("/:id/movements", requireBusinessRole("owner", "manager", "viewer"), showMovements);
+itemsRouter.get("/:id/movements/new", requireBusinessRole("owner", "manager"), showMovementForm);
+itemsRouter.post("/:id/movements/new", requireBusinessRole("owner", "manager"), movementValidation, addMovement);
 
 itemsRouter.get(
   "/:id/archived",

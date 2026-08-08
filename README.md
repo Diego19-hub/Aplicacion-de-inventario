@@ -12,6 +12,7 @@ La visión v2 es una sola base PostgreSQL para muchos negocios. Los datos del do
 
 - Listado, creación, edición y eliminación de categorías y productos mediante rutas, controladores y EJS. El listado admite búsqueda por nombre o SKU, filtro por categoría y paginación dentro del negocio activo. El SKU es único por negocio, editable y se genera automáticamente si se omite al crear.
 - Solo el owner puede archivar y restaurar productos. El archivado conserva SKU y datos actuales; el historial completo de archivos/restauraciones se incorporará con la futura auditoría y movimientos de inventario.
+- El stock se conserva para lectura rápida y cambia exclusivamente mediante movimientos inmutables transaccionales; costos y valoración contable quedan pendientes de decisión.
 - Registro, inicio y cierre de sesión con bcrypt y sesiones PostgreSQL.
 - Roles globales `user` y `super_admin`; los permisos cotidianos dependen de la membresía activa (`owner`, `manager` o `viewer`).
 - El owner del negocio activo administra miembros e invitaciones; estas usan un token de un solo uso almacenado exclusivamente como hash SHA-256 y vencen a los 30 días.
