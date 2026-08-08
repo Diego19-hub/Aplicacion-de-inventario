@@ -1,0 +1,15 @@
+BEGIN;
+SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='30s'; SET LOCAL search_path=pg_catalog,public,pg_temp;
+DO $$ BEGIN IF EXISTS(SELECT 1 FROM public.inventory_transfers) OR EXISTS(SELECT 1 FROM public.inventory_movements WHERE transfer_id IS NOT NULL) THEN RAISE EXCEPTION 'No se puede revertir: existen transferencias o movimientos vinculados; se destruiría auditoría.'; END IF; END $$;
+ALTER TABLE public.inventory_movements DROP CONSTRAINT inventory_movements_transfer_match_fkey;
+ALTER TABLE public.inventory_movements DROP CONSTRAINT inventory_movements_transfer_state_check;
+DROP INDEX public.inventory_movements_transfer_id_index;
+ALTER TABLE public.inventory_movements DROP COLUMN transfer_id;
+ALTER TABLE public.inventory_movements DROP CONSTRAINT inventory_movements_type_check;
+ALTER TABLE public.inventory_movements DROP CONSTRAINT inventory_movements_type_delta_check;
+ALTER TABLE public.inventory_movements ADD CONSTRAINT inventory_movements_type_check CHECK(movement_type IN ('opening_balance','entry','exit','adjustment'));
+ALTER TABLE public.inventory_movements ADD CONSTRAINT inventory_movements_type_delta_check CHECK((movement_type IN('opening_balance','entry') AND quantity_delta>0) OR (movement_type='exit' AND quantity_delta<0) OR movement_type='adjustment');
+DROP TRIGGER inventory_transfers_immutable_trigger ON public.inventory_transfers;
+DROP FUNCTION public.inventory_transfers_immutable();
+DROP TABLE public.inventory_transfers;
+COMMIT;

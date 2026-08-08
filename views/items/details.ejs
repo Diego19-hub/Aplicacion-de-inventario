@@ -104,6 +104,7 @@
         <div class="details-actions">
           <% if (canManageInventory) { %>
           <a href="/items/<%= item.id %>/movements/new" class="button">Registrar movimiento</a>
+          <a href="/transfers/new?item=<%= item.id %>" class="button button-secondary">Transferir</a>
           <a
             href="/items/<%= item.id %>/edit"
             class="button button-secondary"

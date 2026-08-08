@@ -17,6 +17,7 @@ import suppliersRouter from "./routes/suppliersRouter.js";
 import membersRouter from "./routes/membersRouter.js";
 import invitationsRouter from "./routes/invitationsRouter.js";
 import locationsRouter from "./routes/locationsRouter.js";
+import transfersRouter from "./routes/transfersRouter.js";
 
 import {
   notFoundHandler,
@@ -122,6 +123,7 @@ app.use("/categories", categoriesRouter);
 app.use("/items", itemsRouter);
 app.use("/suppliers", suppliersRouter);
 app.use("/locations", locationsRouter);
+app.use("/transfers", transfersRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
