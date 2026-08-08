@@ -64,7 +64,7 @@ El borrador `up` es transaccional y usa límites de bloqueo y de consulta para e
 - `categories (business_id, lower(name))` evita nombres duplicados normalizados dentro del mismo negocio.
 - `items (business_id, lower(sku))` evita SKU duplicados sin distinguir mayúsculas/minúsculas. El SKU no sustituye el ID interno; el alta automática usa un prefijo normalizado de categoría y un advisory lock por negocio/prefijo.
 - `items.status` conserva `active`/`archived`. Un archivo guarda la marca de tiempo, usuario y motivo actual; restaurar limpia esos campos. El historial completo queda pendiente de la futura auditoría de movimientos.
-- `inventory_movements` es un ledger inmutable por negocio y producto. Cada movimiento guarda saldo anterior y resultante; las correcciones se hacen con movimientos compensatorios, no editando historial.
+- `inventory_movements` es un ledger inmutable por negocio, producto y ubicación. Cada movimiento guarda el saldo local anterior y resultante; `inventory_balances` conserva el stock por ubicación y su suma coincide con `items.stock`. Las correcciones se hacen con movimientos compensatorios, no editando historial.
 - La FK compuesta de `items` garantiza que categoría y producto compartan negocio.
 
 ## Rollback

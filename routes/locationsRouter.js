@@ -1,0 +1,5 @@
+import { Router } from "express";
+import { requireAuth,requireActiveBusiness,requireBusinessRole } from "../middleware/authMiddleware.js";
+import { locationValidation } from "../middleware/locationValidation.js";
+import * as c from "../controllers/locationsController.js";
+const router=Router();const action=a=>(req,res,next)=>{req.params.action=a;next();};router.use(requireAuth,requireActiveBusiness);router.get('/',c.showLocations);router.get('/new',requireBusinessRole('owner'),c.showNew);router.post('/new',requireBusinessRole('owner'),locationValidation,c.addLocation);router.get('/:id/edit',requireBusinessRole('owner'),c.showEdit);router.post('/:id/edit',requireBusinessRole('owner'),locationValidation,c.editLocation);for(const a of ['deactivate','reactivate','make-default']){router.get(`/:id/${a}`,requireBusinessRole('owner'),action(a),c.showTransition);router.post(`/:id/${a}`,requireBusinessRole('owner'),action(a),c.transition);}router.get('/:id',c.showLocation);export default router;

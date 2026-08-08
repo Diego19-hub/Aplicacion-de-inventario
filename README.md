@@ -4,7 +4,7 @@ MVP de inventario de productos de boxeo hecho con Express, EJS y PostgreSQL. Ges
 
 ## Estado y problema que resuelve
 
-La aplicación permite administrar categorías y productos con precio, existencias y SKU. Incluye cuentas de usuario y sesiones. Resuelve el registro básico de inventario, pero aún no tiene historial de movimientos.
+La aplicación permite administrar categorías, productos con SKU y existencias por ubicación. Incluye cuentas, sesiones y un historial inmutable de movimientos.
 
 La visión v2 es una sola base PostgreSQL para muchos negocios. Los datos del dominio se separarán con `business_id`; las pertenencias y permisos estarán en `business_members`. `super_admin` será un rol global independiente de los roles de cada negocio.
 
@@ -76,7 +76,7 @@ npm run dev
 
 ## Base de datos
 
-Tablas actuales: `businesses`, `business_members`, `business_invitations`, `categories`, `items`, `users` y `user_sessions` (creada por el almacén de sesiones). `items` usa `business_id`, conserva su ID interno y tiene un `sku` único por negocio sin distinguir mayúsculas/minúsculas. Actualmente el stock se edita directamente; v2 deberá cambiarlo exclusivamente mediante movimientos.
+Tablas actuales: `businesses`, `business_members`, `business_invitations`, `categories`, `items`, `inventory_movements`, `business_locations`, `inventory_balances`, `suppliers`, `users` y `user_sessions` (creada por el almacén de sesiones). `items.stock` conserva el total agregado; cada movimiento inmutable pertenece a una ubicación activa y actualiza su balance local y el total en una transacción. Cada negocio tiene una ubicación principal `MAIN`.
 
 ## Seguridad y autorización
 

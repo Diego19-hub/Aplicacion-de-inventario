@@ -12,6 +12,7 @@ import {
   getArchivedItemById,
   restoreItem
 } from "../db/queries.js";
+import { getItemBalances } from "../db/locationQueries.js";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -106,7 +107,8 @@ export async function showItem(req, res, next) {
   try {
     const item = await getItemById(itemId, req.business.id);
     if (!item) return next(new AppError("Producto no encontrado", 404));
-    res.render("items/details", { title: item.name, item });
+    const balances = await getItemBalances(req.business.id, itemId);
+    res.render("items/details", { title: item.name, item, balances });
   } catch (error) {
     next(error);
   }

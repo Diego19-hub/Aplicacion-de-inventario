@@ -84,6 +84,11 @@
           </div>
 
           <div>
+            <dt>Existencias por ubicación</dt>
+            <dd><ul><% balances.forEach((balance) => { %><li><%= balance.name %> (<%= balance.code %>)<%= balance.status === 'inactive' ? ' — inactiva' : '' %>: <%= balance.stock %></li><% }) %></ul></dd>
+          </div>
+
+          <div>
             <dt>Fecha de registro</dt>
             <dd>
               <%= new Date(item.created_at).toLocaleDateString("es-MX") %>

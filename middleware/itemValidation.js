@@ -37,6 +37,7 @@ export const itemValidation = [
 ];
 
 export const movementValidation = [
+  body("locationId").isInt({ min: 1 }).withMessage("Selecciona una ubicación válida.").toInt(),
   body("movementType").isIn(["entry", "exit", "adjustment"]).withMessage("Selecciona un tipo de movimiento válido."),
   body("quantity").isInt({ min: 0, max: 1000000 }).withMessage("La cantidad debe ser un entero no negativo.").toInt().custom((quantity, { req }) => {
     if (["entry", "exit"].includes(req.body.movementType) && quantity < 1) throw new Error("La entrada o salida debe ser mayor a cero.");

@@ -195,6 +195,12 @@ export async function createBusinessWithOwner(data, ownerId, createdBy) {
       [business.id, ownerId]
     );
 
+    await client.query(
+      `INSERT INTO business_locations (business_id, name, code, location_type, is_default)
+       VALUES ($1, 'Sucursal principal', 'MAIN', 'branch', true)`,
+      [business.id]
+    );
+
     await client.query("COMMIT");
     return business;
   } catch (error) {
