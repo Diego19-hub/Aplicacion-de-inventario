@@ -50,7 +50,7 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 - [~] Añadir SKU único por negocio. Criterio: migración y aplicación implementadas; pendiente probar up/down en PostgreSQL local y automatizar escenarios de concurrencia. Dependencia: productos multiempresa.
 - [x] Búsqueda, filtros y paginación. Criterio: filtra por nombre, SKU y categoría sin mezclar negocios; usa conteo y consulta paginada en SQL. Dependencia: índices.
 - [x] Simplificar roles empresariales a `viewer`, `manager` y `owner`. Criterio: esquema, middleware, invitaciones y vistas utilizan únicamente estos tres roles.
-- [ ] Implementar archivado de productos exclusivo para `owner`. Criterio: permite archivar, consultar, filtrar y restaurar productos sin borrarlos físicamente. Dependencia: modelo de archivado y auditoría definidos.
+- [x] Implementar archivado de productos exclusivo para `owner`. Criterio: permite archivar, consultar, filtrar y restaurar productos sin borrarlos físicamente. Dependencia: modelo de archivado y auditoría definidos.
 
 ## Fase 4 — Movimientos de inventario y existencias
 

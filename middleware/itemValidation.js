@@ -39,3 +39,10 @@ export const itemValidation = [
     .withMessage("Selecciona una categoría válida.")
     .toInt()
 ];
+
+export const archiveItemValidation = [
+  body("archiveReason")
+    .trim()
+    .isLength({ min: 5, max: 500 })
+    .withMessage("El motivo de archivado debe tener entre 5 y 500 caracteres.")
+];

@@ -7,7 +7,10 @@ import {
   getAllCategories,
   createItem,
   updateItem,
-  deleteItem
+  archiveItem,
+  getArchivedItems,
+  getArchivedItemById,
+  restoreItem
 } from "../db/queries.js";
 
 const ITEMS_PER_PAGE = 12;
@@ -236,30 +239,100 @@ export async function editItem(req, res, next) {
 }
 
 export async function showDeleteItemPage(req, res, next) {
-  const itemId = Number(req.params.id);
-  if (!Number.isInteger(itemId) || itemId < 1) {
+  return res.redirect(`/items/${req.params.id}/archive`);
+}
+
+function validItemId(value) {
+  const itemId = Number(value);
+  return Number.isInteger(itemId) && itemId > 0 ? itemId : null;
+}
+
+export async function showArchiveItemPage(req, res, next) {
+  const itemId = validItemId(req.params.id);
+  if (!itemId) {
     return next(new AppError("Producto no encontrado", 404));
   }
 
   try {
     const item = await getItemById(itemId, req.business.id);
     if (!item) return next(new AppError("Producto no encontrado", 404));
-    res.render("items/delete", { title: "Eliminar producto", item });
+    res.render("items/archive", { title: "Archivar producto", item, errors: [], archiveReason: "" });
   } catch (error) {
     next(error);
   }
 }
 
-export async function removeItem(req, res, next) {
-  const itemId = Number(req.params.id);
-  if (!Number.isInteger(itemId) || itemId < 1) {
+export async function archiveExistingItem(req, res, next) {
+  const itemId = validItemId(req.params.id);
+  if (!itemId) {
     return next(new AppError("Producto no encontrado", 404));
   }
 
   try {
-    const deletedItem = await deleteItem(itemId, req.business.id);
-    if (!deletedItem) return next(new AppError("Producto no encontrado", 404));
-    res.redirect(`/categories/${deletedItem.category_id}`);
+    const validationErrors = validationResult(req);
+    if (!validationErrors.isEmpty()) {
+      const item = await getItemById(itemId, req.business.id);
+      if (!item) return next(new AppError("Producto no encontrado", 404));
+      return res.status(400).render("items/archive", {
+        title: "Archivar producto",
+        item,
+        errors: validationErrors.array(),
+        archiveReason: req.body.archiveReason ?? ""
+      });
+    }
+
+    const { archiveReason } = matchedData(req);
+    const item = await archiveItem(itemId, req.business.id, req.session.user.id, archiveReason);
+    if (!item) return next(new AppError("Producto no encontrado", 404));
+    res.redirect("/items");
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function showArchivedItems(req, res, next) {
+  try {
+    const items = await getArchivedItems(req.business.id);
+    res.render("items/archived", { title: "Productos archivados", items });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function showArchivedItem(req, res, next) {
+  const itemId = validItemId(req.params.id);
+  if (!itemId) return next(new AppError("Producto no encontrado", 404));
+
+  try {
+    const item = await getArchivedItemById(itemId, req.business.id);
+    if (!item) return next(new AppError("Producto no encontrado", 404));
+    res.render("items/archived-details", { title: item.name, item });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function showRestoreItemPage(req, res, next) {
+  const itemId = validItemId(req.params.id);
+  if (!itemId) return next(new AppError("Producto no encontrado", 404));
+
+  try {
+    const item = await getArchivedItemById(itemId, req.business.id);
+    if (!item) return next(new AppError("Producto no encontrado", 404));
+    res.render("items/restore", { title: "Restaurar producto", item });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function restoreArchivedItem(req, res, next) {
+  const itemId = validItemId(req.params.id);
+  if (!itemId) return next(new AppError("Producto no encontrado", 404));
+
+  try {
+    const item = await restoreItem(itemId, req.business.id);
+    if (!item) return next(new AppError("Producto no encontrado", 404));
+    res.redirect(`/items/${item.id}`);
   } catch (error) {
     next(error);
   }

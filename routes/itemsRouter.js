@@ -8,10 +8,15 @@ import {
   showEditItemForm,
   editItem,
   showDeleteItemPage,
-  removeItem
+  showArchiveItemPage,
+  archiveExistingItem,
+  showArchivedItems,
+  showArchivedItem,
+  showRestoreItemPage,
+  restoreArchivedItem
 } from "../controllers/itemsController.js";
 
-import { itemValidation } from "../middleware/itemValidation.js";
+import { archiveItemValidation, itemValidation } from "../middleware/itemValidation.js";
 
 import {
   requireAuth,
@@ -37,6 +42,43 @@ itemsRouter.post(
 );
 
 itemsRouter.get(
+  "/archived",
+  requireBusinessRole("owner"),
+  showArchivedItems
+);
+
+itemsRouter.get(
+  "/:id/archived",
+  requireBusinessRole("owner"),
+  showArchivedItem
+);
+
+itemsRouter.get(
+  "/:id/archive",
+  requireBusinessRole("owner"),
+  showArchiveItemPage
+);
+
+itemsRouter.post(
+  "/:id/archive",
+  requireBusinessRole("owner"),
+  archiveItemValidation,
+  archiveExistingItem
+);
+
+itemsRouter.get(
+  "/:id/restore",
+  requireBusinessRole("owner"),
+  showRestoreItemPage
+);
+
+itemsRouter.post(
+  "/:id/restore",
+  requireBusinessRole("owner"),
+  restoreArchivedItem
+);
+
+itemsRouter.get(
   "/:id/edit",
   requireBusinessRole("owner", "manager"),
   showEditItemForm
@@ -53,12 +95,6 @@ itemsRouter.get(
   "/:id/delete",
   requireBusinessRole("owner"),
   showDeleteItemPage
-);
-
-itemsRouter.post(
-  "/:id/delete",
-  requireBusinessRole("owner"),
-  removeItem
 );
 
 itemsRouter.get("/", showItems);

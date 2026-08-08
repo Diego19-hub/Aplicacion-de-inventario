@@ -63,6 +63,7 @@ El borrador `up` es transaccional y usa límites de bloqueo y de consulta para e
 - Todas las claves foráneas tienen índices que favorecen joins y borrados restringidos: creador, usuario miembro, invitador y negocio/categoría de producto.
 - `categories (business_id, lower(name))` evita nombres duplicados normalizados dentro del mismo negocio.
 - `items (business_id, lower(sku))` evita SKU duplicados sin distinguir mayúsculas/minúsculas. El SKU no sustituye el ID interno; el alta automática usa un prefijo normalizado de categoría y un advisory lock por negocio/prefijo.
+- `items.status` conserva `active`/`archived`. Un archivo guarda la marca de tiempo, usuario y motivo actual; restaurar limpia esos campos. El historial completo queda pendiente de la futura auditoría de movimientos.
 - La FK compuesta de `items` garantiza que categoría y producto compartan negocio.
 
 ## Rollback
@@ -75,7 +76,7 @@ El borrador `up` es transaccional y usa límites de bloqueo y de consulta para e
 - Antes de `001`, `users.role` solo admitía `user` y `admin`; `super_admin` no cabe en `VARCHAR(10)`, por lo que esa migración amplía el tipo antes de convertir datos.
 - Las rutas actuales editan `items.stock` directamente; esto contradice el modelo futuro de movimientos y queda fuera del alcance de esta migración.
 - El middleware valida el negocio activo y la membresía en cada solicitud; el valor de sesión por sí solo no autoriza acceso.
-- El archivado de productos sigue pendiente y deberá ser una operación exclusiva de `owner`; la eliminación actual no se modifica en esta etapa.
+- El archivado de productos es una operación exclusiva de `owner`; no sustituye la futura auditoría histórica ni los movimientos de inventario.
 - El índice parcial de invitaciones requiere transicionar invitaciones vencidas a `expired` antes de reemitirlas; no se incluye un job en este alcance.
 - Un trigger PostgreSQL actualiza `businesses.updated_at`; no usa `SECURITY DEFINER`.
 - Con RLS habilitado y sin políticas, una futura cuenta privada que no sea propietaria de las tablas necesitará políticas o una estrategia de rol antes de acceder a ellas.

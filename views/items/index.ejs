@@ -30,6 +30,9 @@
       <% if (canManageInventory) { %>
         <a href="/items/new" class="button">Crear producto</a>
       <% } %>
+      <% if (canDeleteInventory) { %>
+        <a href="/items/archived" class="button button-secondary">Productos archivados</a>
+      <% } %>
     </div>
 
     <form action="/items" method="GET" class="item-filters">

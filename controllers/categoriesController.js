@@ -138,8 +138,9 @@ export async function removeCategory(req, res, next) {
     return next(new AppError("Categoría no encontrada", 404));
   }
 
+  let category;
   try {
-    const category = await getCategoryById(categoryId, req.business.id);
+    category = await getCategoryById(categoryId, req.business.id);
     if (!category) return next(new AppError("Categoría no encontrada", 404));
     if (category.item_count > 0) {
       return res.status(409).render("categories/delete", {
@@ -153,6 +154,13 @@ export async function removeCategory(req, res, next) {
     if (!deletedCategory) return next(new AppError("Categoría no encontrada", 404));
     res.redirect("/categories");
   } catch (error) {
+    if (error.code === "23503") {
+      return res.status(409).render("categories/delete", {
+        title: "Eliminar categoría",
+        category,
+        error: "No puedes eliminar esta categoría porque todavía tiene productos activos o archivados."
+      });
+    }
     next(error);
   }
 }

@@ -11,6 +11,7 @@ export async function getInventorySummary(businessId) {
         COALESCE(SUM(items.price * items.stock), 0) AS inventory_value
       FROM items
       WHERE items.business_id = $1
+        AND items.status = 'active'
     `,
     [businessId]
   );
@@ -30,6 +31,7 @@ export async function getAllCategories(businessId) {
       LEFT JOIN items
         ON items.category_id = categories.id
        AND items.business_id = categories.business_id
+       AND items.status = 'active'
       WHERE categories.business_id = $1
       GROUP BY categories.id, categories.name, categories.description
       ORDER BY categories.name
@@ -53,6 +55,7 @@ export async function getCategoryById(id, businessId) {
       LEFT JOIN items
         ON items.category_id = categories.id
        AND items.business_id = categories.business_id
+       AND items.status = 'active'
       WHERE categories.id = $1
         AND categories.business_id = $2
       GROUP BY categories.id, categories.name, categories.description, categories.created_at
@@ -70,7 +73,8 @@ export async function getItemsByCategoryId(categoryId, businessId) {
       FROM items
       WHERE category_id = $1
         AND business_id = $2
-      ORDER BY name
+        AND status = 'active'
+      ORDER BY LOWER(name), id
     `,
     [categoryId, businessId]
   );
@@ -122,7 +126,7 @@ export async function deleteCategory(id, businessId) {
 
 function itemListFilters({ businessId, query, categoryId }) {
   const values = [businessId];
-  const filters = ["items.business_id = $1"];
+  const filters = ["items.business_id = $1", "items.status = 'active'"];
 
   if (query) {
     values.push(`%${query}%`);
@@ -182,6 +186,7 @@ export async function getItemById(id, businessId) {
        AND categories.business_id = items.business_id
       WHERE items.id = $1
         AND items.business_id = $2
+        AND items.status = 'active'
     `,
     [id, businessId]
   );
@@ -260,6 +265,7 @@ export async function updateItem(
         category_id = $7
       WHERE id = $8
         AND business_id = $9
+        AND status = 'active'
       RETURNING id
     `,
     [sku, name, description, brand, price, stock, categoryId, id, businessId]
@@ -268,16 +274,86 @@ export async function updateItem(
   return result.rows[0];
 }
 
-export async function deleteItem(id, businessId) {
+export async function archiveItem(id, businessId, archivedBy, archiveReason) {
   const result = await pool.query(
     `
-      DELETE FROM items
+      UPDATE items
+      SET
+        status = 'archived',
+        archived_at = CURRENT_TIMESTAMP,
+        archived_by = $3,
+        archive_reason = $4
       WHERE id = $1
         AND business_id = $2
+        AND status = 'active'
       RETURNING id, name, category_id
+    `,
+    [id, businessId, archivedBy, archiveReason]
+  );
+
+  return result.rows[0];
+}
+
+export async function getArchivedItems(businessId) {
+  const result = await pool.query(
+    `
+      SELECT
+        items.id, items.name, items.sku, items.category_id,
+        items.archived_at, items.archive_reason,
+        categories.name AS category_name,
+        users.username AS archived_by_username
+      FROM items
+      INNER JOIN categories
+        ON categories.id = items.category_id
+       AND categories.business_id = items.business_id
+      INNER JOIN users ON users.id = items.archived_by
+      WHERE items.business_id = $1
+        AND items.status = 'archived'
+      ORDER BY items.archived_at DESC, items.id DESC
+    `,
+    [businessId]
+  );
+  return result.rows;
+}
+
+export async function getArchivedItemById(id, businessId) {
+  const result = await pool.query(
+    `
+      SELECT
+        items.id, items.sku, items.name, items.description, items.brand,
+        items.price, items.stock, items.category_id, items.created_at,
+        items.archived_at, items.archive_reason,
+        categories.name AS category_name,
+        users.username AS archived_by_username
+      FROM items
+      INNER JOIN categories
+        ON categories.id = items.category_id
+       AND categories.business_id = items.business_id
+      INNER JOIN users ON users.id = items.archived_by
+      WHERE items.id = $1
+        AND items.business_id = $2
+        AND items.status = 'archived'
     `,
     [id, businessId]
   );
+  return result.rows[0];
+}
 
+export async function restoreItem(id, businessId) {
+  const result = await pool.query(
+    `
+      UPDATE items
+      SET
+        status = 'active',
+        archived_at = NULL,
+        archived_by = NULL,
+        archive_reason = NULL
+      WHERE id = $1
+        AND business_id = $2
+        AND status = 'archived'
+      RETURNING id
+    `,
+    [id, businessId]
+  );
   return result.rows[0];
 }
