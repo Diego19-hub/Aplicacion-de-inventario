@@ -62,7 +62,7 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 - [x] Proveedores por negocio. Criterio: CRUD aislado por `business_id`, estados y listado paginado. Dependencia: Fase 2.
 - [x] Sucursales y existencias por ubicación. Criterio: stock asociado a ubicación, conciliado con el total del producto. Dependencia: Fase 4.
-- [ ] Transferencias atómicas. Criterio: crean salida y entrada en una transacción. Dependencia: sucursales y movimientos.
+- [x] Transferencias atómicas. Criterio: crean salida y entrada en una transacción. Dependencia: sucursales y movimientos.
 
 ## Fase 6 — Reportes, alertas y exportaciones
 

@@ -1,0 +1,1 @@
+import{Router}from'express';import{requireAuth,requireActiveBusiness,requireBusinessRole}from'../middleware/authMiddleware.js';import{dashboard,inventory}from'../controllers/reportsController.js';const r=Router();r.use(requireAuth,requireActiveBusiness,requireBusinessRole('owner','manager','viewer'));r.get('/',dashboard);r.get('/inventory',inventory);export default r;
