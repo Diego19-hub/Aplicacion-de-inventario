@@ -54,13 +54,13 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 4 — Movimientos de inventario y existencias
 
-- [ ] Tabla inmutable de movimientos. Criterio: guarda cantidad, motivo, usuario, fecha y negocio. Dependencia: Fase 3.
-- [ ] Existencias transaccionales. Criterio: no se edita stock directo ni se permite negativo sin regla explícita. Dependencia: movimientos.
-- [ ] Auditoría. Criterio: se conoce quién creó cada movimiento. Dependencia: membresías.
+- [x] Tabla inmutable de movimientos. Criterio: guarda cantidad, motivo, usuario, fecha y negocio. Dependencia: Fase 3.
+- [x] Existencias transaccionales. Criterio: no se edita stock directo ni se permite negativo sin regla explícita. Dependencia: movimientos.
+- [x] Auditoría. Criterio: se conoce quién creó cada movimiento. Dependencia: membresías.
 
 ## Fase 5 — Proveedores, sucursales y transferencias
 
-- [ ] Proveedores por negocio. Criterio: CRUD aislado por `business_id`. Dependencia: Fase 2.
+- [x] Proveedores por negocio. Criterio: CRUD aislado por `business_id`, estados y listado paginado. Dependencia: Fase 2.
 - [ ] Sucursales y existencias por ubicación. Criterio: stock asociado a sucursal. Dependencia: Fase 4.
 - [ ] Transferencias atómicas. Criterio: crean salida y entrada en una transacción. Dependencia: sucursales y movimientos.
 

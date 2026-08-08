@@ -1,0 +1,3 @@
+import { body } from "express-validator";
+const optional = (field, max) => body(field).trim().customSanitizer(v => v || null).optional({ values: "null" }).isLength({ max });
+export const supplierValidation = [body("name").trim().isLength({min:2,max:120}).withMessage("El nombre comercial debe tener entre 2 y 120 caracteres."), optional("legalName",255), optional("taxId",40).customSanitizer(v=>v?.toUpperCase()).matches(/^[A-Z0-9._/-]+$/).withMessage("La identificación fiscal no tiene un formato válido."), optional("contactName",120), optional("email",254).isEmail().withMessage("El correo no es válido.").normalizeEmail(), optional("phone",40).matches(/^[0-9+() .-]+$/).withMessage("El teléfono no es válido."), optional("address",500), optional("notes",1000)];
