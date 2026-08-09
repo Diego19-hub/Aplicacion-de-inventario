@@ -1,1 +1,327 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><title><%= title %></title></head><body><main><a href="/reports">← Reportes</a><h1>Existencias</h1><form method="GET"><input name="q" value="<%= filters.q %>"><select name="category"><option value="">Categorías</option><% categories.forEach(x=>{%><option value="<%=x.id%>" <%=filters.categoryId===x.id?'selected':''%>><%=x.name%></option><%})%></select><select name="location"><option value="">Ubicaciones</option><% locations.forEach(x=>{%><option value="<%=x.id%>" <%=filters.locationId===x.id?'selected':''%>><%=x.name%></option><%})%></select><select name="productStatus"><option value="active">Activos</option><option value="archived">Archivados</option><option value="all">Todos</option></select><select name="stockRows"><option value="positive">Con stock</option><option value="all">Todos</option></select><button>Filtrar</button><a href="/reports/inventory">Limpiar</a></form><p><%=count%> resultados</p><table><thead><tr><th>Producto</th><th>SKU</th><th>Categoría</th><th>Ubicación</th><th>Código</th><th>Tipo</th><th>Estado ubicación</th><th>Stock local</th><th>Total</th><th>Estado producto</th></tr></thead><tbody><% rows.forEach(r=>{%><tr><td><%=r.name%></td><td><%=r.sku%></td><td><%=r.category_name%></td><td><%=r.location_name%></td><td><%=r.code%></td><td><%=r.location_type%></td><td><%=r.location_status%></td><td><%=r.local_stock%></td><td><%=r.total_stock%></td><td><%=r.product_status%></td></tr><%})%></tbody></table></main></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title><%= title %> | Boxing Inventory</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/" class="logo">Boxing Inventory</a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/">Inicio</a>
+        <a href="/categories">Categorías</a>
+        <a href="/items">Productos</a>
+        <a href="/reports">Reportes</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <a href="/reports" class="back-link">← Regresar a reportes</a>
+
+    <section class="page-header">
+      <div>
+        <p class="eyebrow">Inventario actual</p>
+        <h1>Existencias por ubicación</h1>
+
+        <p>
+          Consulta cuánto inventario existe en cada sucursal o bodega.
+        </p>
+      </div>
+    </section>
+
+    <form
+      method="GET"
+      action="/reports/inventory"
+      class="filters-form"
+    >
+      <div class="form-group">
+        <label for="q">Buscar</label>
+
+        <input
+          type="search"
+          id="q"
+          name="q"
+          value="<%= filters.q || "" %>"
+          placeholder="Buscar por nombre o SKU"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="category">Categoría</label>
+
+        <select id="category" name="category">
+          <option value="">Todas las categorías</option>
+
+          <% categories.forEach((category) => { %>
+            <option
+              value="<%= category.id %>"
+              <%= filters.categoryId === category.id
+                ? "selected"
+                : "" %>
+            >
+              <%= category.name %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="location">Ubicación</label>
+
+        <select id="location" name="location">
+          <option value="">Todas las ubicaciones</option>
+
+          <% locations.forEach((location) => { %>
+            <option
+              value="<%= location.id %>"
+              <%= filters.locationId === location.id
+                ? "selected"
+                : "" %>
+            >
+              <%= location.name %> (<%= location.code %>)
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="productStatus">Estado del producto</label>
+
+        <select id="productStatus" name="productStatus">
+          <option
+            value="active"
+            <%= filters.status === "active" ? "selected" : "" %>
+          >
+            Activos
+          </option>
+
+          <option
+            value="archived"
+            <%= filters.status === "archived" ? "selected" : "" %>
+          >
+            Archivados
+          </option>
+
+          <option
+            value="all"
+            <%= filters.status === "all" ? "selected" : "" %>
+          >
+            Todos
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="stockRows">Existencias</label>
+
+        <select id="stockRows" name="stockRows">
+          <option
+            value="positive"
+            <%= filters.stockRows === "positive" ? "selected" : "" %>
+          >
+            Solo ubicaciones con stock
+          </option>
+
+          <option
+            value="all"
+            <%= filters.stockRows === "all" ? "selected" : "" %>
+          >
+            Incluir stock en cero
+          </option>
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="button">
+          Filtrar
+        </button>
+
+        <a
+          href="/reports/inventory"
+          class="button button-secondary"
+        >
+          Limpiar filtros
+        </a>
+      </div>
+    </form>
+
+    <%
+      const hasFilters = Boolean(
+        filters.q ||
+        filters.categoryId ||
+        filters.locationId ||
+        filters.status !== "active" ||
+        filters.stockRows !== "positive"
+      );
+
+      const currentPage = filters.page || 1;
+
+      let firstPage = Math.max(1, currentPage - 2);
+      let lastPage = Math.min(pages, firstPage + 4);
+
+      firstPage = Math.max(1, lastPage - 4);
+
+      function buildPageUrl(page) {
+        const params = new URLSearchParams();
+
+        if (filters.q) {
+          params.set("q", filters.q);
+        }
+
+        if (filters.categoryId) {
+          params.set("category", String(filters.categoryId));
+        }
+
+        if (filters.locationId) {
+          params.set("location", String(filters.locationId));
+        }
+
+        if (filters.status) {
+          params.set("productStatus", filters.status);
+        }
+
+        if (filters.stockRows) {
+          params.set("stockRows", filters.stockRows);
+        }
+
+        params.set("page", String(page));
+
+        return `/reports/inventory?${params.toString()}`;
+      }
+    %>
+
+    <section aria-labelledby="inventory-results-title">
+      <div class="section-heading">
+        <h2 id="inventory-results-title">Resultados</h2>
+
+        <p>
+          <strong><%= count %></strong>
+          registros encontrados
+        </p>
+      </div>
+
+      <% if (rows.length === 0) { %>
+        <div class="empty-state">
+          <% if (hasFilters) { %>
+            <h2>No se encontraron coincidencias</h2>
+
+            <p>
+              Prueba cambiando la búsqueda o limpiando los filtros.
+            </p>
+
+            <a
+              href="/reports/inventory"
+              class="button button-secondary"
+            >
+              Limpiar filtros
+            </a>
+          <% } else { %>
+            <h2>El inventario está vacío</h2>
+
+            <p>
+              Todavía no existen productos con existencias registradas.
+            </p>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>SKU</th>
+                <th>Categoría</th>
+                <th>Ubicación</th>
+                <th>Código</th>
+                <th>Tipo</th>
+                <th>Estado ubicación</th>
+                <th>Stock local</th>
+                <th>Stock total</th>
+                <th>Estado producto</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <% rows.forEach((row) => { %>
+                <tr>
+                  <td><%= row.name %></td>
+                  <td><%= row.sku %></td>
+                  <td><%= row.category_name %></td>
+                  <td><%= row.location_name %></td>
+                  <td><%= row.code %></td>
+
+                  <td>
+                    <%= row.location_type === "warehouse"
+                      ? "Bodega"
+                      : "Sucursal" %>
+                  </td>
+
+                  <td>
+                    <%= row.location_status === "active"
+                      ? "Activa"
+                      : "Inactiva" %>
+                  </td>
+
+                  <td>
+                    <strong><%= row.local_stock %></strong>
+                  </td>
+
+                  <td><%= row.total_stock %></td>
+
+                  <td>
+                    <%= row.product_status === "active"
+                      ? "Activo"
+                      : "Archivado" %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+        <% if (pages > 1) { %>
+          <nav
+            class="pagination"
+            aria-label="Paginación del reporte de existencias"
+          >
+            <% if (currentPage > 1) { %>
+              <a href="<%= buildPageUrl(currentPage - 1) %>">
+                Anterior
+              </a>
+            <% } %>
+
+            <% for (
+              let page = firstPage;
+              page <= lastPage;
+              page += 1
+            ) { %>
+              <a
+                href="<%= buildPageUrl(page) %>"
+                <%= page === currentPage
+                  ? 'aria-current="page"'
+                  : "" %>
+              >
+                <%= page %>
+              </a>
+            <% } %>
+
+            <% if (currentPage < pages) { %>
+              <a href="<%= buildPageUrl(currentPage + 1) %>">
+                Siguiente
+              </a>
+            <% } %>
+          </nav>
+        <% } %>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

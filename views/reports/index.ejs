@@ -1,1 +1,70 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><title><%= title %></title></head><body><main><h1>Reportes</h1><a href="/reports/inventory">Existencias por ubicación</a><a href="/reports/movements">Movimientos</a></main></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title><%= title %> | Boxing Inventory</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/" class="logo">Boxing Inventory</a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/">Inicio</a>
+        <a href="/categories">Categorías</a>
+        <a href="/items">Productos</a>
+        <a href="/reports" aria-current="page">Reportes</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="page-header">
+      <div>
+        <p class="eyebrow">Análisis del inventario</p>
+        <h1>Reportes</h1>
+
+        <p>
+          Consulta existencias y revisa el historial de operaciones
+          del negocio activo.
+        </p>
+      </div>
+    </section>
+
+    <section class="dashboard-grid" aria-label="Reportes disponibles">
+      <article class="dashboard-card">
+        <p class="eyebrow">Inventario actual</p>
+        <h2>Existencias por ubicación</h2>
+
+        <p>
+          Consulta el stock de cada producto por sucursal o bodega,
+          con filtros de categoría, estado y ubicación.
+        </p>
+
+        <a href="/reports/inventory" class="button">
+          Ver existencias
+        </a>
+      </article>
+
+      <article class="dashboard-card">
+        <p class="eyebrow">Auditoría</p>
+        <h2>Movimientos de inventario</h2>
+
+        <p>
+          Revisa entradas, salidas, ajustes y transferencias,
+          incluyendo el usuario responsable.
+        </p>
+
+        <a href="/reports/movements" class="button">
+          Ver movimientos
+        </a>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
