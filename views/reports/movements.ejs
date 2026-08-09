@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title><%= title %> | Boxing Inventory</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <header class="main-header">
+    <div class="container header-content">
+      <a href="/" class="logo">Boxing Inventory</a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/">Inicio</a>
+        <a href="/items">Productos</a>
+        <a href="/reports">Reportes</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <a href="/reports" class="back-link">← Regresar a reportes</a>
+
+    <section class="page-header">
+      <div>
+        <p class="eyebrow">Auditoría de inventario</p>
+        <h1>Movimientos</h1>
+        <p>
+          Consulta entradas, salidas, ajustes y transferencias del negocio.
+        </p>
+      </div>
+    </section>
+
+    <% if (error) { %>
+      <div class="error-summary" role="alert">
+        <strong><%= error %></strong>
+      </div>
+    <% } %>
+
+    <form method="GET" action="/reports/movements" class="filters-form">
+      <div class="form-group">
+        <label for="q">Buscar</label>
+        <input
+          type="search"
+          id="q"
+          name="q"
+          value="<%= filters.q || "" %>"
+          placeholder="Producto, SKU o referencia"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="dateFrom">Desde</label>
+        <input
+          type="date"
+          id="dateFrom"
+          name="dateFrom"
+          value="<%= filters.dateFrom || "" %>"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="dateTo">Hasta</label>
+        <input
+          type="date"
+          id="dateTo"
+          name="dateTo"
+          value="<%= filters.dateTo || "" %>"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="location">Ubicación</label>
+        <select id="location" name="location">
+          <option value="">Todas las ubicaciones</option>
+
+          <% locations.forEach((location) => { %>
+            <option
+              value="<%= location.id %>"
+              <%= filters.locationId === location.id ? "selected" : "" %>
+            >
+              <%= location.name %> (<%= location.code %>)
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="user">Usuario</label>
+        <select id="user" name="user">
+          <option value="">Todos los usuarios</option>
+
+          <% users.forEach((user) => { %>
+            <option
+              value="<%= user.id %>"
+              <%= filters.userId === user.id ? "selected" : "" %>
+            >
+              <%= user.username %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="movementType">Tipo</label>
+        <select id="movementType" name="movementType">
+          <option value="">Todos los tipos</option>
+          <option
+            value="opening_balance"
+            <%= filters.type === "opening_balance" ? "selected" : "" %>
+          >
+            Saldo inicial
+          </option>
+          <option
+            value="entry"
+            <%= filters.type === "entry" ? "selected" : "" %>
+          >
+            Entrada
+          </option>
+          <option
+            value="exit"
+            <%= filters.type === "exit" ? "selected" : "" %>
+          >
+            Salida
+          </option>
+          <option
+            value="adjustment"
+            <%= filters.type === "adjustment" ? "selected" : "" %>
+          >
+            Ajuste
+          </option>
+          <option
+            value="transfer_out"
+            <%= filters.type === "transfer_out" ? "selected" : "" %>
+          >
+            Transferencia — salida
+          </option>
+          <option
+            value="transfer_in"
+            <%= filters.type === "transfer_in" ? "selected" : "" %>
+          >
+            Transferencia — entrada
+          </option>
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="button">Filtrar</button>
+
+        <a href="/reports/movements" class="button button-secondary">
+          Limpiar filtros
+        </a>
+      </div>
+    </form>
+
+    <%
+      const movementLabels = {
+        opening_balance: "Saldo inicial",
+        entry: "Entrada",
+        exit: "Salida",
+        adjustment: "Ajuste",
+        transfer_out: "Transferencia — salida",
+        transfer_in: "Transferencia — entrada"
+      };
+
+      const hasFilters = Boolean(
+        filters.q ||
+        filters.dateFrom ||
+        filters.dateTo ||
+        filters.locationId ||
+        filters.userId ||
+        filters.type
+      );
+
+      const currentPage = filters.page || 1;
+
+      let firstPage = Math.max(1, currentPage - 2);
+      let lastPage = Math.min(pages, firstPage + 4);
+
+      firstPage = Math.max(1, lastPage - 4);
+
+      function buildPageUrl(page) {
+        const params = new URLSearchParams();
+
+        if (filters.q) {
+          params.set("q", filters.q);
+        }
+
+        if (filters.dateFrom) {
+          params.set("dateFrom", filters.dateFrom);
+        }
+
+        if (filters.dateTo) {
+          params.set("dateTo", filters.dateTo);
+        }
+
+        if (filters.locationId) {
+          params.set("location", String(filters.locationId));
+        }
+
+        if (filters.userId) {
+          params.set("user", String(filters.userId));
+        }
+
+        if (filters.type) {
+          params.set("movementType", filters.type);
+        }
+
+        params.set("page", String(page));
+
+        return `/reports/movements?${params.toString()}`;
+      }
+    %>
+
+    <section aria-labelledby="movement-results-title">
+      <div class="section-heading">
+        <h2 id="movement-results-title">Resultados</h2>
+        <p><strong><%= count %></strong> movimientos encontrados</p>
+      </div>
+
+      <% if (rows.length === 0) { %>
+        <div class="empty-state">
+          <% if (hasFilters) { %>
+            <h2>No se encontraron coincidencias</h2>
+            <p>Prueba cambiando o limpiando los filtros.</p>
+
+            <a href="/reports/movements" class="button button-secondary">
+              Limpiar filtros
+            </a>
+          <% } else { %>
+            <h2>Todavía no existen movimientos</h2>
+            <p>
+              Los movimientos aparecerán cuando registres entradas, salidas,
+              ajustes o transferencias.
+            </p>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Producto</th>
+                <th>Ubicación</th>
+                <th>Tipo</th>
+                <th>Cambio</th>
+                <th>Anterior</th>
+                <th>Resultado</th>
+                <th>Usuario</th>
+                <th>Motivo</th>
+                <th>Referencia</th>
+                <th>Transferencia</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <% rows.forEach((movement) => { %>
+                <%
+                  const productUrl =
+                    movement.product_status === "archived" && isOwner
+                      ? `/items/${movement.item_id}/archived`
+                      : `/items/${movement.item_id}`;
+                %>
+
+                <tr>
+                  <td>
+                    <%= new Date(movement.created_at).toLocaleString("es-MX") %>
+                  </td>
+
+                  <td>
+                    <a href="<%= productUrl %>">
+                      <%= movement.item_name %>
+                    </a>
+                    <br>
+                    <small><%= movement.sku %></small>
+                  </td>
+
+                  <td>
+                    <%= movement.location_name %>
+                    <br>
+                    <small><%= movement.code %></small>
+                  </td>
+
+                  <td>
+                    <%= movementLabels[movement.movement_type] ||
+                        movement.movement_type %>
+                  </td>
+
+                  <td>
+                    <strong>
+                      <%= movement.quantity_delta > 0 ? "+" : "" %><%=
+                        movement.quantity_delta
+                      %>
+                    </strong>
+                  </td>
+
+                  <td><%= movement.previous_stock %></td>
+                  <td><%= movement.resulting_stock %></td>
+                  <td><%= movement.username %></td>
+                  <td><%= movement.reason %></td>
+                  <td><%= movement.reference || "—" %></td>
+
+                  <td>
+                    <% if (movement.transfer_id) { %>
+                      <a href="/transfers/<%= movement.transfer_id %>">
+                        #<%= movement.transfer_id %>
+                      </a>
+                    <% } else { %>
+                      —
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+        <% if (pages > 1) { %>
+          <nav class="pagination" aria-label="Paginación de movimientos">
+            <% if (currentPage > 1) { %>
+              <a href="<%= buildPageUrl(currentPage - 1) %>">
+                Anterior
+              </a>
+            <% } %>
+
+            <% for (let page = firstPage; page <= lastPage; page += 1) { %>
+              <a
+                href="<%= buildPageUrl(page) %>"
+                <%= page === currentPage
+                  ? 'aria-current="page"'
+                  : "" %>
+              >
+                <%= page %>
+              </a>
+            <% } %>
+
+            <% if (currentPage < pages) { %>
+              <a href="<%= buildPageUrl(currentPage + 1) %>">
+                Siguiente
+              </a>
+            <% } %>
+          </nav>
+        <% } %>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

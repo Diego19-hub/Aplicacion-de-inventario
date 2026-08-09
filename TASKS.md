@@ -66,7 +66,7 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 6 — Reportes, alertas y exportaciones
 
-- [ ] Reportes de existencias y movimientos. Criterio: filtros por negocio, fecha y sucursal. Dependencia: Fases 3–5.
+- [x] Reportes de existencias y movimientos. Criterio: filtros por negocio, fecha y sucursal. Dependencia: Fases 3–5.
 - [ ] Alertas de stock bajo. Criterio: umbral configurable y aislado por negocio. Dependencia: existencias.
 - [ ] Exportaciones. Criterio: solo incluye datos autorizados del negocio activo. Dependencia: autorización multiempresa.
 
