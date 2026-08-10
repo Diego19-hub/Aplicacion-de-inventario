@@ -106,6 +106,12 @@
           <a href="/items/<%= item.id %>/movements/new" class="button">Registrar movimiento</a>
           <a href="/transfers/new?item=<%= item.id %>" class="button button-secondary">Transferir</a>
           <a
+            href="/alerts/products/<%= item.id %>/thresholds"
+            class="button button-secondary"
+          >
+            Configurar stock mínimo
+          </a>
+          <a
             href="/items/<%= item.id %>/edit"
             class="button button-secondary"
           >

@@ -21,6 +21,7 @@
         <a href="/locations">Ubicaciones</a>
         <a href="/transfers">Transferencias</a>
         <a href="/reports">Reportes</a>
+        <a href="/alerts/stock">Alertas</a>
 
         <% if (currentMembership?.role === "owner") { %>
           <a href="/members">Miembros</a>
@@ -87,6 +88,16 @@
           <span>Productos</span>
           <strong><%= summary.item_count %></strong>
         </article>
+
+      <article class="summary-card">
+        <span>Alertas de stock</span>
+
+        <strong><%= summary.stock_alert_count %></strong>
+
+        <a href="/alerts/stock" class="button button-secondary">
+          Ver alertas
+        </a>
+      </article>
 
         <article class="summary-card">
           <span>Unidades disponibles</span>

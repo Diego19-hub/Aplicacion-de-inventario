@@ -3,16 +3,40 @@ import { categorySkuPrefix } from "../utils/sku.js";
 
 export async function getInventorySummary(businessId) {
   const result = await pool.query(
-    `
-      SELECT
-        (SELECT COUNT(*) FROM categories WHERE business_id = $1)::INTEGER AS category_count,
-        COUNT(items.id)::INTEGER AS item_count,
-        COALESCE(SUM(items.stock), 0)::INTEGER AS total_stock,
-        COALESCE(SUM(items.price * items.stock), 0) AS inventory_value
-      FROM items
-      WHERE items.business_id = $1
-        AND items.status = 'active'
-    `,
+  `
+    SELECT
+      (
+        SELECT COUNT(*)
+        FROM inventory_stock_thresholds thresholds
+        JOIN items alert_items
+          ON alert_items.business_id = thresholds.business_id
+        AND alert_items.id = thresholds.item_id
+        JOIN business_locations locations
+          ON locations.business_id = thresholds.business_id
+        AND locations.id = thresholds.location_id
+        LEFT JOIN inventory_balances balances
+          ON balances.business_id = thresholds.business_id
+        AND balances.item_id = thresholds.item_id
+        AND balances.location_id = thresholds.location_id
+        WHERE thresholds.business_id = $1
+          AND alert_items.status = 'active'
+          AND locations.status = 'active'
+          AND COALESCE(balances.stock, 0) <= thresholds.minimum_stock
+      )::INTEGER AS stock_alert_count,
+
+      (
+        SELECT COUNT(*)
+        FROM categories
+        WHERE business_id = $1
+      )::INTEGER AS category_count,
+
+      COUNT(items.id)::INTEGER AS item_count,
+      COALESCE(SUM(items.stock), 0)::INTEGER AS total_stock,
+      COALESCE(SUM(items.price * items.stock), 0) AS inventory_value
+    FROM items
+    WHERE items.business_id = $1
+      AND items.status = 'active'
+  `,
     [businessId]
   );
 
