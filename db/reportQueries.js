@@ -45,6 +45,16 @@ export async function inventoryReport(f) {
   );
   return { count: count.rows[0].count, rows: rows.rows };
 }
+
+export async function inventoryExport(f) {
+  const x = filters(f);
+  const base = ` FROM items i JOIN categories c ON(c.business_id,c.id)=(i.business_id,i.category_id) CROSS JOIN business_locations l LEFT JOIN inventory_balances b ON(b.business_id,b.location_id,b.item_id)=(i.business_id,l.id,i.id) WHERE l.business_id=$1 AND (l.status='active' OR COALESCE(b.stock,0)>0) AND ${x.w}`;
+  const result = await pool.query(
+    `SELECT i.name,i.sku,i.status product_status,c.name category_name,l.name location_name,l.code,l.location_type,l.status location_status,COALESCE(b.stock,0)::int local_stock,i.stock total_stock ${base} ORDER BY lower(i.name),i.id,lower(l.name),l.id`,
+    x.v,
+  );
+  return result.rows;
+}
 export async function movementOptions(businessId) {
   const [users, locations] = await Promise.all([
     pool.query(
@@ -103,4 +113,18 @@ export async function movementReport(f) {
     p,
   );
   return { count: count.rows[0].count, rows: rows.rows };
+}
+
+export async function movementExport(f) {
+  const v = [f.businessId], w = ["m.business_id=$1"];
+  if (f.role !== "owner") w.push("i.status='active'");
+  if (f.q) { v.push("%" + f.q + "%"); w.push(`(i.name ILIKE $${v.length} OR i.sku ILIKE $${v.length} OR m.reference ILIKE $${v.length})`); }
+  if (f.locationId) { v.push(f.locationId); w.push(`m.location_id=$${v.length}`); }
+  if (f.userId) { v.push(f.userId); w.push(`m.created_by=$${v.length}`); }
+  if (f.type) { v.push(f.type); w.push(`m.movement_type=$${v.length}`); }
+  if (f.dateFrom) { v.push(f.dateFrom); w.push(`m.created_at >= $${v.length}::date`); }
+  if (f.dateTo) { v.push(f.dateTo); w.push(`m.created_at < ($${v.length}::date+interval '1 day')`); }
+  const base = ` FROM inventory_movements m JOIN items i ON(i.business_id,i.id)=(m.business_id,m.item_id) JOIN business_locations l ON(l.business_id,l.id)=(m.business_id,m.location_id) JOIN users u ON u.id=m.created_by WHERE ${w.join(" AND ")}`;
+  const result = await pool.query(`SELECT m.*,i.name item_name,i.sku,l.name location_name,l.code,u.username ${base} ORDER BY m.created_at DESC,m.id DESC`, v);
+  return result.rows;
 }

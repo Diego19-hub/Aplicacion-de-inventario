@@ -153,6 +153,15 @@
       </div>
     </form>
 
+    <% const csvParams = new URLSearchParams();
+      if (filters.q) csvParams.set("q", filters.q);
+      if (filters.categoryId) csvParams.set("category", filters.categoryId);
+      if (filters.locationId) csvParams.set("location", filters.locationId);
+      if (filters.status) csvParams.set("productStatus", filters.status);
+      if (filters.stockRows) csvParams.set("stockRows", filters.stockRows);
+    %>
+    <a class="button button-secondary" href="/reports/inventory.csv?<%= csvParams.toString() %>">Exportar CSV</a>
+
     <%
       const hasFilters = Boolean(
         filters.q ||

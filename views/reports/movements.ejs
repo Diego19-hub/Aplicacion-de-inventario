@@ -157,6 +157,16 @@
       </div>
     </form>
 
+    <% const csvParams = new URLSearchParams();
+      if (filters.q) csvParams.set("q", filters.q);
+      if (filters.dateFrom) csvParams.set("dateFrom", filters.dateFrom);
+      if (filters.dateTo) csvParams.set("dateTo", filters.dateTo);
+      if (filters.locationId) csvParams.set("location", filters.locationId);
+      if (filters.userId) csvParams.set("user", filters.userId);
+      if (filters.type) csvParams.set("movementType", filters.type);
+    %>
+    <a class="button button-secondary" href="/reports/movements.csv?<%= csvParams.toString() %>">Exportar CSV</a>
+
     <%
       const movementLabels = {
         opening_balance: "Saldo inicial",
