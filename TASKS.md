@@ -8,7 +8,7 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 - Rol global `super_admin` y roles por negocio en `business_members`.
 - ID interno único para productos y SKU visible único dentro de cada negocio.
 - El stock cambia por movimientos, no por edición directa.
-- La migración a Astro no está aprobada.
+- El frontend futuro será React con Vite y React Router; Express continuará como backend.
 - Los roles empresariales definitivos son `viewer`, `manager` y `owner`; `super_admin` es únicamente un rol global.
 - - Los productos se archivan y restauran exclusivamente por `owner`; no se eliminan físicamente.
 
@@ -73,12 +73,14 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 ## Fase 7 — Experiencia de usuario y diseño
 
 - [x] Selector de negocio y estados de permiso. Criterio: la interfaz identifica el negocio activo y muestra únicamente las acciones permitidas por rol. Dependencia: Fase 2.
-- [ ] Accesibilidad y formularios. Criterio: errores claros, teclado y diseño adaptable. Dependencia: flujos estabilizados.
+- [x] Accesibilidad y formularios. Criterio: errores claros, teclado y diseño adaptable. Dependencia: flujos estabilizados.
 
 ## Fase 8 — Decidir frontend entre EJS, React y Astro
 
-- [ ] Evaluar EJS, React y Astro. Criterio: decisión documentada con coste, autenticación y plan de migración. Dependencia: requisitos UX.
-- [!] Migración a Astro. Criterio: no iniciar hasta aprobación explícita. Dependencia: evaluación aprobada.
+## Fase 8 — Decidir frontend entre EJS, React y Angular
+
+- [x] Evaluar EJS, React y Angular. Criterio: React fue elegido por permitir una migración gradual y conservar Express como backend.
+- [!] Migración a React. Criterio: iniciar después de completar la Fase 9 y mediante una rama independiente. Dependencia: seguridad, pruebas y producción estabilizadas.
 
 ## Fase 9 — Pruebas, seguridad y producción
 
