@@ -1,11 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
 import helmet from "helmet";
 import { csrfSync } from "csrf-sync";
-
-import pool from "./db/pool.js";
 
 import indexRouter from "./routes/indexRouter.js";
 import categoriesRouter from "./routes/categoriesRouter.js";
@@ -30,6 +27,7 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === "production";
+const isTest = process.env.NODE_ENV === "test";
 const sessionSecret = process.env.SESSION_SECRET;
 
 
@@ -55,13 +53,19 @@ app.use(
   })
 );
 
-const PostgreSQLStore = connectPgSimple(session);
+let sessionStore;
 
-const sessionStore = new PostgreSQLStore({
-  pool,
-  tableName: "user_sessions",
-  createTableIfMissing: true
-});
+if (!isTest) {
+  const { default: connectPgSimple } = await import("connect-pg-simple");
+  const { default: pool } = await import("./db/pool.js");
+  const PostgreSQLStore = connectPgSimple(session);
+
+  sessionStore = new PostgreSQLStore({
+    pool,
+    tableName: "user_sessions",
+    createTableIfMissing: true
+  });
+}
 
 const {
   csrfSynchronisedProtection
@@ -80,21 +84,24 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("public"));
 
-app.use(
-  session({
-    store: sessionStore,
-    name: "boxing_inventory_session",
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: isProduction,
-      maxAge: 1000 * 60 * 60 * 24 * 7
-    }
-  })
-);
+const sessionOptions = {
+  name: "boxing_inventory_session",
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProduction,
+    maxAge: 1000 * 60 * 60 * 24 * 7
+  }
+};
+
+if (!isTest) {
+  sessionOptions.store = sessionStore;
+}
+
+app.use(session(sessionOptions));
 app.use(csrfSynchronisedProtection);
 
 app.use((req, res, next) => {
@@ -133,7 +140,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Solo abre un puerto cuando se ejecuta localmente
-if (!process.env.VERCEL) {
+if (!isTest && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
   });
