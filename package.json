@@ -9,6 +9,7 @@
     "db:seed": "node db/populatedb.js",
     "db:migrations:status": "node scripts/migrations.js status",
     "db:migrations:baseline": "node scripts/migrations.js baseline",
+    "db:migrations:up": "node scripts/migrations.js up",
     "test": "node --test",
     "test:db:setup": "node scripts/testDatabase.js setup",
     "test:db:teardown": "node scripts/testDatabase.js teardown"

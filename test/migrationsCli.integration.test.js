@@ -55,6 +55,32 @@ test(
         null
       );
 
+      const missingUpConfirmation = await runCli(["up"]);
+      assert.notEqual(missingUpConfirmation.code, 0);
+      assert.equal(
+        (await client.query("SELECT to_regclass('public.schema_migrations') AS relation")).rows[0].relation,
+        null
+      );
+
+      const incorrectUpConfirmation = await runCli(["up"], {
+        MIGRATION_UP_CONFIRM: "otra_base"
+      });
+      assert.notEqual(incorrectUpConfirmation.code, 0);
+      assert.equal(
+        (await client.query("SELECT to_regclass('public.schema_migrations') AS relation")).rows[0].relation,
+        null
+      );
+
+      const upBeforeBaseline = await runCli(["up"], {
+        MIGRATION_UP_CONFIRM: "inventory_boxing_integration_test"
+      });
+      assert.notEqual(upBeforeBaseline.code, 0);
+      assert.match(upBeforeBaseline.stderr, /primero se necesita baseline/);
+      assert.equal(
+        (await client.query("SELECT to_regclass('public.schema_migrations') AS relation")).rows[0].relation,
+        null
+      );
+
       const missingConfirmation = await runCli(["baseline"]);
       assert.notEqual(missingConfirmation.code, 0);
       assert.equal(
@@ -85,6 +111,16 @@ test(
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
       );
 
+      const upWithoutPending = await runCli(["up"], {
+        MIGRATION_UP_CONFIRM: "inventory_boxing_integration_test"
+      });
+      assert.equal(upWithoutPending.code, 0);
+      assert.match(upWithoutPending.stdout, /No hay migraciones pendientes/);
+      assert.equal(
+        (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
+        10
+      );
+
       const finalStatus = await runCli(["status"]);
       assert.equal(finalStatus.code, 0);
       assert.match(finalStatus.stdout, /applied: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010/);
@@ -104,9 +140,13 @@ test(
 
       for (const result of [
         initialStatus,
+        missingUpConfirmation,
+        incorrectUpConfirmation,
+        upBeforeBaseline,
         missingConfirmation,
         incorrectConfirmation,
         baseline,
+        upWithoutPending,
         finalStatus,
         repeatedBaseline
       ]) {

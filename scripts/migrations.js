@@ -3,9 +3,10 @@ import pg from "pg";
 import { baselineMigrationHistory } from "../db/migrationBaseline.js";
 import { getMigrationInventory } from "../db/migrationFiles.js";
 import { getMigrationStatus } from "../db/migrationHistory.js";
+import { applyPendingMigrations } from "../db/migrationRunner.js";
 
 const { Client } = pg;
-const allowedCommands = new Set(["status", "baseline"]);
+const allowedCommands = new Set(["status", "baseline", "up"]);
 const statusNames = [
   "applied",
   "pending",
@@ -65,7 +66,7 @@ async function run() {
   const command = process.argv[2];
 
   if (!allowedCommands.has(command) || process.argv.length !== 3) {
-    throw new CliError("Uso: node scripts/migrations.js <status|baseline>.");
+    throw new CliError("Uso: node scripts/migrations.js <status|baseline|up>.");
   }
 
   const databaseUrl = getDatabaseUrl();
@@ -73,6 +74,10 @@ async function run() {
 
   if (command === "baseline" && process.env.MIGRATION_BASELINE_CONFIRM !== databaseName) {
     throw new CliError("MIGRATION_BASELINE_CONFIRM debe coincidir exactamente con el nombre de la base.");
+  }
+
+  if (command === "up" && process.env.MIGRATION_UP_CONFIRM !== databaseName) {
+    throw new CliError("MIGRATION_UP_CONFIRM debe coincidir exactamente con el nombre de la base.");
   }
 
   const inventory = await getMigrationInventory();
@@ -92,10 +97,34 @@ async function run() {
       return;
     }
 
-    await baselineMigrationHistory(client, inventory);
+    if (command === "baseline") {
+      await baselineMigrationHistory(client, inventory);
+      console.log(`Base: ${databaseName}`);
+      console.log(`Estado: baseline aplicado`);
+      console.log(`Versiones registradas: ${inventory.map((migration) => migration.version).join(", ")}`);
+      return;
+    }
+
+    const status = await getMigrationStatus(client, inventory);
+
+    if (status.state === "uninitialized") {
+      throw new CliError("El historial no está inicializado; primero se necesita baseline.");
+    }
+
+    const incompatibleHistory = status.summary.checksum_mismatch > 0
+      || status.summary.name_mismatch > 0
+      || status.summary.missing_file > 0;
+    const pending = status.migrations.filter((migration) => migration.status === "pending");
+
+    if (!incompatibleHistory && pending.length === 0) {
+      console.log(`Base: ${databaseName}`);
+      console.log("No hay migraciones pendientes");
+      return;
+    }
+
+    await applyPendingMigrations(client, inventory);
     console.log(`Base: ${databaseName}`);
-    console.log(`Estado: baseline aplicado`);
-    console.log(`Versiones registradas: ${inventory.map((migration) => migration.version).join(", ")}`);
+    console.log(`Versiones aplicadas: ${formatVersions(pending)}`);
   } finally {
     await client.end();
   }
