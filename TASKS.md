@@ -75,7 +75,6 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 - [x] Selector de negocio y estados de permiso. Criterio: la interfaz identifica el negocio activo y muestra únicamente las acciones permitidas por rol. Dependencia: Fase 2.
 - [x] Accesibilidad y formularios. Criterio: errores claros, teclado y diseño adaptable. Dependencia: flujos estabilizados.
 
-## Fase 8 — Decidir frontend entre EJS, React y Astro
 
 ## Fase 8 — Decidir frontend entre EJS, React y Angular
 
