@@ -22,10 +22,25 @@
       <p><strong><%= item.name %></strong>. Cada ubicación puede tener un mínimo distinto.</p>
     </section>
     <% if (errors.length) { %>
-      <section class="error-summary" aria-labelledby="errors-title"><h2 id="errors-title">Revisa los datos</h2><ul><% errors.forEach((error) => { %><li><%= error.msg %></li><% }) %></ul></section>
+      <section class="error-summary" role="alert" aria-labelledby="errors-title"><h2 id="errors-title">Revisa los datos</h2><ul><% errors.forEach((error) => { %><li><%= error.msg %></li><% }) %></ul></section>
     <% } %>
     <section class="summary-grid">
-      <% locations.forEach((location) => { const hasThreshold = location.minimum_stock !== null && location.minimum_stock !== undefined; const submitted = String(formData.locationId || '') === String(location.location_id); const value = submitted ? formData.minimumStock : hasThreshold ? location.minimum_stock : ''; const state = !hasThreshold ? 'Sin configurar' : location.alert_status === 'out_of_stock' ? 'Agotado' : location.alert_status === 'low_stock' ? 'Stock bajo' : 'Normal'; %>
+      <% locations.forEach((location) => {
+        const locationId = location.location_id;
+        const hasThreshold = location.minimum_stock !== null && location.minimum_stock !== undefined;
+        const submitted = String(formData.locationId || "") === String(locationId);
+        const minimumStockError = submitted
+          ? errors.find((error) => error.path === "minimumStock")
+          : null;
+        const value = submitted ? formData.minimumStock : hasThreshold ? location.minimum_stock : "";
+        const state = !hasThreshold
+          ? "Sin configurar"
+          : location.alert_status === "out_of_stock"
+            ? "Agotado"
+            : location.alert_status === "low_stock"
+              ? "Stock bajo"
+              : "Normal";
+      %>
         <article class="summary-card">
           <h2><%= location.location_name %> (<%= location.code %>)</h2>
           <p>Stock actual: <strong><%= location.current_stock %></strong></p>
@@ -33,9 +48,25 @@
           <p>Estado: <strong><%= state %></strong></p>
           <form method="POST" action="/alerts/products/<%= item.id %>/thresholds" class="inventory-form">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <input type="hidden" name="locationId" value="<%= location.location_id %>">
-            <label for="minimum-stock-<%= location.location_id %>">Stock mínimo</label>
-            <input id="minimum-stock-<%= location.location_id %>" name="minimumStock" type="number" min="0" max="1000000" step="1" required value="<%= value %>">
+            <input type="hidden" name="locationId" value="<%= locationId %>">
+            <label for="minimumStock-<%= locationId %>">Stock mínimo</label>
+            <input
+              id="minimumStock-<%= locationId %>"
+              name="minimumStock"
+              type="number"
+              min="0"
+              max="1000000"
+              step="1"
+              required
+              value="<%= value %>"
+              <% if (minimumStockError) { %>
+                aria-invalid="true"
+                aria-describedby="minimumStock-<%= locationId %>-error"
+              <% } %>
+            >
+            <% if (minimumStockError) { %>
+              <p id="minimumStock-<%= locationId %>-error" class="field-error"><%= minimumStockError.msg %></p>
+            <% } %>
             <button class="button"><%= hasThreshold ? 'Actualizar mínimo' : 'Guardar mínimo' %></button>
           </form>
           <% if (hasThreshold) { %>

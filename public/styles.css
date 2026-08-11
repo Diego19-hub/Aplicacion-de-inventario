@@ -859,3 +859,33 @@ button.button {
     flex-wrap: wrap;
   }
 }
+
+/* Foco visible para navegación con teclado */
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid #ff4d4f;
+  outline-offset: 3px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #ff4d4f !important;
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1000;
+  transform: translateY(-200%);
+  padding: 0.75rem 1rem;
+  border-radius: 0.4rem;
+  background: #ffffff;
+  color: #111111;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}

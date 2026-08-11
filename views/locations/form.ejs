@@ -1,1 +1,26 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= title %></title><link rel="stylesheet" href="/styles.css"></head><body><main class="container form-page"><a href="/locations" class="back-link">← Ubicaciones</a><h1><%= title %></h1><% if(errors.length){ %><ul><% errors.forEach(e=>{ %><li><%= e.msg %></li><% }) %></ul><% } %><form method="POST" class="inventory-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Nombre<input name="name" required minlength="2" maxlength="120" value="<%= location.name %>"></label><label>Código<input name="code" required minlength="2" maxlength="30" value="<%= location.code %>"></label><label>Tipo<select name="locationType"><option value="branch" <%= location.locationType==='branch'?'selected':'' %>>Sucursal</option><option value="warehouse" <%= location.locationType==='warehouse'?'selected':'' %>>Almacén</option></select></label><label>Dirección<input name="address" maxlength="500" value="<%= location.address %>"></label><label>Teléfono<input name="phone" maxlength="40" value="<%= location.phone %>"></label><label>Notas<textarea name="notes" maxlength="1000"><%= location.notes %></textarea></label><button class="button">Guardar</button></form></main></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="container form-page">
+    <a href="/locations" class="back-link">← Ubicaciones</a>
+    <h1><%= title %></h1>
+    <% if (errors.length) { %><div class="error-summary" role="alert"><ul><% errors.forEach((error) => { %><li><%= error.msg %></li><% }) %></ul></div><% } %>
+    <% const errorFor = (field) => errors.find((error) => error.path === field); const nameError=errorFor('name'),codeError=errorFor('code'),typeError=errorFor('locationType'),addressError=errorFor('address'),phoneError=errorFor('phone'),notesError=errorFor('notes'); %>
+    <form method="POST" class="inventory-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="form-group"><label for="name">Nombre</label><input id="name" name="name" required minlength="2" maxlength="120" value="<%= location.name %>" <%= nameError ? 'aria-invalid="true" aria-describedby="name-error"' : '' %>><% if(nameError){ %><p id="name-error" class="field-error"><%= nameError.msg %></p><% } %></div>
+      <div class="form-group"><label for="code">Código</label><input id="code" name="code" required minlength="2" maxlength="30" value="<%= location.code %>" aria-describedby="code-help<%= codeError ? ' code-error' : '' %>" <%= codeError ? 'aria-invalid="true"' : '' %>><small id="code-help">Se guarda en mayúsculas.</small><% if(codeError){ %><p id="code-error" class="field-error"><%= codeError.msg %></p><% } %></div>
+      <div class="form-group"><label for="locationType">Tipo</label><select id="locationType" name="locationType" <%= typeError ? 'aria-invalid="true" aria-describedby="locationType-error"' : '' %>><option value="branch" <%= location.locationType==='branch'?'selected':'' %>>Sucursal</option><option value="warehouse" <%= location.locationType==='warehouse'?'selected':'' %>>Almacén</option></select><% if(typeError){ %><p id="locationType-error" class="field-error"><%= typeError.msg %></p><% } %></div>
+      <% const optionalFields=[['address','Dirección',500,addressError],['phone','Teléfono',40,phoneError]]; optionalFields.forEach(([key,label,max,error])=>{ %><div class="form-group"><label for="<%= key %>"><%= label %> (opcional)</label><input id="<%= key %>" name="<%= key %>" maxlength="<%= max %>" value="<%= location[key] %>" <%= error ? 'aria-invalid="true" aria-describedby="' + key + '-error"' : '' %>><% if(error){ %><p id="<%= key %>-error" class="field-error"><%= error.msg %></p><% } %></div><% }) %>
+      <div class="form-group"><label for="notes">Notas (opcional)</label><textarea id="notes" name="notes" maxlength="1000" <%= notesError ? 'aria-invalid="true" aria-describedby="notes-error"' : '' %>><%= location.notes %></textarea><% if(notesError){ %><p id="notes-error" class="field-error"><%= notesError.msg %></p><% } %></div>
+      <button class="button">Guardar</button>
+    </form>
+  </main>
+</body>
+</html>
