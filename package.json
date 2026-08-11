@@ -7,6 +7,8 @@
     "start": "node app.js",
     "dev": "node --watch app.js",
     "db:seed": "node db/populatedb.js",
+    "db:migrations:status": "node scripts/migrations.js status",
+    "db:migrations:baseline": "node scripts/migrations.js baseline",
     "test": "node --test",
     "test:db:setup": "node scripts/testDatabase.js setup",
     "test:db:teardown": "node scripts/testDatabase.js teardown"
