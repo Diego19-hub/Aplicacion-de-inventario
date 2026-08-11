@@ -27,7 +27,8 @@ const migrationFiles = [
   "006_suppliers_up.sql",
   "007_locations_and_balances_up.sql",
   "008_inventory_transfers_up.sql",
-  "009_stock_thresholds_up.sql"
+  "009_stock_thresholds_up.sql",
+  "010_harden_database_access_up.sql"
 ];
 const requiredTables = [
   "users",
