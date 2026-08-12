@@ -7,6 +7,8 @@ export async function getActiveBusinessesForUser(userId) {
         businesses.id,
         businesses.name,
         businesses.slug,
+        businesses.currency,
+        businesses.timezone,
         business_members.role,
         business_members.status AS membership_status
       FROM business_members

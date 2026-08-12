@@ -58,6 +58,7 @@ const anonymousSession = {
   permissions: {
     canManageInventory: false,
     canDeleteInventory: false,
+    canManageMembers: false,
     isSuperAdmin: false
   }
 };
@@ -205,14 +206,15 @@ test(
         assert.deepEqual(response.body.data.permissions, {
           canManageInventory: false,
           canDeleteInventory: false,
+          canManageMembers: false,
           isSuperAdmin: false
         });
       });
 
       for (const [label, agent, role, permissions] of [
-        ["owner", ownerAgent, "owner", { canManageInventory: true, canDeleteInventory: true, isSuperAdmin: true }],
-        ["manager", managerAgent, "manager", { canManageInventory: true, canDeleteInventory: false, isSuperAdmin: false }],
-        ["viewer", viewerAgent, "viewer", { canManageInventory: false, canDeleteInventory: false, isSuperAdmin: false }]
+        ["owner", ownerAgent, "owner", { canManageInventory: true, canDeleteInventory: true, canManageMembers: true, isSuperAdmin: true }],
+        ["manager", managerAgent, "manager", { canManageInventory: true, canDeleteInventory: false, canManageMembers: false, isSuperAdmin: false }],
+        ["viewer", viewerAgent, "viewer", { canManageInventory: false, canDeleteInventory: false, canManageMembers: false, isSuperAdmin: false }]
       ]) {
         await t.test(`${label} activo recibe permisos calculados en el servidor`, async () => {
           const response = await agent.get("/api/session").expect(200);

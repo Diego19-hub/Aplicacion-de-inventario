@@ -4,8 +4,16 @@ import {
   getCsrfToken,
   getSession
 } from "../controllers/apiSessionController.js";
-import { login } from "../controllers/apiAuthController.js";
+import {
+  login,
+  logout
+} from "../controllers/apiAuthController.js";
+import {
+  listBusinesses,
+  selectActiveBusiness
+} from "../controllers/apiBusinessController.js";
 import { loginValidation } from "../middleware/authValidation.js";
+import { requireApiAuth } from "../middleware/apiAuthMiddleware.js";
 import { authLimiter } from "../middleware/securityMiddleware.js";
 
 const apiRouter = Router();
@@ -18,6 +26,9 @@ apiRouter.use((req, res, next) => {
 apiRouter.get("/csrf-token", getCsrfToken);
 apiRouter.get("/session", getSession);
 apiRouter.post("/auth/login", loginValidation, authLimiter, login);
+apiRouter.post("/auth/logout", logout);
+apiRouter.get("/businesses", requireApiAuth, listBusinesses);
+apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 
 apiRouter.use((req, res) => {
   res.status(404).json({

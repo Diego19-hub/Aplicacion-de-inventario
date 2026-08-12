@@ -4,15 +4,12 @@ import {
 } from "express-validator";
 
 import { getActiveBusinessMembership } from "../db/businessQueries.js";
+import {
+  serializeActiveBusiness,
+  serializeMembership,
+  sessionPermissions
+} from "./apiSessionController.js";
 import { authenticateLogin } from "../services/authenticationService.js";
-
-function permissions(membership, platformRole) {
-  return {
-    canManageInventory: ["owner", "manager"].includes(membership?.role),
-    canDeleteInventory: membership?.role === "owner",
-    isSuperAdmin: platformRole === "super_admin"
-  };
-}
 
 function validationFields(errors) {
   return errors.map((error) => ({
@@ -58,18 +55,8 @@ export async function login(req, res, next) {
       );
 
       if (activeMembership) {
-        activeBusiness = {
-          id: activeMembership.id,
-          name: activeMembership.name,
-          slug: activeMembership.slug,
-          currency: activeMembership.currency,
-          timezone: activeMembership.timezone,
-          status: activeMembership.status
-        };
-        membership = {
-          role: activeMembership.role,
-          status: activeMembership.membership_status
-        };
+        activeBusiness = serializeActiveBusiness(activeMembership);
+        membership = serializeMembership(activeMembership);
       }
     }
 
@@ -85,11 +72,27 @@ export async function login(req, res, next) {
         })),
         activeBusiness,
         membership,
-        permissions: permissions(membership, result.user.platformRole),
+        permissions: sessionPermissions(membership, result.user.platformRole),
         requiresBusinessSelection: result.requiresBusinessSelection
       }
     });
   } catch (error) {
     return next(error);
   }
+}
+
+export function logout(req, res, next) {
+  req.session.destroy((error) => {
+    if (error) {
+      return next(error);
+    }
+
+    res.clearCookie("boxing_inventory_session", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production"
+    });
+
+    return res.status(204).send();
+  });
 }

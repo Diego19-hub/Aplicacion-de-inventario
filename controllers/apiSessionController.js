@@ -1,12 +1,31 @@
 import { getActiveBusinessMembership } from "../db/businessQueries.js";
 
-function sessionPermissions(membership, platformRole) {
+export function sessionPermissions(membership, platformRole) {
   const role = membership?.role;
 
   return {
     canManageInventory: ["owner", "manager"].includes(role),
     canDeleteInventory: role === "owner",
+    canManageMembers: role === "owner",
     isSuperAdmin: platformRole === "super_admin"
+  };
+}
+
+export function serializeActiveBusiness(activeMembership) {
+  return {
+    id: activeMembership.id,
+    name: activeMembership.name,
+    slug: activeMembership.slug,
+    currency: activeMembership.currency,
+    timezone: activeMembership.timezone,
+    status: activeMembership.status
+  };
+}
+
+export function serializeMembership(activeMembership) {
+  return {
+    role: activeMembership.role,
+    status: activeMembership.membership_status
   };
 }
 
@@ -83,18 +102,8 @@ export async function getSession(req, res, next) {
       return res.status(200).json({ data });
     }
 
-    data.activeBusiness = {
-      id: activeMembership.id,
-      name: activeMembership.name,
-      slug: activeMembership.slug,
-      currency: activeMembership.currency,
-      timezone: activeMembership.timezone,
-      status: activeMembership.status
-    };
-    data.membership = {
-      role: activeMembership.role,
-      status: activeMembership.membership_status
-    };
+    data.activeBusiness = serializeActiveBusiness(activeMembership);
+    data.membership = serializeMembership(activeMembership);
     data.permissions = sessionPermissions(data.membership, user.platformRole);
 
     return res.status(200).json({ data });

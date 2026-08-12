@@ -95,6 +95,7 @@ test(
         assert.deepEqual(login.body.data.permissions, {
           canManageInventory: true,
           canDeleteInventory: true,
+          canManageMembers: true,
           isSuperAdmin: true
         });
         assert.equal(login.body.data.requiresBusinessSelection, false);
