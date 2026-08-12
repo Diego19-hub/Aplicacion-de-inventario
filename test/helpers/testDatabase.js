@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import "dotenv/config";
+import { getMigrationInventory } from "../../db/migrationFiles.js";
 
 const { Client } = pg;
 
@@ -18,18 +19,6 @@ const forbiddenDatabaseNames = new Set([
   "template1"
 ]);
 const databaseNamePattern = /^[a-z0-9_]+_test$/;
-const migrationFiles = [
-  "001_multitenancy_up.sql",
-  "002_simplify_business_roles_up.sql",
-  "003_add_item_sku_up.sql",
-  "004_archive_items_up.sql",
-  "005_inventory_movements_up.sql",
-  "006_suppliers_up.sql",
-  "007_locations_and_balances_up.sql",
-  "008_inventory_transfers_up.sql",
-  "009_stock_thresholds_up.sql",
-  "010_harden_database_access_up.sql"
-];
 const requiredTables = [
   "users",
   "businesses",
@@ -186,8 +175,37 @@ async function assertRequiredTables(client) {
   }
 }
 
-export async function createTestDatabase() {
+async function getMigrationsThroughVersion(throughVersion) {
+  const migrationInventory = await getMigrationInventory();
+  const latestVersion = migrationInventory.at(-1).versionNumber;
+  const requestedVersion = throughVersion ?? latestVersion;
+
+  if (!Number.isInteger(requestedVersion) || requestedVersion <= 0) {
+    throw new Error("throughVersion debe ser un entero positivo.");
+  }
+
+  const requestedMigration = migrationInventory.find(
+    (migration) => migration.versionNumber === requestedVersion
+  );
+
+  if (!requestedMigration) {
+    throw new Error("throughVersion debe corresponder a una migración existente.");
+  }
+
+  const selectedMigrations = migrationInventory.filter(
+    (migration) => migration.versionNumber <= requestedVersion
+  );
+
+  if (selectedMigrations.length !== requestedVersion) {
+    throw new Error("throughVersion no puede omitir migraciones.");
+  }
+
+  return selectedMigrations;
+}
+
+export async function createTestDatabase({ throughVersion } = {}) {
   const config = getTestDatabaseConfig();
+  const migrationInventory = await getMigrationsThroughVersion(throughVersion);
   let adminClient;
   let testClient;
 
@@ -210,8 +228,8 @@ export async function createTestDatabase() {
       ["test_admin", "test-admin@example.test", "integration-tests-password-hash-disabled", "admin"]
     );
 
-    for (const migrationFile of migrationFiles) {
-      await executeSqlFile(testClient, path.join("db/migrations", migrationFile));
+    for (const migration of migrationInventory) {
+      await executeSqlFile(testClient, path.join("db/migrations", migration.up.fileName));
     }
 
     await assertRequiredTables(testClient);

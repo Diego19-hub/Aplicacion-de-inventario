@@ -31,7 +31,7 @@ test(
       const inventory = await getMigrationInventory();
       assert.deepEqual(
         inventory.map((migration) => migration.versionNumber),
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
       );
 
       await t.test("inicia sin tabla y todas las migraciones están pendientes", async () => {
@@ -39,8 +39,8 @@ test(
 
         const status = await getMigrationStatus(client, inventory);
         assert.equal(status.state, "uninitialized");
-        assert.equal(status.summary.pending, 10);
-        assert.equal(status.summary.total, 10);
+        assert.equal(status.summary.pending, 11);
+        assert.equal(status.summary.total, 11);
         assert.ok(status.migrations.every((migration) => migration.status === "pending"));
       });
 
@@ -128,7 +128,7 @@ test(
         assert.equal(status.summary.checksum_mismatch, 1);
         assert.equal(status.summary.name_mismatch, 1);
         assert.equal(status.summary.missing_file, 1);
-        assert.equal(status.summary.pending, 7);
+        assert.equal(status.summary.pending, 8);
       });
 
       await t.test("la creación repetida conserva los registros existentes", async () => {

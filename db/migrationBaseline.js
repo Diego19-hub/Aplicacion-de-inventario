@@ -2,7 +2,19 @@ import { createMigrationHistoryTable } from "./migrationHistory.js";
 
 // Debe coincidir con db/migrationHistory.js para serializar baseline e inicialización.
 const migrationHistoryLockKey = 781042261;
-const expectedVersions = Array.from({ length: 10 }, (_, index) => index + 1);
+const expectedBaseline = [
+  [1, "multitenancy"],
+  [2, "simplify_business_roles"],
+  [3, "add_item_sku"],
+  [4, "archive_items"],
+  [5, "inventory_movements"],
+  [6, "suppliers"],
+  [7, "locations_and_balances"],
+  [8, "inventory_transfers"],
+  [9, "stock_thresholds"],
+  [10, "harden_database_access"]
+];
+const expectedVersions = expectedBaseline.map(([version]) => version);
 const hardenedTables = [
   "businesses",
   "business_members",
@@ -72,12 +84,16 @@ const tablePrivileges = [
 ];
 
 function assertExpectedInventory(migrationInventory) {
-  if (!Array.isArray(migrationInventory) || migrationInventory.length !== expectedVersions.length) {
+  if (!Array.isArray(migrationInventory) || migrationInventory.length < expectedVersions.length) {
     throw new Error("El baseline requiere exactamente el inventario continuo de migraciones 001–010.");
   }
 
-  for (const [index, migration] of migrationInventory.entries()) {
-    const expectedVersion = expectedVersions[index];
+  const sortedInventory = [...migrationInventory].sort(
+    (first, second) => first?.versionNumber - second?.versionNumber
+  );
+
+  for (const [index, migration] of sortedInventory.entries()) {
+    const expectedVersion = index + 1;
 
     if (
       migration?.versionNumber !== expectedVersion
@@ -89,6 +105,16 @@ function assertExpectedInventory(migrationInventory) {
       throw new Error("El baseline requiere exactamente el inventario continuo de migraciones 001–010.");
     }
   }
+
+  for (const [index, [version, name]] of expectedBaseline.entries()) {
+    const migration = sortedInventory[index];
+
+    if (migration.versionNumber !== version || migration.name !== name) {
+      throw new Error("El baseline requiere exactamente el inventario continuo de migraciones 001–010.");
+    }
+  }
+
+  return sortedInventory.slice(0, expectedVersions.length);
 }
 
 async function requireRows(client, query, values, description) {
@@ -207,7 +233,7 @@ async function assertExpectedSchema(client) {
 }
 
 export async function baselineMigrationHistory(client, migrationInventory) {
-  assertExpectedInventory(migrationInventory);
+  const baselineInventory = assertExpectedInventory(migrationInventory);
   await createMigrationHistoryTable(client);
   await client.query("BEGIN");
 
@@ -231,9 +257,9 @@ export async function baselineMigrationHistory(client, migrationInventory) {
           AS migration(version, name, checksum)
       `,
       [
-        migrationInventory.map((migration) => migration.versionNumber),
-        migrationInventory.map((migration) => migration.name),
-        migrationInventory.map((migration) => migration.up.checksum)
+        baselineInventory.map((migration) => migration.versionNumber),
+        baselineInventory.map((migration) => migration.name),
+        baselineInventory.map((migration) => migration.up.checksum)
       ]
     );
     await client.query("COMMIT");

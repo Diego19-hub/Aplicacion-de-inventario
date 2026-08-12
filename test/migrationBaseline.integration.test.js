@@ -25,7 +25,7 @@ test(
         client = null;
       }
 
-      await createTestDatabase();
+      await createTestDatabase({ throughVersion: 10 });
       client = new Client({ connectionString: process.env.TEST_DATABASE_URL });
       await client.connect();
     }
@@ -41,7 +41,7 @@ test(
     try {
       await recreateDatabase();
 
-      await t.test("registra 001–010 y deja el estado aplicado", async () => {
+      await t.test("registra únicamente 001–010 y deja 011 pendiente", async () => {
         await baselineMigrationHistory(client, inventory);
         assert.equal(await historyCount(), 10);
 
@@ -54,19 +54,23 @@ test(
         );
         assert.deepEqual(
           rows.rows.map((row) => row.name),
-          inventory.map((migration) => migration.name)
+          inventory.slice(0, 10).map((migration) => migration.name)
         );
         assert.deepEqual(
           rows.rows.map((row) => row.checksum),
-          inventory.map((migration) => migration.up.checksum)
+          inventory.slice(0, 10).map((migration) => migration.up.checksum)
         );
 
         const status = await getMigrationStatus(client, inventory);
         assert.equal(status.summary.applied, 10);
-        assert.equal(status.summary.pending, 0);
+        assert.equal(status.summary.pending, 1);
         assert.equal(status.summary.checksum_mismatch, 0);
         assert.equal(status.summary.name_mismatch, 0);
         assert.equal(status.summary.missing_file, 0);
+        assert.equal(
+          status.migrations.find((migration) => migration.version === 11)?.status,
+          "pending"
+        );
       });
 
       await t.test("rechaza un segundo baseline sin modificar el historial", async () => {
@@ -97,6 +101,20 @@ test(
           /faltan triggers de inmutabilidad/
         );
         assert.equal(await historyCount(), 0);
+      });
+
+      await t.test("rechaza un prefijo 001–010 incompleto", async () => {
+        await recreateDatabase();
+        const incompleteInventory = inventory.filter((migration) => migration.versionNumber !== 5);
+
+        await assert.rejects(
+          baselineMigrationHistory(client, incompleteInventory),
+          /inventario continuo de migraciones 001–010/
+        );
+        assert.equal(
+          (await client.query("SELECT to_regclass('public.schema_migrations') AS relation")).rows[0].relation,
+          null
+        );
       });
     } finally {
       if (client) await client.end();

@@ -83,6 +83,6 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 9 — Pruebas, seguridad y producción
 
-- [~] Pruebas de rutas, autorización y aislamiento. Criterio: módulo de miembros e invitaciones implementado; falta automatizar los flujos de roles, negocio múltiple y sesión manipulada. Dependencia: Fase 2.
+- [x] Pruebas de rutas, autorización y aislamiento. Criterio: módulo de miembros e invitaciones implementado; falta automatizar los flujos de roles, negocio múltiple y sesión manipulada. Dependencia: Fase 2.
 - [ ] Revisar migraciones, índices y consultas. Criterio: seguridad y rendimiento revisados antes de producción. Dependencia: esquema final.
 - [ ] Preparar Vercel/Supabase. Criterio: entorno, migraciones, sesiones, backups y monitoreo verificados fuera de producción. Dependencia: pruebas completas.
