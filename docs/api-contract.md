@@ -136,6 +136,17 @@ calcula en Express:
 - `canDeleteInventory`: solo `owner`.
 - `isSuperAdmin`: `platformRole === "super_admin"`.
 
+## Dashboard
+
+### `GET /api/dashboard`
+
+Requiere una sesión autenticada y un negocio activo con membresía y estado
+activos. Devuelve `summary`, hasta cinco `recentMovements` y `stockByLocation`
+solo del negocio activo. La respuesta usa `Cache-Control: no-store`.
+
+- Sin sesión: `401 AUTH_REQUIRED`.
+- Sin negocio activo válido: `409 ACTIVE_BUSINESS_REQUIRED`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

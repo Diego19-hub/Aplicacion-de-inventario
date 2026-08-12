@@ -12,8 +12,10 @@ import {
   listBusinesses,
   selectActiveBusiness
 } from "../controllers/apiBusinessController.js";
+import { getDashboard } from "../controllers/apiDashboardController.js";
 import { loginValidation } from "../middleware/authValidation.js";
 import { requireApiAuth } from "../middleware/apiAuthMiddleware.js";
+import { requireApiActiveBusiness } from "../middleware/apiActiveBusinessMiddleware.js";
 import { authLimiter } from "../middleware/securityMiddleware.js";
 
 const apiRouter = Router();
@@ -29,6 +31,7 @@ apiRouter.post("/auth/login", loginValidation, authLimiter, login);
 apiRouter.post("/auth/logout", logout);
 apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
+apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
 
 apiRouter.use((req, res) => {
   res.status(404).json({
