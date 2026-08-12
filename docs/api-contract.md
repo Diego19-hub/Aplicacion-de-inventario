@@ -157,6 +157,14 @@ ID. Acepta `q`, `category` y `page`; una categoría ajena o inválida devuelve
 una lista vacía sin revelar datos. Responde `products`, `categories`, filtros
 y paginación, con `Cache-Control: no-store`.
 
+### `GET /api/products/:productId`
+
+Requiere sesión y negocio activo válidos. Devuelve solo un producto activo del
+negocio actual, sus balances por ubicación y hasta cinco movimientos recientes.
+El ID debe ser entero positivo (`400 VALIDATION_ERROR`); un producto
+inexistente, archivado o ajeno devuelve `404 PRODUCT_NOT_FOUND`. La respuesta
+usa `Cache-Control: no-store`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

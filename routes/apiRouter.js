@@ -14,6 +14,7 @@ import {
 } from "../controllers/apiBusinessController.js";
 import { getDashboard } from "../controllers/apiDashboardController.js";
 import { listProducts } from "../controllers/apiProductsController.js";
+import { getProductDetails } from "../controllers/apiProductDetailsController.js";
 import { loginValidation } from "../middleware/authValidation.js";
 import { requireApiAuth } from "../middleware/apiAuthMiddleware.js";
 import { requireApiActiveBusiness } from "../middleware/apiActiveBusinessMiddleware.js";
@@ -34,6 +35,7 @@ apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
 apiRouter.get("/products", requireApiAuth, requireApiActiveBusiness, listProducts);
+apiRouter.get("/products/:productId", requireApiAuth, requireApiActiveBusiness, getProductDetails);
 
 apiRouter.use((req, res) => {
   res.status(404).json({
