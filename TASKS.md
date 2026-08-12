@@ -83,6 +83,16 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 9 — Pruebas, seguridad y producción
 
-- [x] Pruebas de rutas, autorización y aislamiento. Criterio: módulo de miembros e invitaciones implementado; falta automatizar los flujos de roles, negocio múltiple y sesión manipulada. Dependencia: Fase 2.
-- [ ] Revisar migraciones, índices y consultas. Criterio: seguridad y rendimiento revisados antes de producción. Dependencia: esquema final.
-- [ ] Preparar Vercel/Supabase. Criterio: entorno, migraciones, sesiones, backups y monitoreo verificados fuera de producción. Dependencia: pruebas completas.
+- [x] Pruebas de rutas, autorización y aislamiento. Criterio: pruebas unitarias e integración HTTP verifican roles, negocio activo, CSRF, sesión manipulada y aislamiento de recursos entre negocios.
+- [x] Revisar migraciones, índices y consultas. Criterio: migraciones versionadas con checksum, baseline y runner atómico; auditoría de aislamiento e índices completada hasta 011.
+- [~] Preparar Render/Railway y Supabase. Criterio: configuración, sesiones, variables, backups y monitoreo se completarán después de migrar el frontend a React.
+
+## Fase 10 — Migración gradual a React
+
+- [ ] Diseñar el contrato de la API JSON. Criterio: autenticación, negocio activo, errores y recursos documentados antes de crear páginas.
+- [ ] Crear `client/` con React, Vite y React Router. Criterio: estructura inicial y desarrollo local integrado con Express.
+- [ ] Migrar autenticación y selector de negocio. Criterio: login, logout, sesión y selección funcionan con cookies y CSRF.
+- [ ] Migrar inventario principal. Criterio: inicio, productos, categorías, movimientos y existencias funcionan en React.
+- [ ] Migrar módulos administrativos. Criterio: proveedores, ubicaciones, transferencias, alertas, reportes, miembros y superadministración funcionan en React.
+- [ ] Retirar EJS. Criterio: React cubre todos los flujos, las pruebas pasan y Express sirve únicamente API y frontend compilado.
+- [ ] Desplegar versión final. Criterio: React + Express desplegados en Render o Railway con Supabase verificada.
