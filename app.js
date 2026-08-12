@@ -105,6 +105,19 @@ if (!isTest) {
 app.use(session(sessionOptions));
 app.use(csrfSynchronisedProtection);
 
+app.use((error, req, res, next) => {
+  if (error.code === "EBADCSRFTOKEN" && req.path.startsWith("/api/")) {
+    return res.status(403).json({
+      error: {
+        code: "CSRF_INVALID",
+        message: "El token CSRF es inválido."
+      }
+    });
+  }
+
+  return next(error);
+});
+
 app.use((req, res, next) => {
   res.locals.csrfToken = req.csrfToken();
   next();

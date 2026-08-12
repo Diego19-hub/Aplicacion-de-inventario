@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import {
   validationResult,
   matchedData
@@ -7,21 +6,15 @@ import {
 import {
   findUserByUsername,
   findUserByEmail,
-  findUserByIdentifier,
   createUser
 } from "../db/authQueries.js";
 import { getActiveBusinessesForUser } from "../db/businessQueries.js";
 import { isSafeReturnTo } from "../middleware/authMiddleware.js";
+import {
+  authenticateLogin,
+  regenerateSession
+} from "../services/authenticationService.js";
 
-
-function regenerateSession(req) {
-  return new Promise((resolve, reject) => {
-    req.session.regenerate((error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
-}
 
 function saveSession(req) {
   return new Promise((resolve, reject) => {
@@ -195,10 +188,11 @@ export async function loginUser(req, res, next) {
   const { identifier, password } = matchedData(req);
 
   try {
-    const user = await findUserByIdentifier(identifier);
+    const returnTo = isSafeReturnTo(req.session.returnTo) ? req.session.returnTo : "/";
+    const login = await authenticateLogin(req, { identifier, password, returnTo });
 
     // El mismo mensaje sirve si el usuario o la contraseña son incorrectos.
-    if (!user) {
+    if (!login) {
       return res.status(401).render("auth/login", {
         title: "Iniciar sesión",
         formData: { identifier },
@@ -210,37 +204,6 @@ export async function loginUser(req, res, next) {
       });
     }
 
-    const passwordIsCorrect = await bcrypt.compare(
-      password,
-      user.password_hash
-    );
-
-    if (!passwordIsCorrect) {
-      return res.status(401).render("auth/login", {
-        title: "Iniciar sesión",
-        formData: { identifier },
-        errors: [
-          {
-            msg: "Usuario, correo o contraseña incorrectos."
-          }
-        ]
-      });
-    }
-
-    const returnTo = isSafeReturnTo(req.session.returnTo) ? req.session.returnTo : "/";
-
-    await regenerateSession(req);
-
-    req.session.user = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      platformRole: user.platform_role
-    };
-
-    req.session.returnTo = returnTo;
-
-    await saveSession(req);
     return redirectAfterAuthentication(req, res);
   } catch (error) {
     next(error);
