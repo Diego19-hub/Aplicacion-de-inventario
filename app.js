@@ -17,6 +17,7 @@ import locationsRouter from "./routes/locationsRouter.js";
 import transfersRouter from "./routes/transfersRouter.js";
 import alertsRouter from "./routes/alertsRouter.js";
 import reportsRouter from "./routes/reportsRouter.js";
+import apiRouter from "./routes/apiRouter.js";
 
 import {
   notFoundHandler,
@@ -135,6 +136,7 @@ app.use("/locations", locationsRouter);
 app.use("/transfers", transfersRouter);
 app.use("/alerts", alertsRouter);
 app.use("/reports", reportsRouter);
+app.use("/api", apiRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
