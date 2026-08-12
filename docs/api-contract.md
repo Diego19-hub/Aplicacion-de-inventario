@@ -147,6 +147,16 @@ solo del negocio activo. La respuesta usa `Cache-Control: no-store`.
 - Sin sesión: `401 AUTH_REQUIRED`.
 - Sin negocio activo válido: `409 ACTIVE_BUSINESS_REQUIRED`.
 
+## Productos
+
+### `GET /api/products`
+
+Requiere sesión y negocio activo válidos. Lista únicamente productos activos
+del negocio activo con paginación SQL de 12 elementos, ordenada por nombre e
+ID. Acepta `q`, `category` y `page`; una categoría ajena o inválida devuelve
+una lista vacía sin revelar datos. Responde `products`, `categories`, filtros
+y paginación, con `Cache-Control: no-store`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`
