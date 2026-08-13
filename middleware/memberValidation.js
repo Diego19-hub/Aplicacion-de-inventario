@@ -17,3 +17,35 @@ export const memberRoleValidation = [
 export const invitationActionValidation = [
   param("invitationId").isInt({ min: 1 }).withMessage("La invitación no es válida.")
 ];
+
+const protectedInvitationFields = [
+  "id",
+  "businessId",
+  "invitedBy",
+  "status",
+  "token",
+  "tokenHash",
+  "expiresAt",
+  "acceptedAt"
+];
+
+export const apiInvitationValidation = [
+  body("email")
+    .trim()
+    .isEmail()
+    .withMessage("Introduce un correo electrónico válido.")
+    .normalizeEmail(),
+  body("offeredRole")
+    .isIn(["manager", "viewer"])
+    .withMessage("Selecciona un rol válido."),
+  ...protectedInvitationFields.map((field) => body(field)
+    .not()
+    .exists()
+    .withMessage("No se permite modificar este campo."))
+];
+
+export const apiInvitationActionValidation = [
+  param("invitationId")
+    .isInt({ min: 1 })
+    .withMessage("La invitación debe ser un entero positivo.")
+];

@@ -415,6 +415,24 @@ en la consulta únicamente para una invitación `pending` cuyo vencimiento ya
 ocurrió, sin modificar su estado. El resumen cuenta solo las pendientes que no
 han vencido.
 
+`POST /api/members/invitations` requiere sesión, negocio activo, CSRF y rol
+`owner`; manager y viewer reciben `403 FORBIDDEN`. Recibe `email` y
+`offeredRole` (`manager` o `viewer`), normaliza el correo y rechaza campos
+internos. Un correo con membresía activa en el negocio responde `409
+INVITATION_MEMBER_ALREADY_ACTIVE`. Crea un token aleatorio criptográfico, guarda
+solo su SHA-256 y devuelve una única vez `acceptancePath`, una ruta relativa
+compatible con la aceptación EJS existente; el hash nunca se expone. Antes de
+crear, la transacción marca como `expired` una pendiente ya vencida y revoca la
+pendiente vigente previa del mismo correo, para dejar solo una pendiente. Si la
+creación falla, la transacción conserva la invitación anterior.
+
+`POST /api/members/invitations/:invitationId/revoke` requiere los mismos
+permisos y CSRF. Limita el `UPDATE` por ID, `business_id` y estado `pending`, y
+cambia solamente el estado a `revoked`. Un ID inválido devuelve `400
+VALIDATION_ERROR`, una invitación ajena o inexistente devuelve `404
+INVITATION_NOT_FOUND`, y una aceptada, vencida o ya revocada devuelve `409
+INVITATION_NOT_PENDING` sin cambios.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

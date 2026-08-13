@@ -75,3 +75,94 @@ export async function getApiBusinessMemberSummary(businessId) {
   );
   return result.rows[0];
 }
+
+export async function createApiBusinessInvitation({ businessId, email, offeredRole, invitedBy, tokenHash }) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock($1, hashtext($2))", [businessId, email]);
+
+    const activeMember = await client.query(
+      `
+        SELECT 1
+        FROM business_members bm
+        INNER JOIN users u ON u.id = bm.user_id
+        WHERE bm.business_id = $1
+          AND bm.status = 'active'
+          AND u.email = $2
+        LIMIT 1
+      `,
+      [businessId, email]
+    );
+    if (activeMember.rows[0]) {
+      await client.query("ROLLBACK");
+      return { error: "already_active_member" };
+    }
+
+    // Las pendientes vencidas se marcan expired antes de sustituir una pendiente vigente.
+    await client.query(
+      `
+        UPDATE business_invitations
+        SET status = 'expired'
+        WHERE business_id = $1
+          AND status = 'pending'
+          AND expires_at <= CURRENT_TIMESTAMP
+      `,
+      [businessId]
+    );
+    await client.query(
+      `
+        UPDATE business_invitations
+        SET status = 'revoked'
+        WHERE business_id = $1
+          AND email_normalized = $2
+          AND status = 'pending'
+      `,
+      [businessId, email]
+    );
+    const result = await client.query(
+      `
+        INSERT INTO business_invitations (
+          business_id, email_normalized, offered_role, token_hash, invited_by, expires_at
+        ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP + INTERVAL '30 days')
+        RETURNING id, email_normalized, offered_role, status, expires_at, created_at, accepted_at
+      `,
+      [businessId, email, offeredRole, tokenHash, invitedBy]
+    );
+    await client.query("COMMIT");
+    return { invitation: result.rows[0] };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function revokeApiBusinessInvitation(businessId, invitationId) {
+  const result = await pool.query(
+    `
+      UPDATE business_invitations
+      SET status = 'revoked'
+      WHERE id = $1
+        AND business_id = $2
+        AND status = 'pending'
+      RETURNING id, email_normalized, offered_role, status, expires_at, created_at, accepted_at
+    `,
+    [invitationId, businessId]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function getApiBusinessInvitationById(businessId, invitationId) {
+  const result = await pool.query(
+    `
+      SELECT id, status
+      FROM business_invitations
+      WHERE business_id = $1
+        AND id = $2
+    `,
+    [businessId, invitationId]
+  );
+  return result.rows[0] ?? null;
+}

@@ -1,10 +1,11 @@
 import crypto from "crypto";
 import AppError from "../utils/AppError.js";
 import { acceptBusinessInvitation, expirePendingInvitations, findInvitationByHash } from "../db/memberQueries.js";
+import { hashInvitationToken } from "../utils/invitationToken.js";
 
 function tokenHash(token) {
   if (!/^[a-f0-9]{64}$/i.test(token)) return null;
-  return crypto.createHash("sha256").update(token).digest("hex");
+  return hashInvitationToken(token);
 }
 
 function maskedEmail(email) {

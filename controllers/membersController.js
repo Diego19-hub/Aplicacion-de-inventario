@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { matchedData, validationResult } from "express-validator";
 import AppError from "../utils/AppError.js";
 import {
@@ -9,6 +8,7 @@ import {
   revokeBusinessInvitation,
   updateBusinessMember
 } from "../db/memberQueries.js";
+import { createInvitationToken } from "../utils/invitationToken.js";
 
 function baseUrl(req) {
   const configured = process.env.APP_BASE_URL;
@@ -38,8 +38,7 @@ export async function createInvitation(req, res, next) {
     } catch (error) { return next(error); }
   }
   const { email, role } = matchedData(req);
-  const token = crypto.randomBytes(32).toString("hex");
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const { token, tokenHash } = createInvitationToken();
   try {
     const invitation = await createBusinessInvitation({ businessId: req.business.id, email, role, invitedBy: req.session.user.id, tokenHash });
     const [members, invitations] = await Promise.all([getBusinessMembers(req.business.id), getBusinessInvitations(req.business.id)]);

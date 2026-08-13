@@ -1,4 +1,4 @@
-import { Mail, UsersRound } from "lucide-react";
+import { Copy, Mail, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -7,7 +7,9 @@ import { Alert } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
+import { Input } from "../components/Input.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
+import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -50,7 +52,7 @@ function MemberCard({ member }) {
   );
 }
 
-function InvitationCard({ invitation }) {
+function InvitationCard({ invitation, isRevoking, onStartRevoke, onCancelRevoke, onConfirmRevoke }) {
   return (
     <Card className="category-api-card">
       <div>
@@ -63,6 +65,16 @@ function InvitationCard({ invitation }) {
         <div><dt>Vencimiento</dt><dd><time dateTime={invitation.expiresAt}>{formatDate(invitation.expiresAt)}</time></dd></div>
         {invitation.isExpired && <div><dt>Disponibilidad</dt><dd>Invitación pendiente vencida</dd></div>}
       </dl>
+      {invitation.status === "pending" && !isRevoking && <Button variant="danger" onClick={() => onStartRevoke(invitation.id)}>Revocar</Button>}
+      {isRevoking && (
+        <div className="error-summary" role="alert">
+          <p>Revocarás la invitación para {invitation.email}. Esta acción impedirá que se use el enlace.</p>
+          <div className="product-form__actions">
+            <Button variant="secondary" onClick={onCancelRevoke}>Cancelar</Button>
+            <Button variant="danger" onClick={() => onConfirmRevoke(invitation.id)}>Confirmar revocación</Button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -72,6 +84,14 @@ export function MembersPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [invitationForm, setInvitationForm] = useState({ email: "", offeredRole: "viewer" });
+  const [invitationErrors, setInvitationErrors] = useState({});
+  const [invitationRequestError, setInvitationRequestError] = useState("");
+  const [isCreatingInvitation, setIsCreatingInvitation] = useState(false);
+  const [acceptancePath, setAcceptancePath] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
+  const [revokingInvitationId, setRevokingInvitationId] = useState(null);
+  const [isRevokingInvitation, setIsRevokingInvitation] = useState(false);
 
   const loadMembers = useCallback(async () => {
     if (!session.permissions.canManageMembers) {
@@ -94,6 +114,66 @@ export function MembersPage() {
     loadMembers();
   }, [loadMembers]);
 
+  function updateInvitationField(field, value) {
+    setInvitationForm((current) => ({ ...current, [field]: value }));
+    setInvitationErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  async function createInvitation(event) {
+    event.preventDefault();
+    if (isCreatingInvitation) return;
+
+    setIsCreatingInvitation(true);
+    setInvitationErrors({});
+    setInvitationRequestError("");
+    setAcceptancePath("");
+    setCopyMessage("");
+    try {
+      const response = await apiRequest("/members/invitations", {
+        method: "POST",
+        body: invitationForm,
+        csrf: true
+      });
+      setInvitationForm({ email: "", offeredRole: "viewer" });
+      setAcceptancePath(response.acceptancePath);
+      await loadMembers();
+    } catch (requestError) {
+      setInvitationErrors(Object.fromEntries((requestError.fields || []).map((field) => [field.field, field.message])));
+      setInvitationRequestError(requestError.message || "No fue posible crear la invitación.");
+    } finally {
+      setIsCreatingInvitation(false);
+    }
+  }
+
+  async function copyAcceptancePath() {
+    try {
+      await navigator.clipboard.writeText(new URL(acceptancePath, window.location.origin).toString());
+      setCopyMessage("Enlace copiado.");
+    } catch {
+      setCopyMessage("Selecciona y copia el enlace manualmente.");
+    }
+  }
+
+  async function revokeInvitation(invitationId) {
+    if (isRevokingInvitation) return;
+
+    setIsRevokingInvitation(true);
+    setInvitationRequestError("");
+    try {
+      await apiRequest(`/members/invitations/${invitationId}/revoke`, { method: "POST", csrf: true });
+      setRevokingInvitationId(null);
+      await loadMembers();
+    } catch (requestError) {
+      setInvitationRequestError(requestError.message || "No fue posible revocar la invitación.");
+    } finally {
+      setIsRevokingInvitation(false);
+    }
+  }
+
   if (!session.permissions.canManageMembers) {
     return <EmptyState title="Acceso restringido" description="Solo la persona propietaria puede consultar el equipo." action={<Link className="button button--secondary" to="/app">Volver al dashboard</Link>} />;
   }
@@ -114,8 +194,24 @@ export function MembersPage() {
       </section>
 
       <section className="category-products">
-        <header className="section-heading"><div><p className="eyebrow">Invitaciones</p><h2>Historial de invitaciones</h2></div></header>
-        {data.invitations.length === 0 ? <EmptyState title="Sin invitaciones" description="No hay invitaciones registradas para este negocio." /> : <section className="category-api-grid" aria-label="Invitaciones del negocio">{data.invitations.map((invitation) => <InvitationCard key={invitation.id} invitation={invitation} />)}</section>}
+        <header className="section-heading"><div><p className="eyebrow">Invitaciones</p><h2>Invitar al equipo</h2></div></header>
+        <Card>
+          <form className="product-form" onSubmit={createInvitation} noValidate>
+            {(invitationRequestError || Object.keys(invitationErrors).length > 0) && <Alert><div className="error-summary" role="alert"><strong>Revisa la invitación.</strong>{invitationRequestError && <p>{invitationRequestError}</p>}{Object.keys(invitationErrors).length > 0 && <ul>{Object.values(invitationErrors).map((message, index) => <li key={`${message}-${index}`}>{message}</li>)}</ul>}</div></Alert>}
+            <Input id="invitation-email" label="Correo electrónico *" type="email" value={invitationForm.email} onChange={(event) => updateInvitationField("email", event.target.value)} error={invitationErrors.email} required />
+            <Select id="invitation-offered-role" label="Rol ofrecido *" value={invitationForm.offeredRole} onChange={(event) => updateInvitationField("offeredRole", event.target.value)} error={invitationErrors.offeredRole} required>
+              <option value="manager">Manager — puede gestionar inventario</option>
+              <option value="viewer">Consulta — solo puede consultar</option>
+            </Select>
+            <div className="product-form__actions"><Button type="submit" disabled={isCreatingInvitation}>{isCreatingInvitation ? "Creando invitación…" : "Crear invitación"}</Button></div>
+          </form>
+          {acceptancePath && <Alert variant="success"><p><strong>Enlace de aceptación listo.</strong> Se muestra únicamente ahora; cópialo y envíalo de forma segura.</p><Input id="invitation-acceptance-path" label="Enlace de aceptación" value={new URL(acceptancePath, window.location.origin).toString()} readOnly /><Button variant="secondary" onClick={copyAcceptancePath}><Copy aria-hidden="true" />Copiar enlace</Button>{copyMessage && <p>{copyMessage}</p>}</Alert>}
+        </Card>
+      </section>
+
+      <section className="category-products">
+        <header className="section-heading"><div><p className="eyebrow">Historial</p><h2>Historial de invitaciones</h2></div></header>
+        {data.invitations.length === 0 ? <EmptyState title="Sin invitaciones" description="No hay invitaciones registradas para este negocio." /> : <section className="category-api-grid" aria-label="Invitaciones del negocio">{data.invitations.map((invitation) => <InvitationCard key={invitation.id} invitation={invitation} isRevoking={revokingInvitationId === invitation.id} onStartRevoke={setRevokingInvitationId} onCancelRevoke={() => setRevokingInvitationId(null)} onConfirmRevoke={revokeInvitation} />)}</section>}
       </section>
     </>
   );

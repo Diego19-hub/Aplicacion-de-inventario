@@ -15,6 +15,10 @@ import {
 import { getDashboard } from "../controllers/apiDashboardController.js";
 import { getMembers } from "../controllers/apiMembersController.js";
 import {
+  createInvitation,
+  revokeInvitation
+} from "../controllers/apiInvitationsController.js";
+import {
   createCategory,
   getCategoryDetails,
   getCategoryForEdit,
@@ -84,7 +88,11 @@ import { apiTransferValidation } from "../middleware/transferValidation.js";
 import { apiCategoryValidation } from "../middleware/categoryValidation.js";
 import { apiLocationValidation } from "../middleware/locationValidation.js";
 import { apiSupplierValidation } from "../middleware/supplierValidation.js";
-import { authLimiter } from "../middleware/securityMiddleware.js";
+import {
+  apiInvitationActionValidation,
+  apiInvitationValidation
+} from "../middleware/memberValidation.js";
+import { authLimiter, invitationLimiter } from "../middleware/securityMiddleware.js";
 
 const apiRouter = Router();
 
@@ -106,6 +114,24 @@ apiRouter.get(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner"),
   getMembers
+);
+apiRouter.post(
+  "/members/invitations",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  invitationLimiter,
+  apiInvitationValidation,
+  createInvitation
+);
+apiRouter.post(
+  "/members/invitations/:invitationId/revoke",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  invitationLimiter,
+  apiInvitationActionValidation,
+  revokeInvitation
 );
 apiRouter.get(
   "/categories",
