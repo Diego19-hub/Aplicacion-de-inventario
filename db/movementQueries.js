@@ -11,6 +11,53 @@ export async function countMovements(businessId, itemId, locationId) {
   return result.rows[0].count;
 }
 
+function apiMovementFilters({ businessId, itemId, locationId, movementType }) {
+  const values = [businessId, itemId];
+  const where = ["m.business_id = $1", "m.item_id = $2"];
+
+  if (locationId !== null) {
+    values.push(locationId);
+    where.push(`m.location_id = $${values.length}`);
+  }
+
+  if (movementType) {
+    values.push(movementType);
+    where.push(`m.movement_type = $${values.length}`);
+  }
+
+  return { values, where: where.join(" AND ") };
+}
+
+export async function countApiProductMovements(filters) {
+  const { values, where } = apiMovementFilters(filters);
+  const result = await pool.query(
+    `SELECT COUNT(*)::INTEGER AS count FROM inventory_movements m WHERE ${where}`,
+    values
+  );
+  return result.rows[0].count;
+}
+
+export async function getApiProductMovements({ limit, offset, ...filters }) {
+  const { values, where } = apiMovementFilters(filters);
+  values.push(limit, offset);
+  const result = await pool.query(
+    `
+      SELECT m.id, m.created_at, m.movement_type, m.quantity_delta,
+             m.previous_stock, m.resulting_stock, m.reason, m.reference, m.transfer_id,
+             l.id AS location_id, l.name AS location_name, l.code AS location_code,
+             u.id AS created_by_id, u.username
+      FROM inventory_movements m
+      INNER JOIN business_locations l ON (l.business_id, l.id) = (m.business_id, m.location_id)
+      INNER JOIN users u ON u.id = m.created_by
+      WHERE ${where}
+      ORDER BY m.created_at DESC, m.id DESC
+      LIMIT $${values.length - 1} OFFSET $${values.length}
+    `,
+    values
+  );
+  return result.rows;
+}
+
 export async function recordMovement({ businessId, itemId, userId, locationId, movementType, quantity, reason, reference }) {
   const client = await pool.connect();
   try {

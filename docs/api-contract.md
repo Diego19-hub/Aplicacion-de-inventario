@@ -217,6 +217,15 @@ negocio y estado archivado, conserva SKU, stock, balances y movimientos, y
 limpia solamente los metadatos de archivo. Un producto activo, ajeno o
 inexistente responde `404 PRODUCT_NOT_FOUND`.
 
+### `GET /api/products/:productId/movements`
+
+Requiere sesión, negocio activo y una membresía `owner`, `manager` o `viewer`.
+Devuelve el historial paginado de un producto activo del negocio con filtros
+`location`, `type` y `page`. Usa 20 filas, orden `created_at DESC, id DESC` y
+consulta SQL paginada. Una ubicación inválida o ajena devuelve cero filas; un
+tipo desconocido se normaliza a todos los tipos. Producto ajeno, archivado o
+inexistente responde `404 PRODUCT_NOT_FOUND`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

@@ -22,6 +22,7 @@ import {
   updateProduct
 } from "../controllers/apiProductsController.js";
 import { getProductDetails } from "../controllers/apiProductDetailsController.js";
+import { getProductMovements } from "../controllers/apiProductMovementsController.js";
 import {
   getArchivedProductDetails,
   listArchivedProducts,
@@ -111,6 +112,13 @@ apiRouter.post(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner"),
   restoreArchivedProduct
+);
+apiRouter.get(
+  "/products/:productId/movements",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  getProductMovements
 );
 apiRouter.get("/products/:productId", requireApiAuth, requireApiActiveBusiness, getProductDetails);
 
