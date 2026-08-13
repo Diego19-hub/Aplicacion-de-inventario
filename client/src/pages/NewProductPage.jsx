@@ -7,9 +7,8 @@ import { Alert } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
-import { Input } from "../components/Input.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
-import { Select } from "../components/Select.jsx";
+import { ProductForm } from "../components/ProductForm.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -100,20 +99,8 @@ export function NewProductPage() {
   return <>
     <Link to="/app/products" className="back-link"><ArrowLeft aria-hidden="true" />Volver a productos</Link>
     <PageHeader title="Crear producto" description="El producto iniciará con existencias en cero." />
-    {requestError && <Alert><span>{requestError}</span></Alert>}
-    {Object.keys(errors).length > 0 && <Alert><div><strong>Revisa los campos marcados.</strong><ul>{Object.entries(errors).map(([field, message]) => <li key={field}>{message}</li>)}</ul></div></Alert>}
     <Card>
-      <form className="product-form" onSubmit={submit} noValidate>
-        <div className="product-form__fields">
-          <Input id="product-name" label="Nombre *" value={form.name} onChange={(event) => updateField("name", event.target.value)} minLength="2" maxLength="100" required error={errors.name} />
-          <Input id="product-brand" label="Marca *" value={form.brand} onChange={(event) => updateField("brand", event.target.value)} minLength="2" maxLength="50" required error={errors.brand} />
-          <label className="field" htmlFor="product-description"><span className="field__label">Descripción *</span><textarea id="product-description" className="field__control" value={form.description} onChange={(event) => updateField("description", event.target.value)} minLength="10" maxLength="1000" required aria-invalid={Boolean(errors.description)} aria-describedby={errors.description ? "product-description-error" : undefined} />{errors.description && <span id="product-description-error" className="field__error">{errors.description}</span>}</label>
-          <Input id="product-price" label={`Precio * (${currency})`} type="number" value={form.price} onChange={(event) => updateField("price", event.target.value)} min="0" max="99999999.99" step="0.01" inputMode="decimal" required error={errors.price} />
-          <Select id="product-category" label="Categoría *" value={form.categoryId} onChange={(event) => updateField("categoryId", event.target.value)} required error={errors.categoryId}><option value="">Selecciona una categoría</option>{options.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</Select>
-          <Input id="product-sku" label="SKU (opcional)" value={form.sku} onChange={(event) => updateField("sku", event.target.value)} maxLength="64" pattern="[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*" placeholder="Se generará automáticamente" hint="Déjalo vacío para generar un SKU automático según la categoría." error={errors.sku} />
-        </div>
-        <div className="product-form__actions"><Link className="button button--secondary" to="/app/products">Cancelar</Link><Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Creando producto…" : "Crear producto"}</Button></div>
-      </form>
+      <ProductForm mode="create" form={form} categories={options.categories} currency={currency} errors={errors} summaryError={requestError} isSubmitting={isSubmitting} cancelTo="/app/products" onChange={updateField} onSubmit={submit} />
     </Card>
   </>;
 }

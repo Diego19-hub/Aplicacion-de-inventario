@@ -289,7 +289,7 @@ export async function updateItem(
       WHERE id = $7
         AND business_id = $8
         AND status = 'active'
-      RETURNING id
+      RETURNING id, sku, name, description, brand, price, stock, category_id
     `,
     [sku, name, description, brand, price, categoryId, id, businessId]
   );

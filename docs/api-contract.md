@@ -181,6 +181,22 @@ con stock cero. `stock` no se acepta porque las existencias se gestionan por
 movimientos. Una categoría ajena es un error de validación y un SKU duplicado
 responde `409 SKU_ALREADY_EXISTS` asociado al campo `sku`.
 
+### `GET /api/products/:productId/edit`
+
+Requiere sesión, negocio activo y rol `owner` o `manager`. Devuelve los campos
+editables de un producto activo del negocio junto con sus categorías. Un ID
+inválido responde `400 VALIDATION_ERROR`; un producto ajeno, archivado o
+inexistente responde `404 PRODUCT_NOT_FOUND`.
+
+### `PUT /api/products/:productId`
+
+Requiere sesión, negocio activo y rol `owner` o `manager`. Actualiza solamente
+`name`, `description`, `brand`, `price`, `categoryId` y un SKU manual
+obligatorio. La categoría debe pertenecer al negocio y el `UPDATE` limita por
+producto, negocio y estado activo. `stock`, `status`, los metadatos de archivo
+y `businessId` se rechazan como errores de validación; las existencias nunca se
+modifican. SKU duplicado responde `409 SKU_ALREADY_EXISTS`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`
