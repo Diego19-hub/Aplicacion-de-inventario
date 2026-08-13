@@ -326,6 +326,20 @@ responde `400 VALIDATION_ERROR`; una ubicación inexistente o ajena responde
 positivo (incluidos archivados) y hasta cinco movimientos recientes. Todos los
 joins se limitan por `business_id`; la respuesta usa `Cache-Control: no-store`.
 
+`POST /api/locations` requiere sesión, negocio activo, CSRF y rol `owner`;
+manager y viewer reciben `403 FORBIDDEN`. Recibe `name`, `code`,
+`locationType` (`branch` o `warehouse`) y `address`, `phone`, `notes`
+opcionales. El código se normaliza a mayúsculas y los opcionales vacíos a
+`null`. Crea una ubicación activa no principal sin balances. Un nombre o código
+duplicado en el negocio responde `409 LOCATION_ALREADY_EXISTS` asociado al
+campo; los campos internos se rechazan como `400 VALIDATION_ERROR`.
+
+`GET /api/locations/:locationId/edit` y `PUT /api/locations/:locationId`
+requieren los mismos permisos; el `PUT` requiere CSRF. Ambos limitan por ID y
+`business_id`, devuelven `404 LOCATION_NOT_FOUND` para recursos ajenos o
+inexistentes y exponen solo los campos editables. La actualización no altera
+estado, condición principal, balances, movimientos ni transferencias.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -11,6 +11,7 @@ import { Input } from "../components/Input.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function pageNumbers(page, totalPages) {
   return Array.from({ length: totalPages }, (_, index) => index + 1)
@@ -26,6 +27,7 @@ function locationStatusLabel(status) {
 }
 
 export function LocationsPage() {
+  const { session } = useAuth();
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [query, setQuery] = useState(params.get("q") ?? "");
@@ -75,7 +77,7 @@ export function LocationsPage() {
   const { locations, filters, pagination } = data;
   const hasFilters = Boolean(filters.q || filters.status !== "active");
   return <>
-    <PageHeader title="Ubicaciones" description={`${pagination.totalItems} resultados`} />
+    <PageHeader title="Ubicaciones" description={`${pagination.totalItems} resultados`} actions={session.permissions.canDeleteInventory ? <Link className="button button--primary" to="/app/locations/new"><Plus aria-hidden="true" />Crear ubicación</Link> : null} />
     <Card className="product-filter-card">
       <form className="product-filters" onSubmit={submit}>
         <Input id="location-search" label="Buscar ubicaciones" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o código" />

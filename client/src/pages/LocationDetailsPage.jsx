@@ -9,6 +9,7 @@ import { Card } from "../components/Card.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function formatDate(value) {
   return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -25,6 +26,7 @@ function movementLabel(type) {
 
 export function LocationDetailsPage() {
   const { locationId } = useParams();
+  const { session } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,7 +54,7 @@ export function LocationDetailsPage() {
   const { location, products, recentMovements } = data;
   return <>
     <Link to="/app/locations" className="back-link"><ArrowLeft aria-hidden="true" />Volver a ubicaciones</Link>
-    <PageHeader title={location.name} description={`Código: ${location.code}`} />
+    <PageHeader title={location.name} description={`Código: ${location.code}`} actions={session.permissions.canDeleteInventory ? <Link className="button button--primary" to={`/app/locations/${location.id}/edit`}>Editar ubicación</Link> : null} />
     <section className="transfer-detail-grid">
       <Card><p className="eyebrow">Información de la ubicación</p><dl className="detail-list"><div><dt>Tipo</dt><dd>{typeLabel(location.type)}</dd></div><div><dt>Estado</dt><dd>{location.status === "active" ? "Activa" : "Inactiva"}</dd></div><div><dt>Principal</dt><dd>{location.isDefault ? "Sí, ubicación principal" : "No"}</dd></div><div><dt>Dirección</dt><dd>{location.address || "Sin dirección registrada"}</dd></div><div><dt>Teléfono</dt><dd>{location.phone || "Sin teléfono registrado"}</dd></div>{location.notes && <div><dt>Notas</dt><dd>{location.notes}</dd></div>}</dl></Card>
       <Card><p className="eyebrow">Existencias</p><dl className="detail-list"><div><dt>Stock almacenado</dt><dd>{location.totalStock} unidades</dd></div><div><dt>Productos con stock</dt><dd>{location.positiveProductCount}</dd></div></dl></Card>

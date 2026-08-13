@@ -123,3 +123,53 @@ export async function getApiLocationRecentMovements(businessId, locationId) {
   );
   return result.rows;
 }
+
+export async function createApiLocation(businessId, data) {
+  const result = await pool.query(
+    `
+      INSERT INTO business_locations (
+        business_id, name, code, location_type, address, phone, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, name, code, location_type, status, is_default, address, phone, notes
+    `,
+    [
+      businessId,
+      data.name,
+      data.code,
+      data.locationType,
+      data.address,
+      data.phone,
+      data.notes
+    ]
+  );
+  return result.rows[0];
+}
+
+export async function updateApiLocation(businessId, locationId, data) {
+  const result = await pool.query(
+    `
+      UPDATE business_locations
+      SET
+        name = $1,
+        code = $2,
+        location_type = $3,
+        address = $4,
+        phone = $5,
+        notes = $6
+      WHERE business_id = $7
+        AND id = $8
+      RETURNING id, name, code, location_type, status, is_default, address, phone, notes
+    `,
+    [
+      data.name,
+      data.code,
+      data.locationType,
+      data.address,
+      data.phone,
+      data.notes,
+      businessId,
+      locationId
+    ]
+  );
+  return result.rows[0] ?? null;
+}

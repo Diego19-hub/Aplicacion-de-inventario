@@ -26,6 +26,11 @@ import {
   listLocations
 } from "../controllers/apiLocationsController.js";
 import {
+  createLocation,
+  getLocationForEdit,
+  updateLocation
+} from "../controllers/apiLocationMutationsController.js";
+import {
   archiveProduct,
   createProduct,
   getProductForEdit,
@@ -62,6 +67,7 @@ import {
 } from "../middleware/itemValidation.js";
 import { apiTransferValidation } from "../middleware/transferValidation.js";
 import { apiCategoryValidation } from "../middleware/categoryValidation.js";
+import { apiLocationValidation } from "../middleware/locationValidation.js";
 import { authLimiter } from "../middleware/securityMiddleware.js";
 
 const apiRouter = Router();
@@ -128,6 +134,29 @@ apiRouter.get(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager", "viewer"),
   listLocations
+);
+apiRouter.post(
+  "/locations",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  apiLocationValidation,
+  createLocation
+);
+apiRouter.get(
+  "/locations/:locationId/edit",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  getLocationForEdit
+);
+apiRouter.put(
+  "/locations/:locationId",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  apiLocationValidation,
+  updateLocation
 );
 apiRouter.get(
   "/locations/:locationId",
