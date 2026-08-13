@@ -14,7 +14,7 @@ import {
   selectActiveBusiness
 } from "../controllers/apiBusinessController.js";
 import { getDashboard } from "../controllers/apiDashboardController.js";
-import { getMembers } from "../controllers/apiMembersController.js";
+import { changeApiMemberRole, getMembers, reactivateApiMember, removeApiMember, suspendApiMember } from "../controllers/apiMembersController.js";
 import {
   createInvitation,
   revokeInvitation
@@ -95,7 +95,9 @@ import { apiLocationValidation } from "../middleware/locationValidation.js";
 import { apiSupplierValidation } from "../middleware/supplierValidation.js";
 import {
   apiInvitationActionValidation,
-  apiInvitationValidation
+  apiInvitationValidation,
+  apiMemberActionValidation,
+  apiMemberRoleValidation
 } from "../middleware/memberValidation.js";
 import { authLimiter, invitationLimiter } from "../middleware/securityMiddleware.js";
 
@@ -141,6 +143,10 @@ apiRouter.post(
   apiInvitationActionValidation,
   revokeInvitation
 );
+apiRouter.put("/members/:membershipId/role", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner"), apiMemberRoleValidation, changeApiMemberRole);
+apiRouter.post("/members/:membershipId/suspend", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner"), apiMemberActionValidation, suspendApiMember);
+apiRouter.post("/members/:membershipId/reactivate", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner"), apiMemberActionValidation, reactivateApiMember);
+apiRouter.post("/members/:membershipId/remove", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner"), apiMemberActionValidation, removeApiMember);
 apiRouter.get(
   "/categories",
   requireApiAuth,

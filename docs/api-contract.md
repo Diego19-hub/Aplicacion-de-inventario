@@ -433,6 +433,18 @@ VALIDATION_ERROR`, una invitación ajena o inexistente devuelve `404
 INVITATION_NOT_FOUND`, y una aceptada, vencida o ya revocada devuelve `409
 INVITATION_NOT_PENDING` sin cambios.
 
+`PUT /api/members/:membershipId/role`, `POST /api/members/:membershipId/suspend`,
+`/reactivate` y `/remove` requieren sesión, negocio activo, CSRF y rol `owner`.
+Solo administran membresías `manager` o `viewer` del negocio activo. Cambiar
+rol acepta únicamente esos dos roles y no altera estado ni fechas; se permite
+para membresías activas o suspendidas. Suspender pasa de `active` a
+`suspended`; reactivar pasa de `suspended` o `removed` a `active` sin crear una
+fila nueva; remover marca `active` o `suspended` como `removed`. El owner queda
+protegido con `409 OWNER_PROTECTED`; los estados repetidos devuelven
+`MEMBER_ROLE_UNCHANGED`, `MEMBER_ALREADY_SUSPENDED`, `MEMBER_ALREADY_ACTIVE` o
+`MEMBER_ALREADY_REMOVED`. Un miembro ajeno o inexistente devuelve `404
+MEMBER_NOT_FOUND` y entradas inválidas `400 VALIDATION_ERROR`.
+
 ### Consulta y aceptación pública de invitaciones
 
 `GET /api/invitations/:token` no requiere sesión y no modifica la invitación.

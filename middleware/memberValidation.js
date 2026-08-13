@@ -49,3 +49,24 @@ export const apiInvitationActionValidation = [
     .isInt({ min: 1 })
     .withMessage("La invitación debe ser un entero positivo.")
 ];
+
+const protectedMemberFields = [
+  "businessId", "userId", "status", "joinedAt", "createdAt", "owner", "user"
+];
+
+export const apiMemberActionValidation = [
+  param("membershipId")
+    .isInt({ min: 1 })
+    .withMessage("El miembro debe ser un entero positivo."),
+  ...protectedMemberFields.map((field) => body(field)
+    .not()
+    .exists()
+    .withMessage("No se permite modificar este campo."))
+];
+
+export const apiMemberRoleValidation = [
+  ...apiMemberActionValidation,
+  body("role")
+    .isIn(["manager", "viewer"])
+    .withMessage("Selecciona un rol válido.")
+];

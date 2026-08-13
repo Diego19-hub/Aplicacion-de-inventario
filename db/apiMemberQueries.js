@@ -188,3 +188,49 @@ export async function findApiInvitationByHash(tokenHash) {
   );
   return result.rows[0] ?? null;
 }
+
+export async function updateApiBusinessMember({ businessId, membershipId, action, role = null }) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const found = await client.query(
+      `SELECT bm.id, bm.user_id, bm.role, bm.status, bm.joined_at, bm.created_at, u.username, u.email
+       FROM business_members bm
+       INNER JOIN users u ON u.id = bm.user_id
+       WHERE bm.id = $1 AND bm.business_id = $2
+       FOR UPDATE`,
+      [membershipId, businessId]
+    );
+    const member = found.rows[0];
+    if (!member) { await client.query("ROLLBACK"); return { error: "not_found" }; }
+    if (member.role === "owner") { await client.query("ROLLBACK"); return { error: "owner_protected" }; }
+
+    if (action === "role") {
+      if (!["active", "suspended"].includes(member.status)) {
+        await client.query("ROLLBACK");
+        return { error: "state_incompatible" };
+      }
+      if (member.role === role) { await client.query("ROLLBACK"); return { error: "role_unchanged" }; }
+      await client.query("UPDATE business_members SET role = $1 WHERE id = $2 AND business_id = $3", [role, membershipId, businessId]);
+      member.role = role;
+    } else {
+      const rules = {
+        suspend: { next: "suspended", allowed: ["active"], repeated: "suspended", repeatedError: "already_suspended" },
+        reactivate: { next: "active", allowed: ["suspended", "removed"], repeated: "active", repeatedError: "already_active" },
+        remove: { next: "removed", allowed: ["active", "suspended"], repeated: "removed", repeatedError: "already_removed" }
+      };
+      const rule = rules[action];
+      if (member.status === rule.repeated) { await client.query("ROLLBACK"); return { error: rule.repeatedError }; }
+      if (!rule.allowed.includes(member.status)) { await client.query("ROLLBACK"); return { error: "state_incompatible" }; }
+      await client.query("UPDATE business_members SET status = $1 WHERE id = $2 AND business_id = $3", [rule.next, membershipId, businessId]);
+      member.status = rule.next;
+    }
+    await client.query("COMMIT");
+    return { member };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

@@ -36,7 +36,7 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-function MemberCard({ member }) {
+function MemberCard({ member, canManage, onAction }) {
   return (
     <Card className="category-api-card">
       <div>
@@ -48,6 +48,14 @@ function MemberCard({ member }) {
         <div><dt>Estado</dt><dd>{memberStatusLabels[member.status] || member.status}</dd></div>
         <div><dt>Incorporación</dt><dd><time dateTime={member.joinedAt}>{formatDate(member.joinedAt)}</time></dd></div>
       </dl>
+      {canManage && member.role !== "owner" && (
+        <div className="product-form__actions">
+          <Button variant="secondary" onClick={() => onAction(member, "role", member.role === "manager" ? "viewer" : "manager")}>Cambiar a {member.role === "manager" ? "Consulta" : "Manager"}</Button>
+          {member.status === "active" && <Button variant="secondary" onClick={() => onAction(member, "suspend")}>Suspender</Button>}
+          {["suspended", "removed"].includes(member.status) && <Button variant="secondary" onClick={() => onAction(member, "reactivate")}>Reactivar</Button>}
+          {["active", "suspended"].includes(member.status) && <Button variant="danger" onClick={() => onAction(member, "remove")}>Remover</Button>}
+        </div>
+      )}
     </Card>
   );
 }
@@ -92,6 +100,8 @@ export function MembersPage() {
   const [copyMessage, setCopyMessage] = useState("");
   const [revokingInvitationId, setRevokingInvitationId] = useState(null);
   const [isRevokingInvitation, setIsRevokingInvitation] = useState(false);
+  const [memberAction, setMemberAction] = useState(null);
+  const [isUpdatingMember, setIsUpdatingMember] = useState(false);
 
   const loadMembers = useCallback(async () => {
     if (!session.permissions.canManageMembers) {
@@ -174,6 +184,24 @@ export function MembersPage() {
     }
   }
 
+  async function confirmMemberAction() {
+    if (!memberAction || isUpdatingMember) return;
+    setIsUpdatingMember(true);
+    setInvitationRequestError("");
+    try {
+      const { member, action, role } = memberAction;
+      await apiRequest(`/members/${member.id}/${action === "role" ? "role" : action}`, {
+        method: action === "role" ? "PUT" : "POST",
+        body: action === "role" ? { role } : undefined,
+        csrf: true
+      });
+      setMemberAction(null);
+      await loadMembers();
+    } catch (requestError) {
+      setInvitationRequestError(requestError.message || "No fue posible actualizar el miembro.");
+    } finally { setIsUpdatingMember(false); }
+  }
+
   if (!session.permissions.canManageMembers) {
     return <EmptyState title="Acceso restringido" description="Solo la persona propietaria puede consultar el equipo." action={<Link className="button button--secondary" to="/app">Volver al dashboard</Link>} />;
   }
@@ -190,7 +218,8 @@ export function MembersPage() {
 
       <section className="category-products">
         <header className="section-heading"><div><p className="eyebrow">Miembros</p><h2>Equipo del negocio</h2></div></header>
-        {data.members.length === 0 ? <EmptyState title="Sin miembros" description="No hay membresías registradas para este negocio." /> : <section className="category-api-grid" aria-label="Miembros del negocio">{data.members.map((member) => <MemberCard key={member.id} member={member} />)}</section>}
+        {memberAction && <Alert><div className="error-summary" role="alert"><p>Confirmas {memberAction.action === "role" ? `cambiar el rol a ${roleLabels[memberAction.role]}` : `${memberAction.action === "suspend" ? "suspender" : memberAction.action === "reactivate" ? "reactivar" : "remover"}`} a {memberAction.member.user.username}. {memberAction.action === "remove" && "Perderá el acceso al negocio."}</p><div className="product-form__actions"><Button variant="secondary" onClick={() => setMemberAction(null)} disabled={isUpdatingMember}>Cancelar</Button><Button variant={memberAction.action === "remove" ? "danger" : "primary"} onClick={confirmMemberAction} disabled={isUpdatingMember}>{isUpdatingMember ? "Actualizando…" : "Confirmar"}</Button></div></div></Alert>}
+        {data.members.length === 0 ? <EmptyState title="Sin miembros" description="No hay membresías registradas para este negocio." /> : <section className="category-api-grid" aria-label="Miembros del negocio">{data.members.map((member) => <MemberCard key={member.id} member={member} canManage={session.permissions.canManageMembers} onAction={(member, action, role) => setMemberAction({ member, action, role })} />)}</section>}
       </section>
 
       <section className="category-products">
