@@ -310,6 +310,22 @@ CATEGORY_IN_USE` y no modifica productos. La FK mantiene la protección final
 frente a una inserción concurrente. Una categoría vacía responde `204` sin
 cuerpo.
 
+### Ubicaciones
+
+`GET /api/locations` requiere sesión y negocio activo; owner, manager y viewer
+pueden consultar. Acepta `q`, `status` (`active`, `inactive` o `all`) y `page`.
+El estado predeterminado y los valores desconocidos son `active`; la búsqueda
+parcial usa nombre o código. Cuenta y pagina 20 filas en PostgreSQL con los
+mismos filtros obligatorios por `business_id`, ordenando principal, nombre e
+ID. Cada fila incluye métricas agregadas de balances: stock almacenado y
+productos con stock positivo.
+
+`GET /api/locations/:locationId` requiere los mismos permisos. Un ID inválido
+responde `400 VALIDATION_ERROR`; una ubicación inexistente o ajena responde
+`404 LOCATION_NOT_FOUND`. Devuelve sus datos, métricas, productos con stock
+positivo (incluidos archivados) y hasta cinco movimientos recientes. Todos los
+joins se limitan por `business_id`; la respuesta usa `Cache-Control: no-store`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

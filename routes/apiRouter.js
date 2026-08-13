@@ -22,6 +22,10 @@ import {
   listCategories
 } from "../controllers/apiCategoriesController.js";
 import {
+  getLocationDetails,
+  listLocations
+} from "../controllers/apiLocationsController.js";
+import {
   archiveProduct,
   createProduct,
   getProductForEdit,
@@ -117,6 +121,20 @@ apiRouter.get(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager", "viewer"),
   getCategoryDetails
+);
+apiRouter.get(
+  "/locations",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  listLocations
+);
+apiRouter.get(
+  "/locations/:locationId",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  getLocationDetails
 );
 apiRouter.get(
   "/transfers/form-options",
