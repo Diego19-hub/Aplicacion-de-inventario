@@ -309,7 +309,7 @@ export async function archiveItem(id, businessId, archivedBy, archiveReason) {
       WHERE id = $1
         AND business_id = $2
         AND status = 'active'
-      RETURNING id, name, category_id
+      RETURNING id, status, archived_at
     `,
     [id, businessId, archivedBy, archiveReason]
   );

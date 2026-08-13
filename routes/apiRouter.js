@@ -14,6 +14,7 @@ import {
 } from "../controllers/apiBusinessController.js";
 import { getDashboard } from "../controllers/apiDashboardController.js";
 import {
+  archiveProduct,
   createProduct,
   getProductForEdit,
   getProductFormOptions,
@@ -26,6 +27,7 @@ import { requireApiAuth } from "../middleware/apiAuthMiddleware.js";
 import { requireApiActiveBusiness } from "../middleware/apiActiveBusinessMiddleware.js";
 import { requireApiBusinessRole } from "../middleware/apiAuthorizationMiddleware.js";
 import {
+  apiArchiveItemValidation,
   apiItemUpdateValidation,
   apiItemValidation
 } from "../middleware/itemValidation.js";
@@ -75,6 +77,14 @@ apiRouter.put(
   requireApiBusinessRole("owner", "manager"),
   apiItemUpdateValidation,
   updateProduct
+);
+apiRouter.post(
+  "/products/:productId/archive",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  apiArchiveItemValidation,
+  archiveProduct
 );
 apiRouter.get("/products/:productId", requireApiAuth, requireApiActiveBusiness, getProductDetails);
 

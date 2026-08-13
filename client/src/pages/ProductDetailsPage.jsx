@@ -48,7 +48,11 @@ export function ProductDetailsPage() {
 
   return <>
     <Link to="/app/products" className="back-link"><ArrowLeft aria-hidden="true" />Volver a productos</Link>
-    <PageHeader title={product.name} description={`SKU: ${product.sku}`} actions={session.permissions.canManageInventory ? <Link className="button button--primary" to={`/app/products/${product.id}/edit`}>Editar producto</Link> : null} />
+    <PageHeader
+      title={product.name}
+      description={`SKU: ${product.sku}`}
+      actions={<>{session.permissions.canManageInventory && <Link className="button button--primary" to={`/app/products/${product.id}/edit`}>Editar producto</Link>}{session.permissions.canDeleteInventory && <Link className="button button--danger" to={`/app/products/${product.id}/archive`}>Archivar producto</Link>}</>}
+    />
     <section className="product-detail-grid">
       <Card><p className="eyebrow">Información del producto</p><p className="product-description">{product.description || "Este producto no tiene una descripción registrada."}</p><dl className="detail-list"><div><dt>Categoría</dt><dd>{product.category.name}</dd></div><div><dt>Marca</dt><dd>{product.brand}</dd></div><div><dt>Precio</dt><dd>{new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(product.price)}</dd></div><div><dt>Existencias totales</dt><dd>{product.stock} unidades</dd></div><div><dt>Creado</dt><dd><time dateTime={product.createdAt}>{formatDate(product.createdAt)}</time></dd></div></dl></Card>
       <Card><p className="eyebrow">Existencias por ubicación</p>{balances.length === 0 ? <EmptyState title="Sin ubicaciones disponibles" description="No hay ubicaciones que mostrar para este producto." /> : <ul className="balance-list">{balances.map((balance) => <li key={balance.location.id}><div><strong><MapPin aria-hidden="true" />{balance.location.name}</strong><span>{balance.location.code}{balance.location.isDefault ? " · Principal" : ""}{balance.location.status === "inactive" ? " · Inactiva" : ""}</span></div><div><strong>{balance.stock} unidades</strong><span className={`stock-status stock-status--${balance.alertStatus}`}>{alertLabels[balance.alertStatus]}</span>{balance.minimumStock !== null && <small>Mínimo: {balance.minimumStock}</small>}</div></li>)}</ul>}</Card>

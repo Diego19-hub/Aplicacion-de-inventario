@@ -197,6 +197,14 @@ producto, negocio y estado activo. `stock`, `status`, los metadatos de archivo
 y `businessId` se rechazan como errores de validación; las existencias nunca se
 modifican. SKU duplicado responde `409 SKU_ALREADY_EXISTS`.
 
+### `POST /api/products/:productId/archive`
+
+Requiere sesión, negocio activo, CSRF y rol `owner`. Recibe `reason`, un texto
+recortado de 5 a 500 caracteres. Actualiza únicamente un producto activo del
+negocio para conservar SKU, stock, balances y movimientos; productos ajenos,
+inexistentes o ya archivados responden `404 PRODUCT_NOT_FOUND`. Manager y
+viewer reciben `403 FORBIDDEN`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

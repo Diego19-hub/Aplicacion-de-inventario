@@ -4,7 +4,7 @@ import {
   getApiProductById,
   getApiProducts
 } from "../db/apiProductQueries.js";
-import { createItem, updateItem } from "../db/queries.js";
+import { archiveItem, createItem, updateItem } from "../db/queries.js";
 import { matchedData, validationResult } from "express-validator";
 
 const PAGE_SIZE = 12;
@@ -290,6 +290,62 @@ export async function updateProduct(req, res, next) {
       });
     }
 
+    return next(error);
+  }
+}
+
+export async function archiveProduct(req, res, next) {
+  const productId = productIdFromRequest(req.params.productId);
+
+  if (!productId) {
+    return res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Revisa los campos enviados.",
+        fields: [{ field: "productId", message: "El producto debe ser un entero positivo." }]
+      }
+    });
+  }
+
+  const validationErrors = validationResult(req);
+  if (!validationErrors.isEmpty()) {
+    return res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Revisa los campos enviados.",
+        fields: validationFields(validationErrors.array())
+      }
+    });
+  }
+
+  try {
+    const { reason } = matchedData(req);
+    const product = await archiveItem(
+      productId,
+      req.business.id,
+      req.session.user.id,
+      reason
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        error: {
+          code: "PRODUCT_NOT_FOUND",
+          message: "No se encontró el producto solicitado."
+        }
+      });
+    }
+
+    return res.status(200).json({
+      data: {
+        product: {
+          id: product.id,
+          status: product.status,
+          archivedAt: product.archived_at
+        }
+      }
+    });
+  } catch (error) {
     return next(error);
   }
 }

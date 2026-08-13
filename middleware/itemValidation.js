@@ -81,3 +81,10 @@ export const archiveItemValidation = [
     .isLength({ min: 5, max: 500 })
     .withMessage("El motivo de archivado debe tener entre 5 y 500 caracteres.")
 ];
+
+export const apiArchiveItemValidation = [
+  body("reason")
+    .trim()
+    .isLength({ min: 5, max: 500 })
+    .withMessage("El motivo de archivado debe tener entre 5 y 500 caracteres.")
+];
