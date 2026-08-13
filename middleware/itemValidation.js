@@ -1,7 +1,8 @@
 import { body } from "express-validator";
 import { normalizeSku } from "../utils/sku.js";
 
-export const itemValidation = [
+function createItemValidation() {
+  return [
   body("sku")
     .customSanitizer(normalizeSku)
     .custom((sku, { req }) => {
@@ -34,6 +35,17 @@ export const itemValidation = [
     .isInt({ min: 1 })
     .withMessage("Selecciona una categoría válida.")
     .toInt()
+  ];
+}
+
+export const itemValidation = createItemValidation();
+
+export const apiItemValidation = [
+  ...createItemValidation(),
+  body("stock")
+    .not()
+    .exists()
+    .withMessage("El stock inicial se gestiona mediante movimientos de inventario.")
 ];
 
 export const movementValidation = [

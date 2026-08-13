@@ -13,11 +13,17 @@ import {
   selectActiveBusiness
 } from "../controllers/apiBusinessController.js";
 import { getDashboard } from "../controllers/apiDashboardController.js";
-import { listProducts } from "../controllers/apiProductsController.js";
+import {
+  createProduct,
+  getProductFormOptions,
+  listProducts
+} from "../controllers/apiProductsController.js";
 import { getProductDetails } from "../controllers/apiProductDetailsController.js";
 import { loginValidation } from "../middleware/authValidation.js";
 import { requireApiAuth } from "../middleware/apiAuthMiddleware.js";
 import { requireApiActiveBusiness } from "../middleware/apiActiveBusinessMiddleware.js";
+import { requireApiBusinessRole } from "../middleware/apiAuthorizationMiddleware.js";
+import { apiItemValidation } from "../middleware/itemValidation.js";
 import { authLimiter } from "../middleware/securityMiddleware.js";
 
 const apiRouter = Router();
@@ -35,6 +41,21 @@ apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
 apiRouter.get("/products", requireApiAuth, requireApiActiveBusiness, listProducts);
+apiRouter.get(
+  "/products/form-options",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  getProductFormOptions
+);
+apiRouter.post(
+  "/products",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  apiItemValidation,
+  createProduct
+);
 apiRouter.get("/products/:productId", requireApiAuth, requireApiActiveBusiness, getProductDetails);
 
 apiRouter.use((req, res) => {

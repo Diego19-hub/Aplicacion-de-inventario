@@ -69,7 +69,11 @@ export function ProductsPage() {
   const currency = session.activeBusiness.currency;
 
   return <>
-    <PageHeader title="Productos" description={data ? `${data.pagination.totalItems} resultados` : "Consulta el inventario activo"} />
+    <PageHeader
+      title="Productos"
+      description={data ? `${data.pagination.totalItems} resultados` : "Consulta el inventario activo"}
+      actions={session.permissions.canManageInventory ? <Link className="button button--primary" to="/app/products/new">Crear producto</Link> : null}
+    />
     <Card className="product-filter-card">
       <form className="product-filters" onSubmit={handleSubmit}>
         <Input id="product-search" label="Buscar productos" type="search" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />

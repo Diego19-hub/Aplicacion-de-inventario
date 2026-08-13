@@ -226,7 +226,7 @@ export async function createItem(
   try {
     await client.query("BEGIN");
     const categoryResult = await client.query(
-      `SELECT name FROM categories
+      `SELECT id, name FROM categories
        WHERE id = $1 AND business_id = $2 FOR KEY SHARE`,
       [categoryId, businessId]
     );
@@ -258,11 +258,11 @@ export async function createItem(
         sku, name, description, brand, price, stock, category_id, business_id
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING id`,
+      RETURNING id, sku, name, description, brand, price, stock, category_id`,
       [resolvedSku, name, description, brand, price, 0, categoryId, businessId]
     );
     await client.query("COMMIT");
-    return result.rows[0];
+    return { ...result.rows[0], category_name: category.name };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

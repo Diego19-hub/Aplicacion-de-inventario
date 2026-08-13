@@ -165,6 +165,22 @@ El ID debe ser entero positivo (`400 VALIDATION_ERROR`); un producto
 inexistente, archivado o ajeno devuelve `404 PRODUCT_NOT_FOUND`. La respuesta
 usa `Cache-Control: no-store`.
 
+### `GET /api/products/form-options`
+
+Requiere una sesión, negocio activo y rol `owner` o `manager`. Devuelve las
+categorías del negocio ordenadas por nombre e ID, junto con la configuración
+informativa de SKU automático. No crea una categoría predeterminada.
+
+### `POST /api/products`
+
+Requiere una sesión, negocio activo y rol `owner` o `manager`; `viewer`
+recibe `403 FORBIDDEN`. Recibe `name`, `description`, `brand`, `price`,
+`categoryId` y `sku`. Un SKU vacío se genera de forma transaccional según la
+categoría; uno manual se normaliza a mayúsculas. El producto inicia activo y
+con stock cero. `stock` no se acepta porque las existencias se gestionan por
+movimientos. Una categoría ajena es un error de validación y un SKU duplicado
+responde `409 SKU_ALREADY_EXISTS` asociado al campo `sku`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

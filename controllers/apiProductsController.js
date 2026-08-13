@@ -3,6 +3,8 @@ import {
   getApiProductCategories,
   getApiProducts
 } from "../db/apiProductQueries.js";
+import { createItem } from "../db/queries.js";
+import { matchedData, validationResult } from "express-validator";
 
 const PAGE_SIZE = 12;
 
@@ -72,6 +74,84 @@ export async function listProducts(req, res, next) {
       }
     });
   } catch (error) {
+    return next(error);
+  }
+}
+
+function validationFields(errors) {
+  return errors.map((error) => ({ field: error.path, message: error.msg }));
+}
+
+export async function getProductFormOptions(req, res, next) {
+  try {
+    const categories = await getApiProductCategories(req.business.id);
+
+    return res.status(200).json({
+      data: {
+        categories,
+        sku: {
+          automatic: true,
+          editable: true,
+          example: "CAT-0001"
+        }
+      }
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createProduct(req, res, next) {
+  const validationErrors = validationResult(req);
+
+  if (!validationErrors.isEmpty()) {
+    return res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Revisa los campos enviados.",
+        fields: validationFields(validationErrors.array())
+      }
+    });
+  }
+
+  try {
+    const product = await createItem(matchedData(req), req.business.id);
+
+    if (!product) {
+      return res.status(400).json({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Revisa los campos enviados.",
+          fields: [{ field: "categoryId", message: "Selecciona una categoría válida." }]
+        }
+      });
+    }
+
+    return res.status(201).json({
+      data: {
+        product: {
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          description: product.description,
+          brand: product.brand,
+          price: Number(product.price),
+          stock: Number(product.stock),
+          category: { id: product.category_id, name: product.category_name }
+        }
+      }
+    });
+  } catch (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: {
+          code: "SKU_ALREADY_EXISTS",
+          message: "Ese SKU ya existe en este negocio.",
+          fields: [{ field: "sku", message: "Ese SKU ya existe en este negocio." }]
+        }
+      });
+    }
+
     return next(error);
   }
 }
