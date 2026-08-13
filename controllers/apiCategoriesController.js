@@ -1,6 +1,7 @@
 import {
   countApiCategories,
   createApiCategory,
+  deleteApiCategory,
   getApiActiveCategoryProducts,
   getApiCategories,
   getApiCategoryById,
@@ -172,6 +173,41 @@ export async function updateCategory(req, res, next) {
           code: "CATEGORY_ALREADY_EXISTS",
           message: "Ya existe una categoría con ese nombre.",
           fields: [{ field: "name", message: "Ya existe una categoría con ese nombre." }]
+        }
+      });
+    }
+    return next(error);
+  }
+}
+
+export async function removeCategory(req, res, next) {
+  const categoryId = positiveInteger(req.params.categoryId);
+  if (!categoryId) {
+    return validationError(res, [{ path: "categoryId", msg: "La categoría debe ser un entero positivo." }]);
+  }
+
+  try {
+    const category = await getApiCategoryById(req.business.id, categoryId);
+    if (!category) return categoryNotFound(res);
+
+    if (Number(category.active_product_count) + Number(category.archived_product_count) > 0) {
+      return res.status(409).json({
+        error: {
+          code: "CATEGORY_IN_USE",
+          message: "No puedes eliminar una categoría que todavía contiene productos."
+        }
+      });
+    }
+
+    const deletedCategory = await deleteApiCategory(req.business.id, categoryId);
+    if (!deletedCategory) return categoryNotFound(res);
+    return res.status(204).send();
+  } catch (error) {
+    if (error.code === "23503") {
+      return res.status(409).json({
+        error: {
+          code: "CATEGORY_IN_USE",
+          message: "No puedes eliminar una categoría que todavía contiene productos."
         }
       });
     }

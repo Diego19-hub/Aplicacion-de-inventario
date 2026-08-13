@@ -17,6 +17,7 @@ import {
   createCategory,
   getCategoryDetails,
   getCategoryForEdit,
+  removeCategory,
   updateCategory,
   listCategories
 } from "../controllers/apiCategoriesController.js";
@@ -102,6 +103,13 @@ apiRouter.put(
   requireApiBusinessRole("owner", "manager"),
   apiCategoryValidation,
   updateCategory
+);
+apiRouter.delete(
+  "/categories/:categoryId",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  removeCategory
 );
 apiRouter.get(
   "/categories/:categoryId",

@@ -22,6 +22,7 @@ import { CategoriesPage } from "./pages/CategoriesPage.jsx";
 import { CategoryDetailsPage } from "./pages/CategoryDetailsPage.jsx";
 import { EditCategoryPage } from "./pages/EditCategoryPage.jsx";
 import { NewCategoryPage } from "./pages/NewCategoryPage.jsx";
+import { DeleteCategoryPage } from "./pages/DeleteCategoryPage.jsx";
 import { SelectBusinessPage } from "./pages/SelectBusinessPage.jsx";
 
 function SessionGuard({ children }) {
@@ -87,6 +88,10 @@ export default function App() {
       <Route
         path="/app/categories/:categoryId/edit"
         element={<SessionGuard><AppShell><EditCategoryPage /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/app/categories/:categoryId/delete"
+        element={<SessionGuard><AppShell><DeleteCategoryPage /></AppShell></SessionGuard>}
       />
       <Route
         path="/app/categories/:categoryId"

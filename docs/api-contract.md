@@ -302,6 +302,14 @@ la categoría por ID y `business_id`; una categoría ajena o inexistente respond
 `404 CATEGORY_NOT_FOUND`. La actualización conserva los productos asociados y
 el propio nombre no cuenta como duplicado.
 
+`DELETE /api/categories/:categoryId` requiere sesión, negocio activo, CSRF y
+rol `owner`; manager y viewer reciben `403 FORBIDDEN`. Limita la eliminación por
+ID y `business_id`; una categoría ajena o inexistente responde `404
+CATEGORY_NOT_FOUND`. Si contiene productos activos o archivados responde `409
+CATEGORY_IN_USE` y no modifica productos. La FK mantiene la protección final
+frente a una inserción concurrente. Una categoría vacía responde `204` sin
+cuerpo.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

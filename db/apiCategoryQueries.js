@@ -106,3 +106,16 @@ export async function updateApiCategory(businessId, categoryId, { name, descript
   );
   return result.rows[0] ?? null;
 }
+
+export async function deleteApiCategory(businessId, categoryId) {
+  const result = await pool.query(
+    `
+      DELETE FROM categories
+      WHERE business_id = $1
+        AND id = $2
+      RETURNING id
+    `,
+    [businessId, categoryId]
+  );
+  return result.rows[0] ?? null;
+}
