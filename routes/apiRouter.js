@@ -13,6 +13,7 @@ import {
   selectActiveBusiness
 } from "../controllers/apiBusinessController.js";
 import { getDashboard } from "../controllers/apiDashboardController.js";
+import { getMembers } from "../controllers/apiMembersController.js";
 import {
   createCategory,
   getCategoryDetails,
@@ -99,6 +100,13 @@ apiRouter.post("/auth/logout", logout);
 apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
+apiRouter.get(
+  "/members",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  getMembers
+);
 apiRouter.get(
   "/categories",
   requireApiAuth,

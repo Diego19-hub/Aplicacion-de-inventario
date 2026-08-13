@@ -33,6 +33,7 @@ import { SupplierDetailsPage } from "./pages/SupplierDetailsPage.jsx";
 import { NewSupplierPage } from "./pages/NewSupplierPage.jsx";
 import { EditSupplierPage } from "./pages/EditSupplierPage.jsx";
 import { SupplierTransitionPage } from "./pages/SupplierTransitionPage.jsx";
+import { MembersPage } from "./pages/MembersPage.jsx";
 import { SelectBusinessPage } from "./pages/SelectBusinessPage.jsx";
 
 function SessionGuard({ children }) {
@@ -130,6 +131,10 @@ export default function App() {
       <Route
         path="/app/suppliers"
         element={<SessionGuard><AppShell><SuppliersPage /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/app/members"
+        element={<SessionGuard><AppShell><MembersPage /></AppShell></SessionGuard>}
       />
       <Route
         path="/app/suppliers/new"

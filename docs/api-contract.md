@@ -399,6 +399,22 @@ VALIDATION_ERROR`. Desactivar uno ya inactivo responde `409
 SUPPLIER_ALREADY_INACTIVE`; reactivar uno ya activo responde `409
 SUPPLIER_ALREADY_ACTIVE`.
 
+### Miembros e invitaciones
+
+`GET /api/members` requiere sesión, negocio activo y rol `owner`; manager y
+viewer reciben `403 FORBIDDEN`. Devuelve las membresías y las invitaciones del
+negocio activo, además del total de membresías activas y de invitaciones
+pendientes vigentes. Las filas se restringen por `business_id`, no contienen
+hashes, roles globales ni datos de sesión, y usan `Cache-Control: no-store`.
+
+Las membresías incluyen usuario seguro, rol, estado, fechas e indicador del
+usuario actual; se ordenan por owner, membresías activas, nombre e ID. Las
+invitaciones incluyen correo normalizado, rol ofrecido, estado, fechas e
+invitador seguro; se ordenan con las pendientes primero. `isExpired` se calcula
+en la consulta únicamente para una invitación `pending` cuyo vencimiento ya
+ocurrió, sin modificar su estado. El resumen cuenta solo las pendientes que no
+han vencido.
+
 ## Autenticación
 
 ### `POST /api/auth/register`
