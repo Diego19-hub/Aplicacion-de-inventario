@@ -31,6 +31,11 @@ import {
   updateLocation
 } from "../controllers/apiLocationMutationsController.js";
 import {
+  deactivateLocation,
+  makeDefaultLocation,
+  reactivateLocation
+} from "../controllers/apiLocationTransitionsController.js";
+import {
   archiveProduct,
   createProduct,
   getProductForEdit,
@@ -157,6 +162,27 @@ apiRouter.put(
   requireApiBusinessRole("owner"),
   apiLocationValidation,
   updateLocation
+);
+apiRouter.post(
+  "/locations/:locationId/make-default",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  makeDefaultLocation
+);
+apiRouter.post(
+  "/locations/:locationId/deactivate",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  deactivateLocation
+);
+apiRouter.post(
+  "/locations/:locationId/reactivate",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  reactivateLocation
 );
 apiRouter.get(
   "/locations/:locationId",

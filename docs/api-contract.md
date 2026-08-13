@@ -340,6 +340,23 @@ requieren los mismos permisos; el `PUT` requiere CSRF. Ambos limitan por ID y
 inexistentes y exponen solo los campos editables. La actualización no altera
 estado, condición principal, balances, movimientos ni transferencias.
 
+`POST /api/locations/:locationId/make-default`, `POST
+/api/locations/:locationId/deactivate` y `POST
+/api/locations/:locationId/reactivate` requieren sesión, negocio activo, CSRF
+y rol `owner`; manager y viewer reciben `403 FORBIDDEN`. Las transiciones se
+limitan por ID y `business_id` y devuelven `400 VALIDATION_ERROR` para un ID
+inválido o `404 LOCATION_NOT_FOUND` para una ubicación ajena o inexistente.
+
+Convertir en principal bloquea las ubicaciones del negocio en una transacción,
+retira primero la condición anterior y establece la nueva; una ubicación
+inactiva devuelve `409 LOCATION_INACTIVE` y una principal actual `409
+LOCATION_ALREADY_DEFAULT`. Desactivar bloquea la ubicación antes de comprobar
+balances: la principal devuelve `409 DEFAULT_LOCATION_REQUIRED`, una ubicación
+con stock positivo `409 LOCATION_HAS_STOCK` y una ya inactiva `409
+LOCATION_ALREADY_INACTIVE`. Reactivar una ubicación activa devuelve `409
+LOCATION_ALREADY_ACTIVE`; no la convierte en principal. Ninguna transición
+modifica balances, movimientos ni transferencias.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

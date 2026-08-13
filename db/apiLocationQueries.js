@@ -173,3 +173,191 @@ export async function updateApiLocation(businessId, locationId, data) {
   );
   return result.rows[0] ?? null;
 }
+
+function transitionLocationRow(row) {
+  return {
+    id: Number(row.id),
+    name: row.name,
+    code: row.code,
+    status: row.status,
+    is_default: row.is_default
+  };
+}
+
+export async function makeApiDefaultLocation(businessId, locationId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const locations = await client.query(
+      `
+        SELECT id, name, code, status, is_default
+        FROM business_locations
+        WHERE business_id = $1
+        ORDER BY id
+        FOR UPDATE
+      `,
+      [businessId]
+    );
+    const target = locations.rows.find((location) => location.id === locationId);
+    if (!target) {
+      await client.query("ROLLBACK");
+      return { error: "not_found" };
+    }
+    if (target.status !== "active") {
+      await client.query("ROLLBACK");
+      return { error: "inactive" };
+    }
+    if (target.is_default) {
+      await client.query("ROLLBACK");
+      return { error: "already_default" };
+    }
+
+    await client.query(
+      "UPDATE business_locations SET is_default = false WHERE business_id = $1 AND is_default",
+      [businessId]
+    );
+    const updated = await client.query(
+      `
+        UPDATE business_locations
+        SET is_default = true
+        WHERE business_id = $1
+          AND id = $2
+          AND status = 'active'
+          AND is_default = false
+        RETURNING id, name, code, status, is_default
+      `,
+      [businessId, locationId]
+    );
+    if (!updated.rows[0]) {
+      await client.query("ROLLBACK");
+      return { error: "inactive" };
+    }
+    await client.query("COMMIT");
+    return { location: transitionLocationRow(updated.rows[0]) };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deactivateApiLocation(businessId, locationId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const targetResult = await client.query(
+      `
+        SELECT id, name, code, status, is_default
+        FROM business_locations
+        WHERE business_id = $1
+          AND id = $2
+        FOR UPDATE
+      `,
+      [businessId, locationId]
+    );
+    const target = targetResult.rows[0];
+    if (!target) {
+      await client.query("ROLLBACK");
+      return { error: "not_found" };
+    }
+    if (target.status !== "active") {
+      await client.query("ROLLBACK");
+      return { error: "already_inactive" };
+    }
+    if (target.is_default) {
+      await client.query("ROLLBACK");
+      return { error: "default_required" };
+    }
+
+    const hasStock = await client.query(
+      `
+        SELECT EXISTS(
+          SELECT 1
+          FROM inventory_balances
+          WHERE business_id = $1
+            AND location_id = $2
+            AND stock > 0
+        ) AS has_stock
+      `,
+      [businessId, locationId]
+    );
+    if (hasStock.rows[0].has_stock) {
+      await client.query("ROLLBACK");
+      return { error: "has_stock" };
+    }
+
+    const updated = await client.query(
+      `
+        UPDATE business_locations
+        SET status = 'inactive'
+        WHERE business_id = $1
+          AND id = $2
+          AND status = 'active'
+          AND is_default = false
+        RETURNING id, name, code, status, is_default
+      `,
+      [businessId, locationId]
+    );
+    if (!updated.rows[0]) {
+      await client.query("ROLLBACK");
+      return { error: "already_inactive" };
+    }
+    await client.query("COMMIT");
+    return { location: transitionLocationRow(updated.rows[0]) };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function reactivateApiLocation(businessId, locationId) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const targetResult = await client.query(
+      `
+        SELECT id, name, code, status, is_default
+        FROM business_locations
+        WHERE business_id = $1
+          AND id = $2
+        FOR UPDATE
+      `,
+      [businessId, locationId]
+    );
+    const target = targetResult.rows[0];
+    if (!target) {
+      await client.query("ROLLBACK");
+      return { error: "not_found" };
+    }
+    if (target.status !== "inactive") {
+      await client.query("ROLLBACK");
+      return { error: "already_active" };
+    }
+
+    const updated = await client.query(
+      `
+        UPDATE business_locations
+        SET status = 'active'
+        WHERE business_id = $1
+          AND id = $2
+          AND status = 'inactive'
+        RETURNING id, name, code, status, is_default
+      `,
+      [businessId, locationId]
+    );
+    if (!updated.rows[0]) {
+      await client.query("ROLLBACK");
+      return { error: "already_active" };
+    }
+    await client.query("COMMIT");
+    return { location: transitionLocationRow(updated.rows[0]) };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

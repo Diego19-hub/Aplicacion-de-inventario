@@ -27,6 +27,7 @@ import { LocationsPage } from "./pages/LocationsPage.jsx";
 import { LocationDetailsPage } from "./pages/LocationDetailsPage.jsx";
 import { NewLocationPage } from "./pages/NewLocationPage.jsx";
 import { EditLocationPage } from "./pages/EditLocationPage.jsx";
+import { LocationTransitionPage } from "./pages/LocationTransitionPage.jsx";
 import { SelectBusinessPage } from "./pages/SelectBusinessPage.jsx";
 
 function SessionGuard({ children }) {
@@ -108,6 +109,18 @@ export default function App() {
       <Route
         path="/app/locations/:locationId/edit"
         element={<SessionGuard><AppShell><EditLocationPage /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/app/locations/:locationId/make-default"
+        element={<SessionGuard><AppShell><LocationTransitionPage action="make-default" /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/app/locations/:locationId/deactivate"
+        element={<SessionGuard><AppShell><LocationTransitionPage action="deactivate" /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/app/locations/:locationId/reactivate"
+        element={<SessionGuard><AppShell><LocationTransitionPage action="reactivate" /></AppShell></SessionGuard>}
       />
       <Route
         path="/app/locations/:locationId"
