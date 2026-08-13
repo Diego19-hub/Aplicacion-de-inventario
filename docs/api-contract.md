@@ -399,6 +399,18 @@ VALIDATION_ERROR`. Desactivar uno ya inactivo responde `409
 SUPPLIER_ALREADY_INACTIVE`; reactivar uno ya activo responde `409
 SUPPLIER_ALREADY_ACTIVE`.
 
+### Alertas de existencias
+
+`GET /api/alerts/stock` requiere sesión, negocio activo y cualquier rol de
+membresía activo. Devuelve alertas paginadas de 20 filas exclusivamente para
+productos y ubicaciones activos que tengan un umbral configurado y un saldo
+local menor o igual al mínimo; un balance ausente equivale a cero. Acepta `q`,
+`category`, `location`, `status` (`all`, `out_of_stock`, `low_stock`) y
+`page`. IDs inválidos o ajenos devuelven cero filas sin revelar recursos. Los
+resultados y su conteo comparten filtros, se aíslan por `business_id` y se
+ordenan por agotados, stock, producto, ubicación e IDs. La respuesta indica si
+owner/manager podrán gestionar umbrales en una fase posterior.
+
 ### Miembros e invitaciones
 
 `GET /api/members` requiere sesión, negocio activo y rol `owner`; manager y

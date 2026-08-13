@@ -93,6 +93,7 @@ import { apiTransferValidation } from "../middleware/transferValidation.js";
 import { apiCategoryValidation } from "../middleware/categoryValidation.js";
 import { apiLocationValidation } from "../middleware/locationValidation.js";
 import { apiSupplierValidation } from "../middleware/supplierValidation.js";
+import { listStockAlerts } from "../controllers/apiAlertsController.js";
 import {
   apiInvitationActionValidation,
   apiInvitationValidation,
@@ -118,6 +119,7 @@ apiRouter.post("/auth/logout", logout);
 apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
+apiRouter.get("/alerts/stock", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listStockAlerts);
 apiRouter.get(
   "/members",
   requireApiAuth,

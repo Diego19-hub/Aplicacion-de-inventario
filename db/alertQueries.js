@@ -28,7 +28,7 @@ export async function getStockAlerts(filters) {
   const base = alertBase(filters);
   const count = await pool.query(`SELECT count(*)::int count${base.sql}`, base.values);
   const values = [...base.values, filters.limit, filters.offset];
-  const rows = await pool.query(`SELECT i.id item_id,i.name item_name,i.sku,i.category_id,c.name category_name,l.id location_id,l.name location_name,l.code location_code,COALESCE(b.stock,0)::int current_stock,t.minimum_stock,CASE WHEN COALESCE(b.stock,0)=0 THEN 'out_of_stock' ELSE 'low_stock' END alert_status${base.sql} ORDER BY (COALESCE(b.stock,0)=0) DESC,COALESCE(b.stock,0),lower(i.name),i.id,lower(l.name),l.id LIMIT $${values.length-1} OFFSET $${values.length}`, values);
+  const rows = await pool.query(`SELECT t.id threshold_id,i.id item_id,i.name item_name,i.sku,i.category_id,c.name category_name,l.id location_id,l.name location_name,l.code location_code,COALESCE(b.stock,0)::int current_stock,t.minimum_stock,CASE WHEN COALESCE(b.stock,0)=0 THEN 'out_of_stock' ELSE 'low_stock' END alert_status${base.sql} ORDER BY (COALESCE(b.stock,0)=0) DESC,COALESCE(b.stock,0),lower(i.name),i.id,lower(l.name),l.id LIMIT $${values.length-1} OFFSET $${values.length}`, values);
   return { count: count.rows[0].count, rows: rows.rows };
 }
 
