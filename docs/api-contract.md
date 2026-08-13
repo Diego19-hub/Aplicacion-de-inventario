@@ -411,6 +411,18 @@ resultados y su conteo comparten filtros, se aíslan por `business_id` y se
 ordenan por agotados, stock, producto, ubicación e IDs. La respuesta indica si
 owner/manager podrán gestionar umbrales en una fase posterior.
 
+### Reporte de existencias
+
+`GET /api/reports/inventory` requiere sesión, negocio activo y rol owner,
+manager o viewer. Acepta `q`, `category`, `location`, `productStatus`,
+`stockRows` y `page`; usa 25 filas y paginación SQL. Owner puede elegir
+productos `active`, `archived` o `all`; manager/viewer siempre reciben
+`active`, incluso si manipulan la URL. Categoría o ubicación inválida o ajena
+produce cero filas. El conteo y las filas comparten filtros, cada join exige
+el negocio activo y un balance ausente equivale a cero. La respuesta devuelve
+productos, ubicaciones, existencias local/total, opciones de filtros y
+paginación sin exponer `business_id`.
+
 `GET /api/products/:productId/thresholds` requiere owner o manager y devuelve
 el producto activo junto con sus ubicaciones activas, saldo local y umbral por
 ubicación. `PUT` y `DELETE` sobre `/api/products/:productId/thresholds/:locationId`

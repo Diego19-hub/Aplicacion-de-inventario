@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/Button.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const upcomingSections = ["Movimientos", "Reportes", "Configuración"];
+const upcomingSections = ["Movimientos", "Configuración"];
 
 export function AppShell({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -30,6 +30,7 @@ export function AppShell({ children }) {
           <Link to="/app/suppliers" className={`nav-link ${location.pathname.startsWith("/app/suppliers") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Proveedores</Link>
           <Link to="/app/transfers" className={`nav-link ${location.pathname.startsWith("/app/transfers") ? "nav-link--active" : ""}`}><ArrowRightLeft aria-hidden="true" />Transferencias</Link>
           <Link to="/app/alerts" className={`nav-link ${location.pathname.startsWith("/app/alerts") ? "nav-link--active" : ""}`}><BellRing aria-hidden="true" />Alertas</Link>
+          <Link to="/app/reports" className={`nav-link ${location.pathname.startsWith("/app/reports") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Reportes</Link>
           {session.permissions.canManageMembers && <Link to="/app/members" className={`nav-link ${location.pathname.startsWith("/app/members") ? "nav-link--active" : ""}`}><UsersRound aria-hidden="true" />Equipo</Link>}
           {upcomingSections.map((section) => <span key={section} className="nav-link nav-link--disabled"><PackageSearch aria-hidden="true" />{section}<small>Próximamente</small></span>)}
         </nav>

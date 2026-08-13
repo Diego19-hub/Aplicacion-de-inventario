@@ -39,6 +39,8 @@ import { SelectBusinessPage } from "./pages/SelectBusinessPage.jsx";
 import { InvitationPage } from "./pages/InvitationPage.jsx";
 import { AlertsPage } from "./pages/AlertsPage.jsx";
 import { ProductThresholdsPage } from "./pages/ProductThresholdsPage.jsx";
+import { ReportsPage } from "./pages/ReportsPage.jsx";
+import { InventoryReportPage } from "./pages/InventoryReportPage.jsx";
 
 function SessionGuard({ children }) {
   const { isInitialLoading, session } = useAuth();
@@ -91,6 +93,8 @@ export default function App() {
         element={<SessionGuard><AppShell><DashboardPage /></AppShell></SessionGuard>}
       />
       <Route path="/app/alerts" element={<SessionGuard><AppShell><AlertsPage /></AppShell></SessionGuard>} />
+      <Route path="/app/reports" element={<SessionGuard><AppShell><ReportsPage /></AppShell></SessionGuard>} />
+      <Route path="/app/reports/inventory" element={<SessionGuard><AppShell><InventoryReportPage /></AppShell></SessionGuard>} />
       <Route path="/app/products/:productId/thresholds" element={<SessionGuard><AppShell><ProductThresholdsPage /></AppShell></SessionGuard>} />
       <Route
         path="/app/products"

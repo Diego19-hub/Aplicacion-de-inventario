@@ -40,7 +40,7 @@ export async function inventoryReport(f) {
   const count = await pool.query("SELECT count(*)::int count" + base, x.v);
   const v = [...x.v, f.limit, f.offset];
   const rows = await pool.query(
-    `SELECT i.name,i.sku,i.status product_status,c.name category_name,l.name location_name,l.code,l.location_type,l.status location_status,COALESCE(b.stock,0)::int local_stock,i.stock total_stock ${base} ORDER BY lower(i.name),i.id,lower(l.name),l.id LIMIT $${v.length - 1} OFFSET $${v.length}`,
+    `SELECT i.id,i.name,i.sku,i.status product_status,i.category_id,c.name category_name,l.id location_id,l.name location_name,l.code,l.location_type,l.status location_status,COALESCE(b.stock,0)::int local_stock,i.stock total_stock ${base} ORDER BY lower(i.name),i.id,lower(l.name),l.id LIMIT $${v.length - 1} OFFSET $${v.length}`,
     v,
   );
   return { count: count.rows[0].count, rows: rows.rows };
