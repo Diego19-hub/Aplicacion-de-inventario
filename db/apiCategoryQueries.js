@@ -80,3 +80,29 @@ export async function getApiActiveCategoryProducts(businessId, categoryId) {
   );
   return result.rows;
 }
+
+export async function createApiCategory(businessId, { name, description }) {
+  const result = await pool.query(
+    `
+      INSERT INTO categories (name, description, business_id)
+      VALUES ($1, $2, $3)
+      RETURNING id, name, description
+    `,
+    [name, description, businessId]
+  );
+  return result.rows[0];
+}
+
+export async function updateApiCategory(businessId, categoryId, { name, description }) {
+  const result = await pool.query(
+    `
+      UPDATE categories
+      SET name = $1, description = $2
+      WHERE business_id = $3
+        AND id = $4
+      RETURNING id, name, description
+    `,
+    [name, description, businessId, categoryId]
+  );
+  return result.rows[0] ?? null;
+}

@@ -289,6 +289,19 @@ responde `400 VALIDATION_ERROR`; una categoría inexistente o ajena responde
 productos activos ordenados por nombre e ID. En esta primera consulta el
 listado de productos del detalle no se pagina.
 
+`POST /api/categories` requiere sesión, negocio activo, CSRF y rol `owner` o
+`manager`; viewer recibe `403 FORBIDDEN`. Recibe `name` y `description`
+opcional, recortada y normalizada a cadena vacía cuando no se indica. Nombre
+duplicado en el mismo negocio, sin distinguir mayúsculas, responde `409
+CATEGORY_ALREADY_EXISTS` asociado a `name`; los campos internos se rechazan
+como `400 VALIDATION_ERROR`.
+
+`GET /api/categories/:categoryId/edit` y `PUT /api/categories/:categoryId`
+requieren los mismos permisos de gestión; el `PUT` requiere CSRF. Ambos limitan
+la categoría por ID y `business_id`; una categoría ajena o inexistente responde
+`404 CATEGORY_NOT_FOUND`. La actualización conserva los productos asociados y
+el propio nombre no cuenta como duplicado.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

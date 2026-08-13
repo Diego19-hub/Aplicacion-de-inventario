@@ -14,7 +14,10 @@ import {
 } from "../controllers/apiBusinessController.js";
 import { getDashboard } from "../controllers/apiDashboardController.js";
 import {
+  createCategory,
   getCategoryDetails,
+  getCategoryForEdit,
+  updateCategory,
   listCategories
 } from "../controllers/apiCategoriesController.js";
 import {
@@ -53,6 +56,7 @@ import {
   apiMovementValidation
 } from "../middleware/itemValidation.js";
 import { apiTransferValidation } from "../middleware/transferValidation.js";
+import { apiCategoryValidation } from "../middleware/categoryValidation.js";
 import { authLimiter } from "../middleware/securityMiddleware.js";
 
 const apiRouter = Router();
@@ -75,6 +79,29 @@ apiRouter.get(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager", "viewer"),
   listCategories
+);
+apiRouter.post(
+  "/categories",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  apiCategoryValidation,
+  createCategory
+);
+apiRouter.get(
+  "/categories/:categoryId/edit",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  getCategoryForEdit
+);
+apiRouter.put(
+  "/categories/:categoryId",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  apiCategoryValidation,
+  updateCategory
 );
 apiRouter.get(
   "/categories/:categoryId",

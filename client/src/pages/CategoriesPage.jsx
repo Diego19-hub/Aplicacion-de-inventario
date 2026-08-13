@@ -10,6 +10,7 @@ import { EmptyState } from "../components/EmptyState.jsx";
 import { Input } from "../components/Input.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function pageNumbers(page, totalPages) {
   return Array.from({ length: totalPages }, (_, index) => index + 1)
@@ -17,6 +18,7 @@ function pageNumbers(page, totalPages) {
 }
 
 export function CategoriesPage() {
+  const { session } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
@@ -58,7 +60,7 @@ export function CategoriesPage() {
   }
 
   return <>
-    <PageHeader title="Categorías" description={data ? `${data.pagination.totalItems} resultados` : "Organiza el inventario por categorías"} />
+    <PageHeader title="Categorías" description={data ? `${data.pagination.totalItems} resultados` : "Organiza el inventario por categorías"} actions={session.permissions.canManageInventory ? <Link className="button button--primary" to="/app/categories/new">Crear categoría</Link> : null} />
     <Card className="product-filter-card"><form className="category-filters" onSubmit={submit}><Input id="category-search" label="Buscar categorías" type="search" value={query} placeholder="Buscar por nombre" onChange={(event) => setQuery(event.target.value)} /><div className="product-filter-actions"><Button type="submit"><Search aria-hidden="true" />Buscar</Button><Button variant="secondary" onClick={clear}>Limpiar</Button></div></form></Card>
     {isLoading && <section className="dashboard-state"><Spinner label="Cargando categorías" /></section>}
     {!isLoading && error && <Alert><div className="dashboard-error"><span>{error}</span><Button variant="secondary" onClick={loadCategories}>Reintentar</Button></div></Alert>}
