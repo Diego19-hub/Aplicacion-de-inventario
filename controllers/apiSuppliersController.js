@@ -1,4 +1,5 @@
 import {
+  changeApiSupplierStatus,
   countApiSuppliers,
   createApiSupplier,
   getApiSupplierById,
@@ -175,4 +176,47 @@ export async function updateSupplier(req, res, next) {
     if (error.code === "23505") return duplicateSupplierError(res);
     return next(error);
   }
+}
+
+function alreadyInStatus(res, code, message) {
+  return res.status(409).json({ error: { code, message } });
+}
+
+async function transitionSupplier(req, res, next, { fromStatus, toStatus, alreadyCode, alreadyMessage }) {
+  const supplierId = positiveInteger(req.params.supplierId);
+  if (!supplierId) return validationError(res);
+
+  try {
+    const supplier = await changeApiSupplierStatus(
+      req.business.id,
+      supplierId,
+      fromStatus,
+      toStatus
+    );
+    if (supplier) return res.status(200).json({ data: { supplier: serializeSupplier(supplier) } });
+
+    const existingSupplier = await getApiSupplierById(req.business.id, supplierId);
+    if (!existingSupplier) return supplierNotFound(res);
+    return alreadyInStatus(res, alreadyCode, alreadyMessage);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function deactivateSupplier(req, res, next) {
+  return transitionSupplier(req, res, next, {
+    fromStatus: "active",
+    toStatus: "inactive",
+    alreadyCode: "SUPPLIER_ALREADY_INACTIVE",
+    alreadyMessage: "El proveedor ya está inactivo."
+  });
+}
+
+export function reactivateSupplier(req, res, next) {
+  return transitionSupplier(req, res, next, {
+    fromStatus: "inactive",
+    toStatus: "active",
+    alreadyCode: "SUPPLIER_ALREADY_ACTIVE",
+    alreadyMessage: "El proveedor ya está activo."
+  });
 }

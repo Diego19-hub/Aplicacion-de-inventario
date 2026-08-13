@@ -389,6 +389,16 @@ para recursos ajenos o inexistentes y exponen o actualizan únicamente los
 campos editables. La actualización no altera estado ni fechas directamente;
 el trigger existente actualiza `updated_at`.
 
+`POST /api/suppliers/:supplierId/deactivate` y `POST
+/api/suppliers/:supplierId/reactivate` requieren sesión, negocio activo, CSRF
+y rol `owner` o `manager`; viewer recibe `403 FORBIDDEN`. Ambas mutaciones
+limitan por ID, `business_id` y el estado esperado, conservan los datos
+empresariales y dejan que el trigger actualice `updated_at`. Un proveedor ajeno
+o inexistente responde `404 SUPPLIER_NOT_FOUND`; un ID inválido responde `400
+VALIDATION_ERROR`. Desactivar uno ya inactivo responde `409
+SUPPLIER_ALREADY_INACTIVE`; reactivar uno ya activo responde `409
+SUPPLIER_ALREADY_ACTIVE`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

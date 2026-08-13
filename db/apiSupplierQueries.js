@@ -124,3 +124,20 @@ export async function updateApiSupplier(businessId, supplierId, data) {
   );
   return result.rows[0] ?? null;
 }
+
+export async function changeApiSupplierStatus(businessId, supplierId, fromStatus, toStatus) {
+  const result = await pool.query(
+    `
+      UPDATE suppliers
+      SET status = $1
+      WHERE business_id = $2
+        AND id = $3
+        AND status = $4
+      RETURNING
+        id, name, legal_name, tax_id, contact_name, email, phone, address, notes,
+        status, created_at, updated_at
+    `,
+    [toStatus, businessId, supplierId, fromStatus]
+  );
+  return result.rows[0] ?? null;
+}

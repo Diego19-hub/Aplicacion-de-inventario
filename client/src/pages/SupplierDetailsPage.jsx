@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, RotateCcw, UserX } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -49,7 +49,7 @@ export function SupplierDetailsPage() {
 
   return <>
     <Link to="/app/suppliers" className="back-link"><ArrowLeft aria-hidden="true" />Volver a proveedores</Link>
-    <PageHeader title={supplier.name} description={`Estado: ${supplier.status === "active" ? "Activo" : "Inactivo"}`} actions={session.permissions.canManageInventory ? <Link className="button" to={`/app/suppliers/${supplier.id}/edit`}><Pencil aria-hidden="true" />Editar proveedor</Link> : null} />
+    <PageHeader title={supplier.name} description={`Estado: ${supplier.status === "active" ? "Activo" : "Inactivo"}`} actions={session.permissions.canManageInventory ? <><Link className="button" to={`/app/suppliers/${supplier.id}/edit`}><Pencil aria-hidden="true" />Editar proveedor</Link>{supplier.status === "active" ? <Link className="button button--danger" to={`/app/suppliers/${supplier.id}/deactivate`}><UserX aria-hidden="true" />Desactivar proveedor</Link> : <Link className="button" to={`/app/suppliers/${supplier.id}/reactivate`}><RotateCcw aria-hidden="true" />Reactivar proveedor</Link>}</> : null} />
     <section className="transfer-detail-grid"><Card><p className="eyebrow">Información empresarial</p><dl className="detail-list"><div><dt>Razón social</dt><dd>{valueOrFallback(supplier.legalName, "Sin razón social registrada")}</dd></div><div><dt>RFC</dt><dd>{valueOrFallback(supplier.taxId, "Sin RFC registrado")}</dd></div><div><dt>Dirección</dt><dd>{valueOrFallback(supplier.address, "Sin dirección registrada")}</dd></div><div><dt>Notas</dt><dd>{valueOrFallback(supplier.notes, "Sin notas registradas")}</dd></div></dl></Card><Card><p className="eyebrow">Contacto</p><dl className="detail-list"><div><dt>Persona de contacto</dt><dd>{valueOrFallback(supplier.contactName, "Sin contacto registrado")}</dd></div><div><dt>Correo</dt><dd>{supplier.email ? <a className="text-link" href={`mailto:${supplier.email}`}>{supplier.email}</a> : "Sin correo registrado"}</dd></div><div><dt>Teléfono</dt><dd>{valueOrFallback(supplier.phone, "Sin teléfono registrado")}</dd></div></dl></Card></section>
     <Card><p className="eyebrow">Registro</p><dl className="detail-list"><div><dt>Creado</dt><dd><time dateTime={supplier.createdAt}>{formatDate(supplier.createdAt)}</time></dd></div><div><dt>Última actualización</dt><dd><time dateTime={supplier.updatedAt}>{formatDate(supplier.updatedAt)}</time></dd></div></dl></Card>
   </>;

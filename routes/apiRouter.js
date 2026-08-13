@@ -37,9 +37,11 @@ import {
 } from "../controllers/apiLocationTransitionsController.js";
 import {
   createSupplier,
+  deactivateSupplier,
   getSupplierForEdit,
   getSupplierDetails,
   listSuppliers,
+  reactivateSupplier,
   updateSupplier
 } from "../controllers/apiSuppliersController.js";
 import {
@@ -228,6 +230,20 @@ apiRouter.put(
   requireApiBusinessRole("owner", "manager"),
   apiSupplierValidation,
   updateSupplier
+);
+apiRouter.post(
+  "/suppliers/:supplierId/deactivate",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  deactivateSupplier
+);
+apiRouter.post(
+  "/suppliers/:supplierId/reactivate",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  reactivateSupplier
 );
 apiRouter.get(
   "/suppliers/:supplierId",
