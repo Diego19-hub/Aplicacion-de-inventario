@@ -274,6 +274,21 @@ exactamente un `transfer_out` y un `transfer_in` coherentes con la cabecera; si
 el historial fuese inconsistente devuelve un error interno genérico sin exponer
 detalles de PostgreSQL.
 
+### Categorías
+
+`GET /api/categories` requiere sesión y negocio activo; owner, manager y
+viewer pueden consultar. Acepta `q` y `page`, busca parcialmente por nombre sin
+distinguir mayúsculas y pagina 20 categorías en PostgreSQL con orden
+`LOWER(name), id`. Conteo y resultados comparten filtros por `business_id`.
+Cada categoría incluye productos activos, productos archivados y existencias
+totales solo de los activos.
+
+`GET /api/categories/:categoryId` requiere los mismos permisos. Un ID inválido
+responde `400 VALIDATION_ERROR`; una categoría inexistente o ajena responde
+`404 CATEGORY_NOT_FOUND`. Devuelve las mismas métricas y únicamente los
+productos activos ordenados por nombre e ID. En esta primera consulta el
+listado de productos del detalle no se pagina.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

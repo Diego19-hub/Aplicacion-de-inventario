@@ -14,6 +14,10 @@ import {
 } from "../controllers/apiBusinessController.js";
 import { getDashboard } from "../controllers/apiDashboardController.js";
 import {
+  getCategoryDetails,
+  listCategories
+} from "../controllers/apiCategoriesController.js";
+import {
   archiveProduct,
   createProduct,
   getProductForEdit,
@@ -65,6 +69,20 @@ apiRouter.post("/auth/logout", logout);
 apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
+apiRouter.get(
+  "/categories",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  listCategories
+);
+apiRouter.get(
+  "/categories/:categoryId",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  getCategoryDetails
+);
 apiRouter.get(
   "/transfers/form-options",
   requireApiAuth,
