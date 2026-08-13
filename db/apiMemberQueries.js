@@ -166,3 +166,25 @@ export async function getApiBusinessInvitationById(businessId, invitationId) {
   );
   return result.rows[0] ?? null;
 }
+
+export async function findApiInvitationByHash(tokenHash) {
+  const result = await pool.query(
+    `
+      SELECT
+        bi.email_normalized,
+        bi.offered_role,
+        bi.status,
+        bi.expires_at,
+        bi.token_hash,
+        b.name AS business_name,
+        b.slug AS business_slug,
+        b.status AS business_status,
+        (bi.expires_at <= CURRENT_TIMESTAMP) AS is_expired
+      FROM business_invitations bi
+      INNER JOIN businesses b ON b.id = bi.business_id
+      WHERE bi.token_hash = $1
+    `,
+    [tokenHash]
+  );
+  return result.rows[0] ?? null;
+}

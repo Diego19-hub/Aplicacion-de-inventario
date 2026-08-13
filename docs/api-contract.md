@@ -433,6 +433,32 @@ VALIDATION_ERROR`, una invitación ajena o inexistente devuelve `404
 INVITATION_NOT_FOUND`, y una aceptada, vencida o ya revocada devuelve `409
 INVITATION_NOT_PENDING` sin cambios.
 
+### Consulta y aceptación pública de invitaciones
+
+`GET /api/invitations/:token` no requiere sesión y no modifica la invitación.
+Busca exclusivamente el SHA-256 del token y devuelve solo el correo invitado,
+rol ofrecido, vencimiento y nombre/slug del negocio cuando la invitación sigue
+`pending`. Una pendiente vencida conserva la respuesta `200` con
+`isExpired: true`; un token inválido, revocado o aceptado devuelve `404
+INVITATION_NOT_FOUND`. La respuesta también indica si hay sesión y si su correo
+normalizado coincide. Nunca expone IDs, hashes ni datos del invitador.
+
+`POST /api/invitations/:token/accept` requiere sesión autenticada y CSRF. Bajo
+bloqueo transaccional comprueba que la invitación siga pendiente, vigente y
+dirigida al correo de la sesión, reactiva o crea únicamente una membresía
+`manager` o `viewer` conforme a la regla existente y marca la invitación como
+aceptada en un solo uso. Devuelve `401 AUTH_REQUIRED` sin sesión, `403
+INVITATION_EMAIL_MISMATCH` por correo distinto, `410 INVITATION_EXPIRED` si
+venció y `404 INVITATION_NOT_FOUND` si ya no está disponible. Al completarse,
+selecciona el negocio en la sesión y devuelve el negocio, membresía y permisos
+seguros.
+
+`acceptancePath` continúa siendo una ruta relativa (`/invitations/:token`). En
+desarrollo Vite no la redirige a Express, para que abra la ruta React en el
+origen actual; la ruta EJS homónima permanece disponible al abrir Express de
+forma directa. Así no se codifican puertos en los componentes y el despliegue
+final de mismo origen conserva el enlace.
+
 ## Autenticación
 
 ### `POST /api/auth/register`
@@ -539,8 +565,8 @@ membresía y los permisos calculados por el servidor.
 ## Fuera de alcance
 
 Este contrato no documenta todavía endpoints de productos, categorías,
-movimientos, proveedores, ubicaciones, transferencias, alertas, reportes,
-miembros, invitaciones ni superadministración.
+movimientos, proveedores, ubicaciones, transferencias, alertas, reportes ni
+superadministración.
 
 ## Decisiones pendientes
 

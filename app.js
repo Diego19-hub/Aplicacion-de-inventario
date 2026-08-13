@@ -103,7 +103,22 @@ if (!isTest) {
 }
 
 app.use(session(sessionOptions));
-app.use(csrfSynchronisedProtection);
+app.use((req, res, next) => {
+  // La autenticación API debe poder responder 401 antes de validar CSRF. Sin
+  // sesión esta ruta no puede mutar; con sesión conserva la protección global.
+  if (
+    req.method === "POST"
+    && /^\/api\/invitations\/[^/]+\/accept$/.test(req.path)
+    && !req.session.user
+  ) {
+    // Los locales compartidos esperan esta función aun en una respuesta JSON
+    // que no renderiza formularios ni permite mutaciones.
+    req.csrfToken = () => "";
+    return next();
+  }
+
+  return csrfSynchronisedProtection(req, res, next);
+});
 
 app.use((error, req, res, next) => {
   if (error.code === "EBADCSRFTOKEN" && req.path.startsWith("/api/")) {

@@ -20,6 +20,10 @@ import {
   revokeInvitation
 } from "../controllers/apiInvitationsController.js";
 import {
+  acceptPublicInvitation,
+  getPublicInvitation
+} from "../controllers/apiInvitationAcceptanceController.js";
+import {
   createCategory,
   getCategoryDetails,
   getCategoryForEdit,
@@ -104,6 +108,8 @@ apiRouter.use((req, res, next) => {
 
 apiRouter.get("/csrf-token", getCsrfToken);
 apiRouter.get("/session", getSession);
+apiRouter.get("/invitations/:token", invitationLimiter, getPublicInvitation);
+apiRouter.post("/invitations/:token/accept", invitationLimiter, requireApiAuth, acceptPublicInvitation);
 apiRouter.post("/auth/register", apiRegisterValidation, authLimiter, register);
 apiRouter.post("/auth/login", loginValidation, authLimiter, login);
 apiRouter.post("/auth/logout", logout);

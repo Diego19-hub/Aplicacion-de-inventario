@@ -36,6 +36,7 @@ import { EditSupplierPage } from "./pages/EditSupplierPage.jsx";
 import { SupplierTransitionPage } from "./pages/SupplierTransitionPage.jsx";
 import { MembersPage } from "./pages/MembersPage.jsx";
 import { SelectBusinessPage } from "./pages/SelectBusinessPage.jsx";
+import { InvitationPage } from "./pages/InvitationPage.jsx";
 
 function SessionGuard({ children }) {
   const { isInitialLoading, session } = useAuth();
@@ -78,6 +79,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/invitations/:token" element={<InvitationPage />} />
       <Route
         path="/select-business"
         element={<BusinessSelectionGuard><SelectBusinessPage /></BusinessSelectionGuard>}

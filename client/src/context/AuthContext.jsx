@@ -75,6 +75,15 @@ export function AuthProvider({ children }) {
     return reloadSession();
   }, [reloadSession]);
 
+  const acceptInvitation = useCallback(async (token) => {
+    const result = await apiRequest(`/invitations/${encodeURIComponent(token)}/accept`, {
+      method: "POST",
+      csrf: true
+    });
+    await reloadSession();
+    return result;
+  }, [reloadSession]);
+
   const value = useMemo(() => ({
     session,
     isInitialLoading,
@@ -82,8 +91,9 @@ export function AuthProvider({ children }) {
     register,
     logout,
     reloadSession,
-    selectBusiness
-  }), [session, isInitialLoading, login, register, logout, reloadSession, selectBusiness]);
+    selectBusiness,
+    acceptInvitation
+  }), [session, isInitialLoading, login, register, logout, reloadSession, selectBusiness, acceptInvitation]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

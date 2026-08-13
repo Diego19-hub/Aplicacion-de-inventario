@@ -100,28 +100,42 @@ export async function findInvitationByHash(tokenHash) {
   return result.rows[0];
 }
 
-export async function acceptBusinessInvitation({ tokenHash, userId, email }) {
+async function acceptInvitationTransaction({ tokenHash, userId, email, expirePending }) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await client.query(
-      `UPDATE business_invitations SET status = 'expired'
-       WHERE status = 'pending' AND expires_at <= CURRENT_TIMESTAMP`
-    );
+    if (expirePending) {
+      await client.query(
+        `UPDATE business_invitations SET status = 'expired'
+         WHERE status = 'pending' AND expires_at <= CURRENT_TIMESTAMP`
+      );
+    }
     const invitationResult = await client.query(
       `SELECT id, business_id, email_normalized, offered_role, status, expires_at
        FROM business_invitations WHERE token_hash = $1 FOR UPDATE`, [tokenHash]
     );
     const invitation = invitationResult.rows[0];
-    if (!invitation || invitation.status !== "pending" || invitation.expires_at <= new Date() || invitation.email_normalized !== email) {
+    if (!invitation || invitation.status !== "pending") {
       await client.query("ROLLBACK");
-      return null;
+      return { error: "not_found" };
+    }
+    const expiration = await client.query(
+      "SELECT $1::timestamptz <= CURRENT_TIMESTAMP AS is_expired",
+      [invitation.expires_at]
+    );
+    if (expiration.rows[0].is_expired) {
+      await client.query("ROLLBACK");
+      return { error: "expired" };
+    }
+    if (invitation.email_normalized !== email) {
+      await client.query("ROLLBACK");
+      return { error: "email_mismatch" };
     }
     const businessResult = await client.query(
       `SELECT id FROM businesses WHERE id = $1 AND status = 'active' FOR KEY SHARE`,
       [invitation.business_id]
     );
-    if (!businessResult.rows[0]) { await client.query("ROLLBACK"); return null; }
+    if (!businessResult.rows[0]) { await client.query("ROLLBACK"); return { error: "not_found" }; }
     const membershipResult = await client.query(
       `INSERT INTO business_members (business_id, user_id, role, status, joined_at)
        VALUES ($1, $2, $3, 'active', CURRENT_TIMESTAMP)
@@ -131,13 +145,24 @@ export async function acceptBusinessInvitation({ tokenHash, userId, email }) {
        RETURNING id`,
       [invitation.business_id, userId, invitation.offered_role]
     );
-    if (!membershipResult.rows[0]) { await client.query("ROLLBACK"); return null; }
+    if (!membershipResult.rows[0]) { await client.query("ROLLBACK"); return { error: "not_found" }; }
     const accepted = await client.query(
       `UPDATE business_invitations SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND status = 'pending' RETURNING business_id`, [invitation.id]
     );
-    if (!accepted.rows[0]) { await client.query("ROLLBACK"); return null; }
+    if (!accepted.rows[0]) { await client.query("ROLLBACK"); return { error: "not_found" }; }
     await client.query("COMMIT");
-    return accepted.rows[0];
+    return { accepted: accepted.rows[0], membership: membershipResult.rows[0] };
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+}
+
+export async function acceptBusinessInvitation({ tokenHash, userId, email }) {
+  const result = await acceptInvitationTransaction({ tokenHash, userId, email, expirePending: true });
+  return result.accepted ?? null;
+}
+
+// La API necesita distinguir estados sin exponer detalles internos; la transacción es la misma
+// que usa EJS, pero no expira otras invitaciones durante una consulta de aceptación puntual.
+export async function acceptBusinessInvitationDetailed({ tokenHash, userId, email }) {
+  return acceptInvitationTransaction({ tokenHash, userId, email, expirePending: false });
 }
