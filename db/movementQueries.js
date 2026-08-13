@@ -58,6 +58,22 @@ export async function getApiProductMovements({ limit, offset, ...filters }) {
   return result.rows;
 }
 
+export async function getApiMovementFormLocations(businessId, itemId) {
+  const result = await pool.query(
+    `
+      SELECT l.id, l.name, l.code, l.is_default,
+             COALESCE(b.stock, 0)::INTEGER AS stock
+      FROM business_locations l
+      LEFT JOIN inventory_balances b
+        ON (b.business_id, b.location_id, b.item_id) = (l.business_id, l.id, $2)
+      WHERE l.business_id = $1 AND l.status = 'active'
+      ORDER BY l.is_default DESC, LOWER(l.name), l.id
+    `,
+    [businessId, itemId]
+  );
+  return result.rows;
+}
+
 export async function recordMovement({ businessId, itemId, userId, locationId, movementType, quantity, reason, reference }) {
   const client = await pool.connect();
   try {
@@ -74,10 +90,10 @@ export async function recordMovement({ businessId, itemId, userId, locationId, m
     if (movementType === "adjustment" && quantityDelta === 0) { await client.query("ROLLBACK"); return { error: "same_stock" }; }
     const resultingStock = previousStock + quantityDelta;
     if (resultingStock < 0) { await client.query("ROLLBACK"); return { error: "negative_stock" }; }
-    const movement = await client.query(`INSERT INTO inventory_movements (business_id, location_id, item_id, movement_type, quantity_delta, previous_stock, resulting_stock, reason, reference, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, resulting_stock`, [businessId, locationId, itemId, movementType, quantityDelta, previousStock, resultingStock, reason, reference || null, userId]);
+    const movement = await client.query(`INSERT INTO inventory_movements (business_id, location_id, item_id, movement_type, quantity_delta, previous_stock, resulting_stock, reason, reference, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, created_at, movement_type, quantity_delta, previous_stock, resulting_stock, reason, reference`, [businessId, locationId, itemId, movementType, quantityDelta, previousStock, resultingStock, reason, reference || null, userId]);
     await client.query("UPDATE inventory_balances SET stock = $1 WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [resultingStock, businessId, locationId, itemId]);
-    await client.query("UPDATE items SET stock = stock + $1 WHERE id = $2 AND business_id = $3 AND status = 'active'", [quantityDelta, itemId, businessId]);
+    const itemUpdate = await client.query("UPDATE items SET stock = stock + $1 WHERE id = $2 AND business_id = $3 AND status = 'active' RETURNING stock", [quantityDelta, itemId, businessId]);
     await client.query("COMMIT");
-    return movement.rows[0];
+    return { ...movement.rows[0], item_stock: itemUpdate.rows[0].stock };
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }

@@ -22,7 +22,11 @@ import {
   updateProduct
 } from "../controllers/apiProductsController.js";
 import { getProductDetails } from "../controllers/apiProductDetailsController.js";
-import { getProductMovements } from "../controllers/apiProductMovementsController.js";
+import {
+  createProductMovement,
+  getProductMovementFormOptions,
+  getProductMovements
+} from "../controllers/apiProductMovementsController.js";
 import {
   getArchivedProductDetails,
   listArchivedProducts,
@@ -35,7 +39,8 @@ import { requireApiBusinessRole } from "../middleware/apiAuthorizationMiddleware
 import {
   apiArchiveItemValidation,
   apiItemUpdateValidation,
-  apiItemValidation
+  apiItemValidation,
+  apiMovementValidation
 } from "../middleware/itemValidation.js";
 import { authLimiter } from "../middleware/securityMiddleware.js";
 
@@ -112,6 +117,21 @@ apiRouter.post(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner"),
   restoreArchivedProduct
+);
+apiRouter.get(
+  "/products/:productId/movements/form-options",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  getProductMovementFormOptions
+);
+apiRouter.post(
+  "/products/:productId/movements",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  apiMovementValidation,
+  createProductMovement
 );
 apiRouter.get(
   "/products/:productId/movements",

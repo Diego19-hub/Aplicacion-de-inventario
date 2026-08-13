@@ -10,6 +10,7 @@ import { EmptyState } from "../components/EmptyState.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const typeLabels = {
   opening_balance: "Saldo inicial", entry: "Entrada", exit: "Salida", adjustment: "Ajuste",
@@ -21,6 +22,7 @@ function pageNumbers(page, total) { return Array.from({ length: total }, (_, ind
 
 export function ProductMovementsPage() {
   const { productId } = useParams();
+  const { session } = useAuth();
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [location, setLocation] = useState(params.get("location") ?? "");
@@ -43,7 +45,7 @@ export function ProductMovementsPage() {
   const { product, movements, locations, filters, pagination } = data;
   return <>
     <Link to={`/app/products/${productId}`} className="back-link"><ArrowLeft aria-hidden="true" />Volver al producto</Link>
-    <PageHeader title="Historial de movimientos" description={`${product.name} · ${product.sku} · ${product.stock} unidades`} />
+    <PageHeader title="Historial de movimientos" description={`${product.name} · ${product.sku} · ${product.stock} unidades`} actions={session.permissions.canManageInventory ? <Link className="button button--primary" to={`/app/products/${productId}/movements/new`}>Registrar movimiento</Link> : null} />
     <Card className="product-filter-card"><form className="product-filters" onSubmit={submit}><Select id="movement-location" label="Ubicación" value={location} onChange={(event) => setLocation(event.target.value)}><option value="">Todas las ubicaciones</option>{locations.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</Select><Select id="movement-type" label="Tipo" value={type} onChange={(event) => setType(event.target.value)}><option value="">Todos los tipos</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select><div className="product-filter-actions"><Button type="submit"><Search aria-hidden="true" />Filtrar</Button><Button variant="secondary" onClick={clear}>Limpiar filtros</Button></div></form></Card>
     <p className="muted">{pagination.totalItems} movimientos</p>
     {movements.length === 0 ? <EmptyState title={pagination.totalItems === 0 && !filters.locationId && !filters.type ? "Sin movimientos" : "Sin coincidencias"} description={pagination.totalItems === 0 && !filters.locationId && !filters.type ? "Los movimientos de este producto aparecerán aquí." : "Prueba con otros filtros."} action={filters.locationId || filters.type ? <Button variant="secondary" onClick={clear}>Limpiar filtros</Button> : null} /> : <section className="movement-list movement-list--full" aria-label="Historial de movimientos">{movements.map((movement) => <Card key={movement.id} className="movement-card"><div><strong>{typeLabels[movement.type] ?? movement.type}</strong><time dateTime={movement.createdAt}>{formatDate(movement.createdAt)}</time></div><div><strong className={movement.quantityDelta >= 0 ? "delta delta--positive" : "delta delta--negative"}>{movement.quantityDelta >= 0 ? "+" : ""}{movement.quantityDelta}</strong><span>{movement.previousStock} → {movement.resultingStock} unidades</span></div><div><span>{movement.location.name} ({movement.location.code})</span><span>{movement.createdBy.username}</span></div><p>{movement.reason}</p>{movement.reference && <small>Referencia: {movement.reference}</small>}{movement.transferId !== null && <small>Transferencia #{movement.transferId}</small>}</Card>)}</section>}

@@ -226,6 +226,17 @@ consulta SQL paginada. Una ubicación inválida o ajena devuelve cero filas; un
 tipo desconocido se normaliza a todos los tipos. Producto ajeno, archivado o
 inexistente responde `404 PRODUCT_NOT_FOUND`.
 
+### Movimientos manuales de producto
+
+`GET /api/products/:productId/movements/form-options` y
+`POST /api/products/:productId/movements` requieren sesión, negocio activo y
+rol `owner` o `manager`; viewer recibe `403 FORBIDDEN`. Las opciones muestran
+ubicaciones activas y su saldo local. El POST requiere CSRF y admite `entry`,
+`exit` y `adjustment`: entrada y salida usan unidades que ingresan o salen;
+para ajuste, `quantity` representa el saldo local final deseado. La operación
+reutiliza la transacción de inventario para crear el ledger y actualizar balance
+e inventario total. Stock local insuficiente responde `409 INSUFFICIENT_STOCK`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

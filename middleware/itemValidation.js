@@ -88,3 +88,35 @@ export const apiArchiveItemValidation = [
     .isLength({ min: 5, max: 500 })
     .withMessage("El motivo de archivado debe tener entre 5 y 500 caracteres.")
 ];
+
+export const apiMovementValidation = [
+  body("locationId")
+    .isInt({ min: 1 })
+    .withMessage("Selecciona una ubicación válida.")
+    .toInt(),
+  body("movementType")
+    .isIn(["entry", "exit", "adjustment"])
+    .withMessage("Selecciona un tipo de movimiento válido."),
+  body("quantity")
+    .isInt({ min: 0, max: 1000000 })
+    .withMessage("La cantidad debe ser un entero no negativo.")
+    .toInt()
+    .custom((quantity, { req }) => {
+      if (["entry", "exit"].includes(req.body.movementType) && quantity < 1) {
+        throw new Error("La entrada o salida debe ser mayor a cero.");
+      }
+      return true;
+    }),
+  body("reason")
+    .trim()
+    .isLength({ min: 5, max: 500 })
+    .withMessage("El motivo debe tener entre 5 y 500 caracteres."),
+  body("reference")
+    .optional({ values: "falsy" })
+    .trim()
+    .isLength({ min: 1, max: 120 })
+    .withMessage("La referencia debe tener hasta 120 caracteres."),
+  ...["createdBy", "businessId", "previousStock", "resultingStock", "transferId"].map((field) => (
+    body(field).not().exists().withMessage("Este campo no puede enviarse al registrar un movimiento.")
+  ))
+];

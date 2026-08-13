@@ -14,6 +14,7 @@ import { ArchivedProductsPage } from "./pages/ArchivedProductsPage.jsx";
 import { ArchivedProductDetailsPage } from "./pages/ArchivedProductDetailsPage.jsx";
 import { RestoreProductPage } from "./pages/RestoreProductPage.jsx";
 import { ProductMovementsPage } from "./pages/ProductMovementsPage.jsx";
+import { NewProductMovementPage } from "./pages/NewProductMovementPage.jsx";
 import { SelectBusinessPage } from "./pages/SelectBusinessPage.jsx";
 
 function SessionGuard({ children }) {
@@ -95,6 +96,10 @@ export default function App() {
       <Route
         path="/app/products/:productId/movements"
         element={<SessionGuard><AppShell><ProductMovementsPage /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/app/products/:productId/movements/new"
+        element={<SessionGuard><AppShell><NewProductMovementPage /></AppShell></SessionGuard>}
       />
       <Route
         path="/app/products/:productId"
