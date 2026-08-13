@@ -260,6 +260,20 @@ exactamente un `transfer_out` y un `transfer_in`, actualiza ambos balances y
 mantiene intacto `items.stock`. Cualquier fallo revierte la cabecera, ledger y
 balances. Viewer recibe `403 FORBIDDEN`.
 
+`GET /api/transfers` requiere sesión y negocio activo; owner, manager y viewer
+pueden consultar. Acepta `q`, `location` y `page`, usa paginación SQL de 20
+filas y orden `created_at DESC, id DESC`. La búsqueda parcial incluye producto,
+SKU y referencia. Una ubicación inválida o ajena devuelve cero resultados; el
+conteo y las filas comparten los mismos filtros aislados por `business_id`.
+
+`GET /api/transfers/:transferId` requiere los mismos permisos. Un ID inválido
+responde `400 VALIDATION_ERROR`; una transferencia inexistente o ajena responde
+`404 TRANSFER_NOT_FOUND`. Incluye cabecera, producto, ubicaciones, usuario y
+los dos movimientos vinculados. Antes de responder confirma que existe
+exactamente un `transfer_out` y un `transfer_in` coherentes con la cabecera; si
+el historial fuese inconsistente devuelve un error interno genérico sin exponer
+detalles de PostgreSQL.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

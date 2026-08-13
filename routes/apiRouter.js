@@ -29,7 +29,9 @@ import {
 } from "../controllers/apiProductMovementsController.js";
 import {
   createTransfer,
-  getTransferFormOptions
+  getTransferDetails,
+  getTransferFormOptions,
+  listTransfers
 } from "../controllers/apiTransfersController.js";
 import {
   getArchivedProductDetails,
@@ -77,6 +79,20 @@ apiRouter.post(
   requireApiBusinessRole("owner", "manager"),
   apiTransferValidation,
   createTransfer
+);
+apiRouter.get(
+  "/transfers",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  listTransfers
+);
+apiRouter.get(
+  "/transfers/:transferId",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  getTransferDetails
 );
 apiRouter.get("/products", requireApiAuth, requireApiActiveBusiness, listProducts);
 apiRouter.get(

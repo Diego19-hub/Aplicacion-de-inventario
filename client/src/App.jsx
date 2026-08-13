@@ -16,6 +16,8 @@ import { RestoreProductPage } from "./pages/RestoreProductPage.jsx";
 import { ProductMovementsPage } from "./pages/ProductMovementsPage.jsx";
 import { NewProductMovementPage } from "./pages/NewProductMovementPage.jsx";
 import { NewTransferPage } from "./pages/NewTransferPage.jsx";
+import { TransferDetailsPage } from "./pages/TransferDetailsPage.jsx";
+import { TransfersPage } from "./pages/TransfersPage.jsx";
 import { SelectBusinessPage } from "./pages/SelectBusinessPage.jsx";
 
 function SessionGuard({ children }) {
@@ -105,6 +107,14 @@ export default function App() {
       <Route
         path="/app/transfers/new"
         element={<SessionGuard><AppShell><NewTransferPage /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/app/transfers"
+        element={<SessionGuard><AppShell><TransfersPage /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/app/transfers/:transferId"
+        element={<SessionGuard><AppShell><TransferDetailsPage /></AppShell></SessionGuard>}
       />
       <Route
         path="/app/products/:productId"
