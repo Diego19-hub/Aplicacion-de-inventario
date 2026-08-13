@@ -36,6 +36,13 @@ import {
   reactivateLocation
 } from "../controllers/apiLocationTransitionsController.js";
 import {
+  createSupplier,
+  getSupplierForEdit,
+  getSupplierDetails,
+  listSuppliers,
+  updateSupplier
+} from "../controllers/apiSuppliersController.js";
+import {
   archiveProduct,
   createProduct,
   getProductForEdit,
@@ -73,6 +80,7 @@ import {
 import { apiTransferValidation } from "../middleware/transferValidation.js";
 import { apiCategoryValidation } from "../middleware/categoryValidation.js";
 import { apiLocationValidation } from "../middleware/locationValidation.js";
+import { apiSupplierValidation } from "../middleware/supplierValidation.js";
 import { authLimiter } from "../middleware/securityMiddleware.js";
 
 const apiRouter = Router();
@@ -190,6 +198,43 @@ apiRouter.get(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager", "viewer"),
   getLocationDetails
+);
+apiRouter.get(
+  "/suppliers",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  listSuppliers
+);
+apiRouter.post(
+  "/suppliers",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  apiSupplierValidation,
+  createSupplier
+);
+apiRouter.get(
+  "/suppliers/:supplierId/edit",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  getSupplierForEdit
+);
+apiRouter.put(
+  "/suppliers/:supplierId",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  apiSupplierValidation,
+  updateSupplier
+);
+apiRouter.get(
+  "/suppliers/:supplierId",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  getSupplierDetails
 );
 apiRouter.get(
   "/transfers/form-options",

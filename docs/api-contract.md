@@ -357,6 +357,38 @@ LOCATION_ALREADY_INACTIVE`. Reactivar una ubicación activa devuelve `409
 LOCATION_ALREADY_ACTIVE`; no la convierte en principal. Ninguna transición
 modifica balances, movimientos ni transferencias.
 
+### Proveedores
+
+`GET /api/suppliers` requiere sesión y negocio activo; owner, manager y viewer
+pueden consultar. Acepta `q`, `status` (`active`, `inactive` o `all`) y `page`.
+El estado predeterminado y los valores desconocidos son `active`; busca sin
+distinguir mayúsculas por nombre, razón social, RFC, contacto y correo. El
+conteo y las filas comparten filtros obligatorios por `business_id`, paginan 20
+proveedores en PostgreSQL y ordenan por nombre e ID.
+
+`GET /api/suppliers/:supplierId` requiere los mismos permisos. Un ID inválido
+responde `400 VALIDATION_ERROR`; un proveedor inexistente o ajeno responde
+`404 SUPPLIER_NOT_FOUND`. Devuelve únicamente datos empresariales seguros:
+nombre, razón social, RFC, contacto, correo, teléfono, dirección, notas,
+estado y fechas de creación/actualización, sin `business_id`.
+
+`POST /api/suppliers` requiere sesión, negocio activo, CSRF y rol `owner` o
+`manager`; viewer recibe `403 FORBIDDEN`. Acepta nombre comercial, razón
+social, RFC o identificador fiscal, contacto, correo, teléfono, dirección y
+notas. Los valores opcionales vacíos se guardan como `null`, el RFC conserva
+la normalización a mayúsculas y el correo se normaliza a minúsculas. El
+proveedor inicia activo; los campos internos, incluido estado y fechas, se
+rechazan como `400 VALIDATION_ERROR`. Un nombre duplicado en el mismo negocio,
+sin distinguir mayúsculas, responde `409 SUPPLIER_ALREADY_EXISTS` asociado a
+`name`.
+
+`GET /api/suppliers/:supplierId/edit` y `PUT /api/suppliers/:supplierId`
+requieren los mismos permisos de gestión; el `PUT` requiere CSRF. Ambos
+limitan el proveedor por ID y `business_id`, devuelven `404 SUPPLIER_NOT_FOUND`
+para recursos ajenos o inexistentes y exponen o actualizan únicamente los
+campos editables. La actualización no altera estado ni fechas directamente;
+el trigger existente actualiza `updated_at`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

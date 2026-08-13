@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Boxes, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, Tags } from "lucide-react";
+import { ArrowRightLeft, Boxes, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, Tags, Truck } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -27,6 +27,7 @@ export function AppShell({ children }) {
           <Link to="/app/products" className={`nav-link ${location.pathname === "/app/products" ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Productos</Link>
           <Link to="/app/categories" className={`nav-link ${location.pathname.startsWith("/app/categories") ? "nav-link--active" : ""}`}><Tags aria-hidden="true" />Categorías</Link>
           <Link to="/app/locations" className={`nav-link ${location.pathname.startsWith("/app/locations") ? "nav-link--active" : ""}`}><MapPin aria-hidden="true" />Ubicaciones</Link>
+          <Link to="/app/suppliers" className={`nav-link ${location.pathname.startsWith("/app/suppliers") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Proveedores</Link>
           <Link to="/app/transfers" className={`nav-link ${location.pathname.startsWith("/app/transfers") ? "nav-link--active" : ""}`}><ArrowRightLeft aria-hidden="true" />Transferencias</Link>
           {upcomingSections.map((section) => <span key={section} className="nav-link nav-link--disabled"><PackageSearch aria-hidden="true" />{section}<small>Próximamente</small></span>)}
         </nav>
