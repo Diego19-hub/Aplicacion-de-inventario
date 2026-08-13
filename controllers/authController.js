@@ -3,16 +3,12 @@ import {
   matchedData
 } from "express-validator";
 
-import {
-  findUserByUsername,
-  findUserByEmail,
-  createUser
-} from "../db/authQueries.js";
 import { getActiveBusinessesForUser } from "../db/businessQueries.js";
 import { isSafeReturnTo } from "../middleware/authMiddleware.js";
 import {
   authenticateLogin,
-  regenerateSession
+  establishAuthenticatedSession,
+  registerAccount
 } from "../services/authenticationService.js";
 
 
@@ -83,73 +79,19 @@ export async function registerUser(req, res, next) {
   const { username, email, password } = matchedData(req);
 
   try {
-    const [existingUsername, existingEmail] = await Promise.all([
-      findUserByUsername(username),
-      findUserByEmail(email)
-    ]);
-
-    const errors = [];
-
-    if (existingUsername) {
-      errors.push({
-        path: "username",
-        msg: "Ese nombre de usuario ya está registrado."
-      });
-    }
-
-    if (existingEmail) {
-      errors.push({
-        path: "email",
-        msg: "Ese correo electrónico ya está registrado."
-      });
-    }
-
-    if (errors.length > 0) {
+    const registration = await registerAccount({ username, email, password });
+    if (registration.conflicts) {
       return res.status(409).render("auth/register", {
         title: "Crear cuenta",
         formData: { username, email },
-        errors
+        errors: registration.conflicts.map((conflict) => ({ path: conflict.field, msg: conflict.message }))
       });
     }
-
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    const user = await createUser({
-      username,
-      email,
-      passwordHash
-    });
 
     const returnTo = isSafeReturnTo(req.session.returnTo) ? req.session.returnTo : "/";
-
-    await regenerateSession(req);
-
-    req.session.user = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      platformRole: user.platform_role
-    };
-    req.session.returnTo = returnTo;
-
-    await saveSession(req);
+    await establishAuthenticatedSession(req, registration.user, { returnTo });
     return redirectAfterAuthentication(req, res);
   } catch (error) {
-    if (error.code === "23505") {
-      return res.status(409).render("auth/register", {
-        title: "Crear cuenta",
-        formData: {
-          username: req.body.username ?? "",
-          email: req.body.email ?? ""
-        },
-        errors: [
-          {
-            msg: "El usuario o correo ya está registrado."
-          }
-        ]
-      });
-    }
-
     next(error);
   }
 }

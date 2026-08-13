@@ -1,6 +1,6 @@
 import { KeyRound } from "lucide-react";
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Alert } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
@@ -8,10 +8,14 @@ import { Card } from "../components/Card.jsx";
 import { Input } from "../components/Input.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { isSafeReturnTo } from "../utils/safeReturnTo.js";
 
 export function LoginPage() {
   const { isInitialLoading, login, session } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = isSafeReturnTo(searchParams.get("returnTo")) ? searchParams.get("returnTo") : null;
+  const registerPath = returnTo ? `/register?${new URLSearchParams({ returnTo }).toString()}` : "/register";
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
@@ -19,7 +23,7 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (isInitialLoading) return <main className="centered-state"><Spinner label="Cargando sesión" /></main>;
-  if (session.authenticated) return <Navigate to={session.activeBusiness ? "/app" : "/select-business"} replace />;
+  if (session.authenticated) return <Navigate to={returnTo || (session.activeBusiness ? "/app" : "/select-business")} replace />;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -33,7 +37,7 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       const nextSession = await login({ identifier: identifier.trim(), password });
-      navigate(nextSession.activeBusiness ? "/app" : "/select-business", { replace: true });
+      navigate(returnTo || (nextSession.activeBusiness ? "/app" : "/select-business"), { replace: true });
     } catch (error) {
       const fields = Object.fromEntries((error.fields ?? []).map((field) => [field.field, field.message]));
       setErrors(fields);
@@ -54,6 +58,7 @@ export function LoginPage() {
           <Input id="password" label="Contraseña" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} error={errors.password} disabled={isSubmitting} />
           <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Spinner label="Ingresando" /> : "Iniciar sesión"}</Button>
         </form>
+        <p className="muted">¿Aún no tienes cuenta? <Link className="text-link" to={registerPath}>Crea una cuenta</Link></p>
       </Card>
     </main>
   );

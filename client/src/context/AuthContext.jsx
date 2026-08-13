@@ -52,6 +52,15 @@ export function AuthProvider({ children }) {
     return reloadSession();
   }, [reloadSession]);
 
+  const register = useCallback(async (registration) => {
+    await apiRequest("/auth/register", {
+      method: "POST",
+      body: registration,
+      csrf: true
+    });
+    return reloadSession();
+  }, [reloadSession]);
+
   const logout = useCallback(async () => {
     await apiRequest("/auth/logout", { method: "POST", csrf: true });
     setSession(anonymousSession);
@@ -70,10 +79,11 @@ export function AuthProvider({ children }) {
     session,
     isInitialLoading,
     login,
+    register,
     logout,
     reloadSession,
     selectBusiness
-  }), [session, isInitialLoading, login, logout, reloadSession, selectBusiness]);
+  }), [session, isInitialLoading, login, register, logout, reloadSession, selectBusiness]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

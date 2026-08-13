@@ -443,15 +443,25 @@ Entrada:
 {
   "username": "diego",
   "email": "diego@example.com",
-  "password": "contraseña"
+  "password": "contraseña",
+  "passwordConfirmation": "contraseña"
 }
 ```
 
-Éxito `201`: devuelve un usuario seguro, los negocios disponibles y
-`requiresBusinessSelection`. Nunca devuelve `password_hash`.
+Es público y requiere CSRF. Conserva las reglas de usuario de 3 a 30
+caracteres con letras, números o guion bajo, correo normalizado y contraseña
+de 8 a 64 caracteres (máximo 72 bytes UTF-8), junto con confirmación idéntica.
+Rechaza roles, membresías y otros campos internos. Éxito `201` crea solo una
+cuenta global con rol de plataforma `user`, regenera la sesión y devuelve el
+usuario seguro, negocios vacíos, negocio y membresía nulos, permisos nulos y
+`requiresBusinessSelection: false`. Nunca devuelve `password_hash` ni crea
+membresías.
 
-Errores: `400` por validación, `409` por usuario o correo duplicado y `429`
-por límite de solicitudes.
+Errores: `400 VALIDATION_ERROR` por validación, `409
+USERNAME_ALREADY_EXISTS`, `EMAIL_ALREADY_EXISTS` o `REGISTRATION_CONFLICT` con
+errores por campo si uno o ambos valores ya existen, y `429 RATE_LIMITED` por
+el límite de solicitudes. Las carreras contra índices únicos se convierten en
+el mismo conflicto seguro.
 
 ### `POST /api/auth/login`
 

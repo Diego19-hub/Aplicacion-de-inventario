@@ -1,6 +1,11 @@
 import bcrypt from "bcrypt";
 
-import { findUserByIdentifier } from "../db/authQueries.js";
+import {
+  createUser,
+  findUserByEmail,
+  findUserByIdentifier,
+  findUserByUsername
+} from "../db/authQueries.js";
 import { getActiveBusinessesForUser } from "../db/businessQueries.js";
 
 export function regenerateSession(req) {
@@ -30,6 +35,54 @@ function safeUser(user) {
   };
 }
 
+function registrationConflicts(existingUsername, existingEmail) {
+  const conflicts = [];
+  if (existingUsername) conflicts.push({ field: "username", message: "Ese nombre de usuario ya está registrado." });
+  if (existingEmail) conflicts.push({ field: "email", message: "Ese correo electrónico ya está registrado." });
+  return conflicts;
+}
+
+export async function registerAccount({ username, email, password }) {
+  const [existingUsername, existingEmail] = await Promise.all([
+    findUserByUsername(username),
+    findUserByEmail(email)
+  ]);
+  const conflicts = registrationConflicts(existingUsername, existingEmail);
+  if (conflicts.length > 0) return { conflicts };
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await createUser({ username, email, passwordHash });
+    return { user };
+  } catch (error) {
+    if (error.code !== "23505") throw error;
+
+    const [conflictingUsername, conflictingEmail] = await Promise.all([
+      findUserByUsername(username),
+      findUserByEmail(email)
+    ]);
+    return {
+      conflicts: registrationConflicts(conflictingUsername, conflictingEmail).length > 0
+        ? registrationConflicts(conflictingUsername, conflictingEmail)
+        : [
+          { field: "username", message: "El usuario o correo ya está registrado." },
+          { field: "email", message: "El usuario o correo ya está registrado." }
+        ]
+    };
+  }
+}
+
+export async function establishAuthenticatedSession(req, user, { activeBusinessId = null, returnTo } = {}) {
+  await regenerateSession(req);
+  req.session.user = safeUser(user);
+
+  if (activeBusinessId) req.session.activeBusinessId = activeBusinessId;
+  if (returnTo !== undefined) req.session.returnTo = returnTo;
+
+  await saveSession(req);
+  return req.session.user;
+}
+
 export async function authenticateLogin(req, { identifier, password, returnTo }) {
   const user = await findUserByIdentifier(identifier);
 
@@ -40,22 +93,13 @@ export async function authenticateLogin(req, { identifier, password, returnTo })
   const businesses = await getActiveBusinessesForUser(user.id);
   const activeBusinessId = businesses.length === 1 ? businesses[0].id : null;
 
-  await regenerateSession(req);
-
-  req.session.user = safeUser(user);
-
-  if (activeBusinessId) {
-    req.session.activeBusinessId = activeBusinessId;
-  }
-
-  if (returnTo !== undefined) {
-    req.session.returnTo = returnTo;
-  }
-
-  await saveSession(req);
+  const sessionUser = await establishAuthenticatedSession(req, user, {
+    activeBusinessId,
+    returnTo
+  });
 
   return {
-    user: req.session.user,
+    user: sessionUser,
     businesses,
     activeBusinessId,
     requiresBusinessSelection: businesses.length > 1

@@ -6,6 +6,7 @@ import {
 } from "../controllers/apiSessionController.js";
 import {
   login,
+  register,
   logout
 } from "../controllers/apiAuthController.js";
 import {
@@ -74,7 +75,7 @@ import {
   listArchivedProducts,
   restoreArchivedProduct
 } from "../controllers/apiArchivedProductsController.js";
-import { loginValidation } from "../middleware/authValidation.js";
+import { apiRegisterValidation, loginValidation } from "../middleware/authValidation.js";
 import { requireApiAuth } from "../middleware/apiAuthMiddleware.js";
 import { requireApiActiveBusiness } from "../middleware/apiActiveBusinessMiddleware.js";
 import { requireApiBusinessRole } from "../middleware/apiAuthorizationMiddleware.js";
@@ -103,6 +104,7 @@ apiRouter.use((req, res, next) => {
 
 apiRouter.get("/csrf-token", getCsrfToken);
 apiRouter.get("/session", getSession);
+apiRouter.post("/auth/register", apiRegisterValidation, authLimiter, register);
 apiRouter.post("/auth/login", loginValidation, authLimiter, login);
 apiRouter.post("/auth/logout", logout);
 apiRouter.get("/businesses", requireApiAuth, listBusinesses);

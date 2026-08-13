@@ -5,6 +5,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 import { AppShell } from "./layout/AppShell.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
+import { RegisterPage } from "./pages/RegisterPage.jsx";
 import { ProductsPage } from "./pages/ProductsPage.jsx";
 import { ProductDetailsPage } from "./pages/ProductDetailsPage.jsx";
 import { NewProductPage } from "./pages/NewProductPage.jsx";
@@ -76,6 +77,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route
         path="/select-business"
         element={<BusinessSelectionGuard><SelectBusinessPage /></BusinessSelectionGuard>}
