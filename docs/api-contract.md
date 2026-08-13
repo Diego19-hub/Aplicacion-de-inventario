@@ -205,6 +205,18 @@ negocio para conservar SKU, stock, balances y movimientos; productos ajenos,
 inexistentes o ya archivados responden `404 PRODUCT_NOT_FOUND`. Manager y
 viewer reciben `403 FORBIDDEN`.
 
+### Productos archivados
+
+`GET /api/products/archived`, `GET /api/products/:productId/archived` y
+`POST /api/products/:productId/restore` requieren sesión, negocio activo y
+rol `owner`; manager y viewer reciben `403 FORBIDDEN`. El listado acepta
+`q`, `category` y `page`, muestra únicamente productos archivados del negocio
+y pagina en SQL con 12 elementos. El detalle incluye datos de archivo,
+balances y movimientos recientes. Restaurar exige CSRF, limita por producto,
+negocio y estado archivado, conserva SKU, stock, balances y movimientos, y
+limpia solamente los metadatos de archivo. Un producto activo, ajeno o
+inexistente responde `404 PRODUCT_NOT_FOUND`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

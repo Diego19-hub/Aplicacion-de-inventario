@@ -22,6 +22,11 @@ import {
   updateProduct
 } from "../controllers/apiProductsController.js";
 import { getProductDetails } from "../controllers/apiProductDetailsController.js";
+import {
+  getArchivedProductDetails,
+  listArchivedProducts,
+  restoreArchivedProduct
+} from "../controllers/apiArchivedProductsController.js";
 import { loginValidation } from "../middleware/authValidation.js";
 import { requireApiAuth } from "../middleware/apiAuthMiddleware.js";
 import { requireApiActiveBusiness } from "../middleware/apiActiveBusinessMiddleware.js";
@@ -48,6 +53,13 @@ apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
 apiRouter.get("/products", requireApiAuth, requireApiActiveBusiness, listProducts);
+apiRouter.get(
+  "/products/archived",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  listArchivedProducts
+);
 apiRouter.get(
   "/products/form-options",
   requireApiAuth,
@@ -85,6 +97,20 @@ apiRouter.post(
   requireApiBusinessRole("owner"),
   apiArchiveItemValidation,
   archiveProduct
+);
+apiRouter.get(
+  "/products/:productId/archived",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  getArchivedProductDetails
+);
+apiRouter.post(
+  "/products/:productId/restore",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner"),
+  restoreArchivedProduct
 );
 apiRouter.get("/products/:productId", requireApiAuth, requireApiActiveBusiness, getProductDetails);
 
