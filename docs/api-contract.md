@@ -237,6 +237,29 @@ para ajuste, `quantity` representa el saldo local final deseado. La operación
 reutiliza la transacción de inventario para crear el ledger y actualizar balance
 e inventario total. Stock local insuficiente responde `409 INSUFFICIENT_STOCK`.
 
+### Transferencias entre ubicaciones
+
+`GET /api/transfers/form-options` requiere sesión, negocio activo y rol
+`owner` o `manager`. Devuelve productos activos, ubicaciones activas y los
+balances existentes del negocio para mostrar de forma informativa el saldo
+local; no expone `business_id`. Acepta `product` opcional para preseleccionar
+un producto activo del negocio. Un producto inexistente, archivado o ajeno no
+se selecciona.
+
+`POST /api/transfers` requiere sesión, negocio activo, rol `owner` o
+`manager` y CSRF. Recibe `productId`, `fromLocationId`, `toLocationId`,
+`quantity`, `reason` y `reference` opcional. Producto ajeno, inexistente o
+archivado responde `404 PRODUCT_NOT_FOUND`; ubicaciones inválidas, inactivas
+o ajenas devuelven un error de validación sin revelar datos. Origen y destino
+deben ser distintos y el saldo local de origen debe cubrir la cantidad; de lo
+contrario responde `409 INSUFFICIENT_STOCK`.
+
+La creación reutiliza una única transacción: bloquea producto y balances en
+orden estable, crea el balance destino si falta, registra una cabecera y
+exactamente un `transfer_out` y un `transfer_in`, actualiza ambos balances y
+mantiene intacto `items.stock`. Cualquier fallo revierte la cabecera, ledger y
+balances. Viewer recibe `403 FORBIDDEN`.
+
 ## Autenticación
 
 ### `POST /api/auth/register`

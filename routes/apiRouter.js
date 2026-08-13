@@ -28,6 +28,10 @@ import {
   getProductMovements
 } from "../controllers/apiProductMovementsController.js";
 import {
+  createTransfer,
+  getTransferFormOptions
+} from "../controllers/apiTransfersController.js";
+import {
   getArchivedProductDetails,
   listArchivedProducts,
   restoreArchivedProduct
@@ -42,6 +46,7 @@ import {
   apiItemValidation,
   apiMovementValidation
 } from "../middleware/itemValidation.js";
+import { apiTransferValidation } from "../middleware/transferValidation.js";
 import { authLimiter } from "../middleware/securityMiddleware.js";
 
 const apiRouter = Router();
@@ -58,6 +63,21 @@ apiRouter.post("/auth/logout", logout);
 apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
+apiRouter.get(
+  "/transfers/form-options",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  getTransferFormOptions
+);
+apiRouter.post(
+  "/transfers",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  apiTransferValidation,
+  createTransfer
+);
 apiRouter.get("/products", requireApiAuth, requireApiActiveBusiness, listProducts);
 apiRouter.get(
   "/products/archived",
