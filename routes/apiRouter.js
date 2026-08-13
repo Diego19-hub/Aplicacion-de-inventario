@@ -94,6 +94,8 @@ import { apiCategoryValidation } from "../middleware/categoryValidation.js";
 import { apiLocationValidation } from "../middleware/locationValidation.js";
 import { apiSupplierValidation } from "../middleware/supplierValidation.js";
 import { listStockAlerts } from "../controllers/apiAlertsController.js";
+import { getThresholds, removeThreshold, saveThreshold } from "../controllers/apiThresholdsController.js";
+import { apiThresholdValidation } from "../middleware/alertValidation.js";
 import {
   apiInvitationActionValidation,
   apiInvitationValidation,
@@ -120,6 +122,9 @@ apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
 apiRouter.get("/alerts/stock", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listStockAlerts);
+apiRouter.get("/products/:productId/thresholds", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), getThresholds);
+apiRouter.put("/products/:productId/thresholds/:locationId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), apiThresholdValidation, saveThreshold);
+apiRouter.delete("/products/:productId/thresholds/:locationId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), removeThreshold);
 apiRouter.get(
   "/members",
   requireApiAuth,

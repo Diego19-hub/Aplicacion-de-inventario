@@ -38,9 +38,9 @@ export async function getActiveStockAlertCount(businessId) {
 }
 
 export async function getItemThresholdConfiguration(businessId, itemId) {
-  const item = await pool.query("SELECT id,name,sku FROM items WHERE id=$1 AND business_id=$2 AND status='active'", [itemId,businessId]);
+  const item = await pool.query("SELECT id,name,sku,stock FROM items WHERE id=$1 AND business_id=$2 AND status='active'", [itemId,businessId]);
   if (!item.rows[0]) return null;
-  const locations = await pool.query("SELECT l.id location_id,l.name location_name,l.code,COALESCE(b.stock,0)::int current_stock,t.minimum_stock,CASE WHEN t.id IS NULL THEN NULL WHEN COALESCE(b.stock,0)=0 THEN 'out_of_stock' WHEN COALESCE(b.stock,0)<=t.minimum_stock THEN 'low_stock' ELSE NULL END alert_status FROM business_locations l LEFT JOIN inventory_balances b ON(b.business_id,b.location_id,b.item_id)=(l.business_id,l.id,$2) LEFT JOIN inventory_stock_thresholds t ON(t.business_id,t.location_id,t.item_id)=(l.business_id,l.id,$2) WHERE l.business_id=$1 AND l.status='active' ORDER BY lower(l.name),l.id", [businessId,itemId]);
+  const locations = await pool.query("SELECT l.id location_id,l.name location_name,l.code,l.is_default,COALESCE(b.stock,0)::int current_stock,t.minimum_stock,t.updated_at threshold_updated_at,CASE WHEN t.id IS NULL THEN 'not_configured' WHEN COALESCE(b.stock,0)=0 THEN 'out_of_stock' WHEN COALESCE(b.stock,0)<=t.minimum_stock THEN 'low_stock' ELSE 'ok' END alert_status FROM business_locations l LEFT JOIN inventory_balances b ON(b.business_id,b.location_id,b.item_id)=(l.business_id,l.id,$2) LEFT JOIN inventory_stock_thresholds t ON(t.business_id,t.location_id,t.item_id)=(l.business_id,l.id,$2) WHERE l.business_id=$1 AND l.status='active' ORDER BY l.is_default DESC,lower(l.name),l.id", [businessId,itemId]);
   return { item:item.rows[0], locations:locations.rows };
 }
 

@@ -411,6 +411,16 @@ resultados y su conteo comparten filtros, se aíslan por `business_id` y se
 ordenan por agotados, stock, producto, ubicación e IDs. La respuesta indica si
 owner/manager podrán gestionar umbrales en una fase posterior.
 
+`GET /api/products/:productId/thresholds` requiere owner o manager y devuelve
+el producto activo junto con sus ubicaciones activas, saldo local y umbral por
+ubicación. `PUT` y `DELETE` sobre `/api/products/:productId/thresholds/:locationId`
+requieren además CSRF. El mínimo acepta enteros de 0 a 1,000,000; cero es
+válido y con stock cero sigue siendo `out_of_stock`. Crear/actualizar conserva
+el creador original, no altera balances ni movimientos y devuelve `200`.
+Eliminar devuelve `204`, o `404 THRESHOLD_NOT_FOUND` si no existe. Viewer
+recibe `403 FORBIDDEN`; producto archivado, ajeno o inexistente devuelve
+`404 PRODUCT_NOT_FOUND`.
+
 ### Miembros e invitaciones
 
 `GET /api/members` requiere sesión, negocio activo y rol `owner`; manager y
