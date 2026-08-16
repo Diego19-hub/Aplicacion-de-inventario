@@ -82,7 +82,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 if (isProduction) {
-  app.use(express.static(clientDistDir));
+  app.use(express.static(clientDistDir, { index: false }));
 }
 
 const sessionOptions = {
