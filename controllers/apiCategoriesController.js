@@ -24,7 +24,8 @@ function serializeCategory(category) {
     description: category.description,
     activeProductCount: Number(category.active_product_count),
     archivedProductCount: Number(category.archived_product_count),
-    totalStock: Number(category.total_stock)
+    totalStock: Number(category.total_stock),
+    isDefault: Boolean(category.is_default)
   };
 }
 
@@ -32,7 +33,8 @@ function serializeEditableCategory(category) {
   return {
     id: Number(category.id),
     name: category.name,
-    description: category.description
+    description: category.description,
+    isDefault: Boolean(category.is_default)
   };
 }
 
@@ -189,6 +191,15 @@ export async function removeCategory(req, res, next) {
   try {
     const category = await getApiCategoryById(req.business.id, categoryId);
     if (!category) return categoryNotFound(res);
+
+    if (category.is_default) {
+      return res.status(409).json({
+        error: {
+          code: "DEFAULT_CATEGORY_PROTECTED",
+          message: "No puedes eliminar la categoría predeterminada del negocio."
+        }
+      });
+    }
 
     if (Number(category.active_product_count) + Number(category.archived_product_count) > 0) {
       return res.status(409).json({

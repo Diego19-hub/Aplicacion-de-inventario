@@ -3,20 +3,9 @@ import express from "express";
 import session from "express-session";
 import helmet from "helmet";
 import { csrfSync } from "csrf-sync";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import indexRouter from "./routes/indexRouter.js";
-import categoriesRouter from "./routes/categoriesRouter.js";
-import itemsRouter from "./routes/itemsRouter.js";
-import authRouter from "./routes/authRouter.js";
-import businessesRouter from "./routes/businessesRouter.js";
-import adminRouter from "./routes/adminRouter.js";
-import suppliersRouter from "./routes/suppliersRouter.js";
-import membersRouter from "./routes/membersRouter.js";
-import invitationsRouter from "./routes/invitationsRouter.js";
-import locationsRouter from "./routes/locationsRouter.js";
-import transfersRouter from "./routes/transfersRouter.js";
-import alertsRouter from "./routes/alertsRouter.js";
-import reportsRouter from "./routes/reportsRouter.js";
 import apiRouter from "./routes/apiRouter.js";
 
 import {
@@ -30,6 +19,9 @@ const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === "production";
 const isTest = process.env.NODE_ENV === "test";
 const sessionSecret = process.env.SESSION_SECRET;
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const clientDistDir = path.join(rootDir, "client", "dist");
+const reactIndexFile = path.join(clientDistDir, "index.html");
 
 
 if (!sessionSecret) {
@@ -53,6 +45,13 @@ app.use(
     }
   })
 );
+
+app.get("/health", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.status(200).json({
+    status: "ok"
+  });
+});
 
 let sessionStore;
 
@@ -79,11 +78,12 @@ const {
   }
 });
 
-app.set("view engine", "ejs");
-
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static("public"));
+
+if (isProduction) {
+  app.use(express.static(clientDistDir));
+}
 
 const sessionOptions = {
   name: "boxing_inventory_session",
@@ -108,11 +108,14 @@ app.use((req, res, next) => {
   // sesión esta ruta no puede mutar; con sesión conserva la protección global.
   if (
     req.method === "POST"
-    && /^\/api\/invitations\/[^/]+\/accept$/.test(req.path)
+    && (
+      /^\/api\/invitations\/[^/]+\/accept$/.test(req.path)
+      || /^\/api\/admin\/businesses\/[^/]+\/(suspend|reactivate|archive)$/.test(req.path)
+    )
     && !req.session.user
   ) {
-    // Los locales compartidos esperan esta función aun en una respuesta JSON
-    // que no renderiza formularios ni permite mutaciones.
+    // Estas rutas deben poder responder 401 JSON antes de exigir token.
+    // No hay mutación posible sin sesión autenticada.
     req.csrfToken = () => "";
     return next();
   }
@@ -133,38 +136,17 @@ app.use((error, req, res, next) => {
   return next(error);
 });
 
-app.use((req, res, next) => {
-  res.locals.csrfToken = req.csrfToken();
-  next();
-});
-
-app.use((req, res, next) => {
-  const currentUser = req.session.user ?? null;
-
-  res.locals.currentUser = currentUser;
-  res.locals.isSuperAdmin = currentUser?.platformRole === "super_admin";
-  res.locals.currentBusiness = null;
-  res.locals.currentMembership = null;
-  res.locals.canManageInventory = false;
-  res.locals.canDeleteInventory = false;
-
-  next();
-});
-
-app.use("/", indexRouter);
-app.use("/auth", authRouter);
-app.use("/admin", adminRouter);
-app.use("/businesses", businessesRouter);
-app.use("/members", membersRouter);
-app.use("/invitations", invitationsRouter);
-app.use("/categories", categoriesRouter);
-app.use("/items", itemsRouter);
-app.use("/suppliers", suppliersRouter);
-app.use("/locations", locationsRouter);
-app.use("/transfers", transfersRouter);
-app.use("/alerts", alertsRouter);
-app.use("/reports", reportsRouter);
 app.use("/api", apiRouter);
+
+app.get("/", (req, res) => {
+  res.redirect("/app");
+});
+
+if (isProduction) {
+  app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
+    res.sendFile(reactIndexFile);
+  });
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);

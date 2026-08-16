@@ -16,7 +16,7 @@ businesses ──< categories ──< items
 ### Tablas propuestas
 
 - `businesses`: nombre, `slug` único, datos legales opcionales, moneda `MXN`, zona `America/Mexico_City`, estado `active`/`suspended`/`archived`, creador y marcas de tiempo.
-- `business_members`: asociación única `(business_id, user_id)`, rol `owner`/`manager`/`viewer`, estado `active`/`suspended`/`removed`, fechas de ingreso y creación. Un índice parcial garantiza como máximo un `owner` activo por negocio.
+- `business_members`: asociación única `(business_id, user_id)`, rol `owner`/`manager`/`viewer`, estado `active`/`suspended`/`removed`, fechas de ingreso y creación. El `owner` activo es el propietario principal: el índice parcial mantiene como máximo uno y la migración 012 añade triggers de restricción diferibles para exigir exactamente uno al confirmar cada transacción.
 - `business_invitations`: correo en minúsculas, rol ofrecido `manager`/`viewer` (sin `owner`), hash de token, invitador, estado `pending`/`accepted`/`revoked`/`expired`, vencimiento de 30 días y fecha de aceptación.
 
 Las tres tablas nuevas habilitan RLS sin `FORCE ROW LEVEL SECURITY` y no tienen políticas públicas en esta fase. Si los roles `anon` o `authenticated` existen, la migración revoca sus privilegios sobre estas tablas. La aplicación seguirá usando conexión PostgreSQL privada; las políticas RLS por negocio se diseñarán junto con una futura exposición de Data API.
@@ -25,7 +25,7 @@ Las tres tablas nuevas habilitan RLS sin `FORCE ROW LEVEL SECURITY` y no tienen 
 
 - Solo `super_admin` puede crear, suspender, archivar o cambiar el propietario principal de un negocio.
 - Un negocio suspendido o archivado conserva sus datos. Un middleware futuro deberá negar mutaciones antes de llegar a controllers o consultas.
-- Solo `owner` invita miembros y modifica roles empresariales. Un `owner` no puede crear otro `owner`; solo `super_admin` puede transferir la propiedad principal.
+- Solo `owner` invita miembros y modifica roles empresariales. Un `owner` no puede crear otro `owner`; solo `super_admin` puede transferir la propiedad principal. En una transferencia, el propietario anterior pasa a `manager` activo y el nuevo usuario termina como `owner` activo; una cuenta registrada sin membresía la recibe y una membresía `active`, `suspended` o `removed` se reutiliza y activa. Solo negocios `active` o `suspended` pueden transferirse.
 - El registro público crea `users` con `platform_role = 'user'`; no crea membresías ni concede acceso a inventarios.
 - Una cuenta registrada sin membresía no es `viewer`: no tiene acceso a ningún inventario hasta tener una membresía activa.
 - `viewer` solo consulta; `manager` consulta, crea y edita categorías y productos; `owner` conserva además la eliminación actual.
@@ -58,7 +58,7 @@ El borrador `up` es transaccional y usa límites de bloqueo y de consulta para e
 ## Restricciones e índices
 
 - `businesses.slug` es único, minúsculo y con formato de slug.
-- `business_members (business_id, user_id)` es único; el índice parcial de owner evita dos propietarios activos.
+- `business_members (business_id, user_id)` es único; el índice parcial de owner evita dos propietarios activos. La migración 012 agrega una garantía diferible al `COMMIT` que impide también cero propietarios activos, incluso cuando una transferencia cambia ambos roles dentro de una misma transacción.
 - `business_invitations.token_hash` es único; `(business_id, email_normalized)` es único mientras el estado sea `pending`.
 - Todas las claves foráneas tienen índices que favorecen joins y borrados restringidos: creador, usuario miembro, invitador y negocio/categoría de producto.
 - `categories (business_id, lower(name))` evita nombres duplicados normalizados dentro del mismo negocio.
@@ -94,6 +94,6 @@ El borrador `up` es transaccional y usa límites de bloqueo y de consulta para e
 ## Decisiones pendientes
 
 - Política de suspensión/archivo para sesiones ya activas.
-- Aplicación concreta de las reglas de delegación y transferencia en rutas y servicios.
+- Aplicación concreta de las reglas de transferencia en rutas y servicios.
 - Manejo de reintentos, revocación y rotación de tokens de invitación.
 - Estrategia de migración por etapas para bases de datos con mucho tráfico.

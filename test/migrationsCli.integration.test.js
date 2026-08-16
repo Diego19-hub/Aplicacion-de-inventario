@@ -80,7 +80,7 @@ test(
       assert.equal(initialStatus.code, 0);
       assert.match(initialStatus.stdout, /Base: inventory_boxing_integration_test/);
       assert.match(initialStatus.stdout, /Estado: uninitialized/);
-      assert.match(initialStatus.stdout, /pending: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011/);
+      assert.match(initialStatus.stdout, /pending: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014/);
       assert.equal(
         (await client.query("SELECT to_regclass('public.schema_migrations') AS relation")).rows[0].relation,
         null
@@ -145,22 +145,37 @@ test(
       const statusBeforeUp = await runCli(["status"]);
       assert.equal(statusBeforeUp.code, 0);
       assert.match(statusBeforeUp.stdout, /applied: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010/);
-      assert.match(statusBeforeUp.stdout, /pending: 011/);
+      assert.match(statusBeforeUp.stdout, /pending: 011, 012, 013, 014/);
 
       const upWithPending = await runCli(["up"], {
         MIGRATION_UP_CONFIRM: "inventory_boxing_integration_test"
       });
       assert.equal(upWithPending.code, 0);
-      assert.match(upWithPending.stdout, /Versiones aplicadas: 011/);
+      assert.match(upWithPending.stdout, /Versiones aplicadas: 011, 012, 013, 014/);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        11
+        14
       );
       const registeredEleven = await client.query(
         "SELECT checksum FROM public.schema_migrations WHERE version = $1",
         [11]
       );
       assert.match(registeredEleven.rows[0].checksum, /^[a-f0-9]{64}$/);
+      const registeredTwelve = await client.query(
+        "SELECT checksum FROM public.schema_migrations WHERE version = $1",
+        [12]
+      );
+      assert.match(registeredTwelve.rows[0].checksum, /^[a-f0-9]{64}$/);
+      const registeredThirteen = await client.query(
+        "SELECT checksum FROM public.schema_migrations WHERE version = $1",
+        [13]
+      );
+      assert.match(registeredThirteen.rows[0].checksum, /^[a-f0-9]{64}$/);
+      const registeredFourteen = await client.query(
+        "SELECT checksum FROM public.schema_migrations WHERE version = $1",
+        [14]
+      );
+      assert.match(registeredFourteen.rows[0].checksum, /^[a-f0-9]{64}$/);
 
       const indexDefinitions = await movementIndexDefinitions();
       assert.match(
@@ -254,12 +269,12 @@ test(
       assert.match(upWithoutPending.stdout, /No hay migraciones pendientes/);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        11
+        14
       );
 
       const finalStatus = await runCli(["status"]);
       assert.equal(finalStatus.code, 0);
-      assert.match(finalStatus.stdout, /applied: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011/);
+      assert.match(finalStatus.stdout, /applied: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014/);
       assert.match(finalStatus.stdout, /pending: ninguna/);
       assert.match(finalStatus.stdout, /checksum_mismatch: ninguna/);
       assert.match(finalStatus.stdout, /name_mismatch: ninguna/);
@@ -271,7 +286,7 @@ test(
       assert.notEqual(repeatedBaseline.code, 0);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        11
+        14
       );
 
       await recreateDatabase();

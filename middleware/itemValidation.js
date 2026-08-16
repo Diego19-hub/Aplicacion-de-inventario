@@ -38,6 +38,7 @@ function createItemValidation({ descriptionOptional = false } = {}) {
       .withMessage("El precio debe ser un número válido mayor o igual a 0.")
       .toFloat(),
     body("categoryId")
+      .optional({ values: "falsy" })
       .isInt({ min: 1 })
       .withMessage("Selecciona una categoría válida.")
       .toInt()

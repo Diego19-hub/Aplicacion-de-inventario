@@ -41,7 +41,7 @@ test(
     try {
       await recreateDatabase();
 
-      await t.test("registra únicamente 001–010 y deja 011 pendiente", async () => {
+      await t.test("registra únicamente 001–010 y deja 011–014 pendientes", async () => {
         await baselineMigrationHistory(client, inventory);
         assert.equal(await historyCount(), 10);
 
@@ -63,12 +63,24 @@ test(
 
         const status = await getMigrationStatus(client, inventory);
         assert.equal(status.summary.applied, 10);
-        assert.equal(status.summary.pending, 1);
+        assert.equal(status.summary.pending, 4);
         assert.equal(status.summary.checksum_mismatch, 0);
         assert.equal(status.summary.name_mismatch, 0);
         assert.equal(status.summary.missing_file, 0);
         assert.equal(
           status.migrations.find((migration) => migration.version === 11)?.status,
+          "pending"
+        );
+        assert.equal(
+          status.migrations.find((migration) => migration.version === 12)?.status,
+          "pending"
+        );
+        assert.equal(
+          status.migrations.find((migration) => migration.version === 13)?.status,
+          "pending"
+        );
+        assert.equal(
+          status.migrations.find((migration) => migration.version === 14)?.status,
           "pending"
         );
       });

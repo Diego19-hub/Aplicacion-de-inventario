@@ -34,13 +34,14 @@ export async function getApiCategories({ limit, offset, ...filters }) {
     `
       SELECT
         c.id, c.name, c.description,
+        c.is_default,
         ${categoryMetrics}
       FROM categories c
       LEFT JOIN items i
         ON (i.business_id, i.category_id) = (c.business_id, c.id)
       WHERE ${where}
-      GROUP BY c.id, c.name, c.description
-      ORDER BY LOWER(c.name), c.id
+      GROUP BY c.id, c.name, c.description, c.is_default
+      ORDER BY c.is_default DESC, LOWER(c.name), c.id
       LIMIT $${values.length - 1} OFFSET $${values.length}
     `,
     values
@@ -53,13 +54,14 @@ export async function getApiCategoryById(businessId, categoryId) {
     `
       SELECT
         c.id, c.name, c.description,
+        c.is_default,
         ${categoryMetrics}
       FROM categories c
       LEFT JOIN items i
         ON (i.business_id, i.category_id) = (c.business_id, c.id)
       WHERE c.business_id = $1
         AND c.id = $2
-      GROUP BY c.id, c.name, c.description
+      GROUP BY c.id, c.name, c.description, c.is_default
     `,
     [businessId, categoryId]
   );
@@ -113,6 +115,7 @@ export async function deleteApiCategory(businessId, categoryId) {
       DELETE FROM categories
       WHERE business_id = $1
         AND id = $2
+        AND is_default = false
       RETURNING id
     `,
     [businessId, categoryId]

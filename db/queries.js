@@ -50,6 +50,7 @@ export async function getAllCategories(businessId) {
         categories.id,
         categories.name,
         categories.description,
+        categories.is_default,
         COUNT(items.id)::INTEGER AS item_count
       FROM categories
       LEFT JOIN items
@@ -57,8 +58,8 @@ export async function getAllCategories(businessId) {
        AND items.business_id = categories.business_id
        AND items.status = 'active'
       WHERE categories.business_id = $1
-      GROUP BY categories.id, categories.name, categories.description
-      ORDER BY categories.name
+      GROUP BY categories.id, categories.name, categories.description, categories.is_default
+      ORDER BY categories.is_default DESC, LOWER(categories.name), categories.id
     `,
     [businessId]
   );
@@ -140,6 +141,7 @@ export async function deleteCategory(id, businessId) {
       DELETE FROM categories
       WHERE id = $1
         AND business_id = $2
+        AND is_default = false
       RETURNING id, name
     `,
     [id, businessId]
@@ -227,8 +229,13 @@ export async function createItem(
     await client.query("BEGIN");
     const categoryResult = await client.query(
       `SELECT id, name FROM categories
-       WHERE id = $1 AND business_id = $2 FOR KEY SHARE`,
-      [categoryId, businessId]
+       WHERE business_id = $1
+         AND (
+           ($2::integer IS NULL AND is_default)
+           OR id = $2
+         )
+       FOR KEY SHARE`,
+      [businessId, categoryId ?? null]
     );
     const category = categoryResult.rows[0];
     if (!category) {
@@ -259,7 +266,7 @@ export async function createItem(
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id, sku, name, description, brand, price, stock, category_id`,
-      [resolvedSku, name, description, brand, price, 0, categoryId, businessId]
+      [resolvedSku, name, description, brand, price, 0, category.id, businessId]
     );
     await client.query("COMMIT");
     return { ...result.rows[0], category_name: category.name };
@@ -278,6 +285,15 @@ export async function updateItem(
 ) {
   const result = await pool.query(
     `
+      WITH resolved_category AS (
+        SELECT id
+        FROM categories
+        WHERE business_id = $8
+          AND (
+            ($6::integer IS NULL AND is_default)
+            OR id = $6
+          )
+      )
       UPDATE items
       SET
         sku = $1,
@@ -285,13 +301,14 @@ export async function updateItem(
         description = $3,
         brand = $4,
         price = $5,
-        category_id = $6
-      WHERE id = $7
-        AND business_id = $8
-        AND status = 'active'
-      RETURNING id, sku, name, description, brand, price, stock, category_id
+        category_id = resolved_category.id
+      FROM resolved_category
+      WHERE items.id = $7
+        AND items.business_id = $8
+        AND items.status = 'active'
+      RETURNING items.id, items.sku, items.name, items.description, items.brand, items.price, items.stock, items.category_id
     `,
-    [sku, name, description, brand, price, categoryId, id, businessId]
+    [sku, name, description, brand, price, categoryId ?? null, id, businessId]
   );
 
   return result.rows[0];

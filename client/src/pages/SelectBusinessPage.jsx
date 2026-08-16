@@ -12,11 +12,11 @@ import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export function SelectBusinessPage() {
-  const { logout, selectBusiness } = useAuth();
+  const { logout, selectBusiness, session } = useAuth();
   const navigate = useNavigate();
   const [businesses, setBusinesses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingBusinessId, setSubmittingBusinessId] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function SelectBusinessPage() {
   }, []);
 
   async function handleSelect(businessId) {
-    setIsSubmitting(true);
+    setSubmittingBusinessId(businessId);
     setError("");
     try {
       await selectBusiness(businessId);
@@ -37,7 +37,7 @@ export function SelectBusinessPage() {
     } catch (requestError) {
       setError(requestError.message || "No fue posible seleccionar el negocio.");
     } finally {
-      setIsSubmitting(false);
+      setSubmittingBusinessId(null);
     }
   }
 
@@ -51,7 +51,40 @@ export function SelectBusinessPage() {
       <div className="selection-page__content">
         <PageHeader title="Selecciona un negocio" description="Elige el espacio de trabajo con el que deseas continuar." />
         {error && <Alert>{error}</Alert>}
-        {isLoading ? <div className="centered-state"><Spinner label="Cargando negocios" /></div> : businesses.length === 0 ? <EmptyState title="No hay negocios disponibles" description="Tu cuenta no tiene una membresía activa en ningún negocio." action={<Button variant="secondary" onClick={handleLogout}>Cerrar sesión</Button>} /> : <div className="business-grid">{businesses.map((business) => <Card key={business.id} className="business-card"><Building2 aria-hidden="true" /><h2>{business.name}</h2><p>{business.role}</p><Button onClick={() => handleSelect(business.id)} disabled={isSubmitting}>{isSubmitting ? "Seleccionando…" : "Seleccionar"}</Button></Card>)}</div>}
+        {isLoading ? (
+          <div className="centered-state">
+            <Spinner label="Cargando negocios" />
+          </div>
+        ) : businesses.length === 0 ? (
+          <EmptyState
+            title="No hay negocios disponibles"
+            description="Tu cuenta no tiene una membresía activa en ningún negocio."
+            action={<Button variant="secondary" onClick={handleLogout}>Cerrar sesión</Button>}
+          />
+        ) : (
+          <div className="business-grid">
+            {businesses.map((business) => {
+              const isSelected = session.activeBusiness?.id === business.id;
+              const isSubmitting = submittingBusinessId === business.id;
+
+              return (
+                <Card key={business.id} className="business-card">
+                  <Building2 aria-hidden="true" />
+                  <h2>{business.name}</h2>
+                  <p>{business.role}</p>
+                  {isSelected && <p aria-current="true">Negocio seleccionado actualmente</p>}
+                  <Button
+                    onClick={() => handleSelect(business.id)}
+                    disabled={Boolean(submittingBusinessId)}
+                    variant={isSelected ? "secondary" : "primary"}
+                  >
+                    {isSubmitting ? "Seleccionando…" : isSelected ? "Continuar con este negocio" : "Seleccionar"}
+                  </Button>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </main>
   );

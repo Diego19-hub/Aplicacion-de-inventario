@@ -1,9 +1,10 @@
 export class ApiError extends Error {
-  constructor({ code = "INTERNAL_ERROR", message = "Ocurrió un error interno.", fields = [] } = {}) {
+  constructor({ code = "INTERNAL_ERROR", message = "Ocurrió un error interno.", fields = [], status } = {}) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.fields = fields;
+    this.status = status;
   }
 }
 
@@ -32,6 +33,12 @@ async function csrfToken() {
   return payload.data.csrfToken;
 }
 
+function notifyUnauthorized() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("api:unauthorized"));
+  }
+}
+
 export async function apiRequest(path, { method = "GET", body, csrf = false } = {}) {
   const headers = {
     Accept: "application/json"
@@ -54,7 +61,11 @@ export async function apiRequest(path, { method = "GET", body, csrf = false } = 
   const payload = await parseResponse(response);
 
   if (!response.ok) {
-    throw new ApiError(payload?.error);
+    if (response.status === 401) {
+      notifyUnauthorized();
+    }
+
+    throw new ApiError({ ...payload?.error, status: response.status });
   }
 
   return payload?.data ?? null;

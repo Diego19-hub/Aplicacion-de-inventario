@@ -43,6 +43,15 @@ export function AuthProvider({ children }) {
     };
   }, [reloadSession]);
 
+  useEffect(() => {
+    function handleUnauthorized() {
+      setSession(anonymousSession);
+    }
+
+    window.addEventListener("api:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("api:unauthorized", handleUnauthorized);
+  }, []);
+
   const login = useCallback(async (credentials) => {
     await apiRequest("/auth/login", {
       method: "POST",
@@ -87,6 +96,7 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     session,
     isInitialLoading,
+    clearSession: () => setSession(anonymousSession),
     login,
     register,
     logout,

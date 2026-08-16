@@ -1,8 +1,0 @@
-<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title><%= title %> | Boxing Inventory</title><link rel="stylesheet" href="/styles.css"></head>
-<body>
-  <header class="main-header"><div class="container header-content"><a href="/admin" class="logo">Boxing Inventory</a><nav aria-label="Administración"><a href="/admin">Panel</a><a href="/admin/businesses">Negocios</a></nav></div></header>
-  <main class="container form-page"><a href="/admin/businesses/<%= business.id %>" class="back-link">← Regresar al negocio</a><section class="delete-container"><div><p class="eyebrow">Confirmación</p><h1><%= action === "suspend" ? "Suspender negocio" : "Reactivar negocio" %></h1><p class="form-description"><%= business.name %></p></div><div class="warning-message"><strong><%= action === "suspend" ? "El inventario dejará de estar disponible para sus miembros." : "Los miembros activos podrán volver a seleccionar este negocio." %></strong></div><form action="/admin/businesses/<%= business.id %>/<%= action %>" method="POST" class="form-actions"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><a href="/admin/businesses/<%= business.id %>" class="button button-secondary">Cancelar</a><button type="submit" class="button <%= action === "suspend" ? "button-danger" : "" %>">Confirmar</button></form></section></main>
-</body>
-</html>

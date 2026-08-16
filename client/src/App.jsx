@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { Spinner } from "./components/Spinner.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -41,16 +41,36 @@ import { AlertsPage } from "./pages/AlertsPage.jsx";
 import { ProductThresholdsPage } from "./pages/ProductThresholdsPage.jsx";
 import { ReportsPage } from "./pages/ReportsPage.jsx";
 import { InventoryReportPage } from "./pages/InventoryReportPage.jsx";
+import { MovementReportPage } from "./pages/MovementReportPage.jsx";
+import { SettingsPage } from "./pages/SettingsPage.jsx";
+import { AdminDashboardPage } from "./pages/AdminDashboardPage.jsx";
+import { AdminBusinessesPage } from "./pages/AdminBusinessesPage.jsx";
+import { AdminBusinessDetailsPage } from "./pages/AdminBusinessDetailsPage.jsx";
+import { NewAdminBusinessPage } from "./pages/NewAdminBusinessPage.jsx";
+import { EditAdminBusinessPage } from "./pages/EditAdminBusinessPage.jsx";
+import { AdminBusinessTransitionPage } from "./pages/AdminBusinessTransitionPage.jsx";
+import { ChangeAdminBusinessOwnerPage } from "./pages/ChangeAdminBusinessOwnerPage.jsx";
+import { ForbiddenPage, NotFoundPage } from "./pages/ErrorPages.jsx";
+
+function loginPath(returnTo) {
+  const params = new URLSearchParams();
+  if (returnTo && returnTo.startsWith("/")) {
+    params.set("returnTo", returnTo);
+  }
+
+  return `/login${params.toString() ? `?${params.toString()}` : ""}`;
+}
 
 function SessionGuard({ children }) {
   const { isInitialLoading, session } = useAuth();
+  const location = useLocation();
 
   if (isInitialLoading) {
     return <main className="centered-state"><Spinner label="Cargando sesión" /></main>;
   }
 
   if (!session.authenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(`${location.pathname}${location.search}`)} replace />;
   }
 
   if (!session.activeBusiness) {
@@ -62,20 +82,50 @@ function SessionGuard({ children }) {
 
 function BusinessSelectionGuard({ children }) {
   const { isInitialLoading, session } = useAuth();
+  const location = useLocation();
 
   if (isInitialLoading) {
     return <main className="centered-state"><Spinner label="Cargando sesión" /></main>;
   }
 
   if (!session.authenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (session.activeBusiness) {
-    return <Navigate to="/app" replace />;
+    return <Navigate to={loginPath(`${location.pathname}${location.search}`)} replace />;
   }
 
   return children;
+}
+
+function SuperAdminGuard({ children }) {
+  const { isInitialLoading, session } = useAuth();
+  const location = useLocation();
+
+  if (isInitialLoading) {
+    return <main className="centered-state"><Spinner label="Cargando sesión" /></main>;
+  }
+
+  if (!session.authenticated) {
+    return <Navigate to={loginPath(`${location.pathname}${location.search}`)} replace />;
+  }
+
+  if (session.user?.platformRole !== "super_admin") {
+    return <main className="main-content"><ForbiddenPage /></main>;
+  }
+
+  return children;
+}
+
+function NotFoundRoute() {
+  const { isInitialLoading, session } = useAuth();
+
+  if (isInitialLoading) {
+    return <main className="centered-state"><Spinner label="Cargando sesión" /></main>;
+  }
+
+  if (session.authenticated && session.activeBusiness) {
+    return <AppShell><NotFoundPage /></AppShell>;
+  }
+
+  return <main className="centered-state"><NotFoundPage /></main>;
 }
 
 export default function App() {
@@ -95,6 +145,16 @@ export default function App() {
       <Route path="/app/alerts" element={<SessionGuard><AppShell><AlertsPage /></AppShell></SessionGuard>} />
       <Route path="/app/reports" element={<SessionGuard><AppShell><ReportsPage /></AppShell></SessionGuard>} />
       <Route path="/app/reports/inventory" element={<SessionGuard><AppShell><InventoryReportPage /></AppShell></SessionGuard>} />
+      <Route path="/app/reports/movements" element={<SessionGuard><AppShell><MovementReportPage title="Reporte de movimientos" description="Historial de inventario por ubicación." /></AppShell></SessionGuard>} />
+      <Route path="/app/movements" element={<SessionGuard><AppShell><MovementReportPage /></AppShell></SessionGuard>} />
+      <Route path="/app/settings" element={<SessionGuard><AppShell><SettingsPage /></AppShell></SessionGuard>} />
+      <Route path="/app/admin" element={<SuperAdminGuard><AppShell><AdminDashboardPage /></AppShell></SuperAdminGuard>} />
+      <Route path="/app/admin/businesses" element={<SuperAdminGuard><AppShell><AdminBusinessesPage /></AppShell></SuperAdminGuard>} />
+      <Route path="/app/admin/businesses/new" element={<SuperAdminGuard><AppShell><NewAdminBusinessPage /></AppShell></SuperAdminGuard>} />
+      <Route path="/app/admin/businesses/:businessId/edit" element={<SuperAdminGuard><AppShell><EditAdminBusinessPage /></AppShell></SuperAdminGuard>} />
+      <Route path="/app/admin/businesses/:businessId/change-owner" element={<SuperAdminGuard><AppShell><ChangeAdminBusinessOwnerPage /></AppShell></SuperAdminGuard>} />
+      <Route path="/app/admin/businesses/:businessId/:action" element={<SuperAdminGuard><AppShell><AdminBusinessTransitionPage /></AppShell></SuperAdminGuard>} />
+      <Route path="/app/admin/businesses/:businessId" element={<SuperAdminGuard><AppShell><AdminBusinessDetailsPage /></AppShell></SuperAdminGuard>} />
       <Route path="/app/products/:productId/thresholds" element={<SessionGuard><AppShell><ProductThresholdsPage /></AppShell></SessionGuard>} />
       <Route
         path="/app/products"
@@ -224,7 +284,7 @@ export default function App() {
         path="/app/products/:productId"
         element={<SessionGuard><AppShell><ProductDetailsPage /></AppShell></SessionGuard>}
       />
-      <Route path="*" element={<Navigate to="/app" replace />} />
+      <Route path="*" element={<NotFoundRoute />} />
     </Routes>
   );
 }

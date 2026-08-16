@@ -56,53 +56,53 @@ test(
       }
 
       await writeFile(
-        path.join(temporaryDirectory, "012_runner_success_up.sql"),
+        path.join(temporaryDirectory, "014_runner_success_up.sql"),
         `-- comentario previo\nBEGIN;\nCREATE TABLE public.runner_success_probe (id integer PRIMARY KEY);\nINSERT INTO public.runner_success_probe (id) VALUES (1);\nCOMMIT;\n`
       );
       await writeFile(
-        path.join(temporaryDirectory, "012_runner_success_down.sql"),
+        path.join(temporaryDirectory, "014_runner_success_down.sql"),
         "BEGIN;\nDROP TABLE public.runner_success_probe;\nCOMMIT;\n"
       );
       await writeFile(
-        path.join(temporaryDirectory, "013_runner_failure_up.sql"),
+        path.join(temporaryDirectory, "015_runner_failure_up.sql"),
         "BEGIN;\nCREATE TABLE public.runner_failure_probe (id integer PRIMARY KEY);\nINSERT INTO public.runner_success_probe (id) VALUES (2);\nSELECT missing_runner_function();\nCOMMIT;\n"
       );
       await writeFile(
-        path.join(temporaryDirectory, "013_runner_failure_down.sql"),
+        path.join(temporaryDirectory, "015_runner_failure_down.sql"),
         "BEGIN;\nDROP TABLE public.runner_failure_probe;\nCOMMIT;\n"
       );
 
-      const inventoryThrough012 = await getMigrationInventory(temporaryDirectory);
-      const inventoryThrough013 = await getMigrationInventory(temporaryDirectory);
+      const inventoryThrough014 = await getMigrationInventory(temporaryDirectory);
+      const inventoryThrough015 = await getMigrationInventory(temporaryDirectory);
 
-      await applyPendingMigrations(client, inventoryThrough012.filter((migration) => migration.versionNumber <= 12));
+      await applyPendingMigrations(client, inventoryThrough014.filter((migration) => migration.versionNumber <= 14));
       const registeredReal011 = await client.query(
         "SELECT checksum FROM public.schema_migrations WHERE version = $1",
         [11]
       );
-      assert.equal(registeredReal011.rows[0].checksum, inventoryThrough012[10].up.checksum);
+      assert.equal(registeredReal011.rows[0].checksum, inventoryThrough014[10].up.checksum);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.runner_success_probe")).rows[0].count,
         1
       );
       const registeredSuccess = await client.query(
         "SELECT checksum FROM public.schema_migrations WHERE version = $1",
-        [12]
+        [14]
       );
-      assert.equal(registeredSuccess.rows[0].checksum, inventoryThrough012[11].up.checksum);
+      assert.equal(registeredSuccess.rows[0].checksum, inventoryThrough014[13].up.checksum);
 
-      await applyPendingMigrations(client, inventoryThrough012.filter((migration) => migration.versionNumber <= 12));
+      await applyPendingMigrations(client, inventoryThrough014.filter((migration) => migration.versionNumber <= 14));
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.runner_success_probe")).rows[0].count,
         1
       );
       assert.equal(
-        (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations WHERE version = $1", [12])).rows[0].count,
+        (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations WHERE version = $1", [14])).rows[0].count,
         1
       );
 
       await assert.rejects(
-        applyPendingMigrations(client, inventoryThrough013),
+        applyPendingMigrations(client, inventoryThrough015),
         /missing_runner_function/
       );
       assert.equal(
@@ -114,16 +114,16 @@ test(
         1
       );
       assert.equal(
-        (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations WHERE version = $1", [13])).rows[0].count,
+        (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations WHERE version = $1", [15])).rows[0].count,
         0
       );
 
       await client.query(
         "UPDATE public.schema_migrations SET checksum = $1 WHERE version = $2",
-        ["f".repeat(64), 12]
+        ["f".repeat(64), 14]
       );
       await assert.rejects(
-        applyPendingMigrations(client, inventoryThrough013),
+        applyPendingMigrations(client, inventoryThrough015),
         /historial incompatible/
       );
       assert.equal(

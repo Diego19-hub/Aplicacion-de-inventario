@@ -79,6 +79,162 @@ secretos de sesión ni detalles internos.
 | `429` | Límite de solicitudes. |
 | `500` | Error interno sin detalles sensibles. |
 
+## Superadministración
+
+Los endpoints administrativos requieren una sesión con
+`platformRole: super_admin`, pero no requieren negocio activo. La API nunca
+redirige: una sesión ausente recibe `401 AUTH_REQUIRED` y un usuario que no es
+superadministrador recibe `403 SUPER_ADMIN_REQUIRED`. Todas las respuestas usan
+`Cache-Control: no-store` y solo serializan datos operativos necesarios.
+
+### `GET /api/admin/dashboard`
+
+Devuelve métricas globales de negocios, usuarios, membresías y productos, más
+hasta cinco negocios recientes (`id`, nombre, slug, estado y fecha de creación).
+No acepta filtros ni realiza mutaciones.
+
+### `GET /api/admin/businesses`
+
+Lista negocios de toda la plataforma. Acepta `q` (hasta 100 caracteres, busca
+parcialmente por nombre, slug, razón social o identificación fiscal), `status`
+(`active`, `suspended` o `archived`) y `page`. Un estado desconocido equivale a
+todos los estados; una página inválida se normaliza a 1 y una página excesiva se
+ajusta a la última. Devuelve 20 filas por página y el conteo utiliza los mismos
+filtros que los resultados.
+
+Cada negocio devuelve `id`, `name`, `slug`, `legalName`, `taxId`, `currency`,
+`timezone`, `status`, fechas y los conteos `activeMembers` y
+`activeProducts`. No devuelve datos de sesión ni IDs de usuarios creadores.
+
+### `GET /api/admin/businesses/:businessId`
+
+`businessId` debe ser un entero positivo; de lo contrario responde `400
+VALIDATION_ERROR`. Si no existe el negocio, responde `404 BUSINESS_NOT_FOUND`.
+Devuelve la información general segura, métricas de miembros, productos activos
+y archivados, ubicaciones activas, stock total, transferencias y umbrales;
+también las membresías (usuario, correo, rol, estado y fechas) y hasta cinco
+movimientos recientes seguros. No acepta mutaciones.
+
+### `GET /api/admin/businesses/form-options`
+
+Devuelve las personas que pueden seleccionarse como propietarias al crear un
+negocio: `id`, `username` y `email`. No incluye hashes, roles internos ni
+datos de sesión.
+
+### `POST /api/admin/businesses`
+
+Requiere CSRF. Recibe `name`, `slug`, `currency`, `timezone` y `ownerUserId`,
+todos obligatorios; `legalName` y `taxId` son opcionales y una cadena vacía se
+normaliza a `null`. El slug se normaliza a minúsculas y debe usar letras
+minúsculas, números y guiones; la moneda se normaliza a mayúsculas. El usuario
+propietario debe existir y ser un ID entero positivo.
+
+Una única transacción crea un negocio `active`, una membresía `owner` activa,
+la ubicación principal activa `Sucursal principal` / `MAIN` y la categoría
+predeterminada `Sin categoría`; un fallo en cualquiera de esos pasos revierte
+la creación completa. Campos protegidos como `id`, `status`, `createdBy`,
+fechas y membresías se rechazan. Un slug duplicado responde `409
+BUSINESS_ALREADY_EXISTS`; propietario inexistente o campos inválidos responden
+`400 VALIDATION_ERROR`.
+
+### `GET /api/admin/businesses/:businessId/edit`
+
+Devuelve únicamente los campos editables del negocio (`name`, `slug`,
+`legalName`, `taxId`, `currency` y `timezone`). Un ID inválido responde `400
+VALIDATION_ERROR` y uno inexistente `404 BUSINESS_NOT_FOUND`.
+
+### `PUT /api/admin/businesses/:businessId`
+
+Requiere CSRF y permite actualizar solamente `name`, `slug`, `legalName`,
+`taxId`, `currency` y `timezone`, con la misma normalización de creación. No
+permite modificar estado, propietario, creador, fechas, membresías ni la
+ubicación principal. Un slug duplicado responde `409 BUSINESS_ALREADY_EXISTS`;
+un ID inválido responde `400 VALIDATION_ERROR` y uno inexistente `404
+BUSINESS_NOT_FOUND`. Las respuestas sin sesión o sin rol de plataforma
+corresponden a `401 AUTH_REQUIRED` y `403 SUPER_ADMIN_REQUIRED`.
+
+### `GET /api/admin/businesses/:businessId/change-owner/options`
+
+Devuelve el contexto necesario para transferir la propiedad de un negocio sin
+requerir negocio activo. `businessId` debe ser un entero positivo; un ID
+inválido responde `400 VALIDATION_ERROR` y uno inexistente responde `404
+BUSINESS_NOT_FOUND`.
+
+Acepta `q` opcional, recortado a 100 caracteres, para buscar personas
+registradas por `username` o `email`. La respuesta incluye:
+
+- `business`: `id`, `name`, `slug`, `status`, `currency`, `timezone`,
+  `createdAt` y `updatedAt`.
+- `owner`: `id`, `username` y `email` de la persona propietaria activa actual.
+- `users`: hasta 20 cuentas registradas que pueden seleccionarse como nueva
+  persona propietaria, con `id`, `username`, `email` y, si ya existe, su
+  membresía actual (`role`, `status`) en ese negocio.
+
+Este endpoint no muta datos. Un negocio archivado puede consultarse para la
+pantalla, pero la transferencia posterior será rechazada.
+
+### `POST /api/admin/businesses/:businessId/change-owner`
+
+Requiere CSRF, sesión autenticada y `platformRole === "super_admin"`. No
+requiere negocio activo ni membresía. El cuerpo aceptado es únicamente:
+
+```json
+{
+  "newOwnerUserId": 123
+}
+```
+
+`newOwnerUserId` debe ser un entero positivo. Cualquier otro campo protegido se
+rechaza con `400 VALIDATION_ERROR`.
+
+La transferencia se ejecuta en una sola transacción con bloqueo del negocio y
+de sus membresías. Las reglas aplicadas son:
+
+- Solo negocios `active` o `suspended` pueden transferirse.
+- Un negocio `archived` responde `409 BUSINESS_INVALID_STATE`.
+- La persona propietaria anterior pasa a `manager` activa.
+- La nueva persona propietaria pasa a `owner` activa.
+- Si ya existe una membresía `active`, `suspended` o `removed`, se reutiliza y
+  reactiva.
+- Si no existe membresía, se crea.
+- La garantía diferible instalada por la migración 012 debe dejar exactamente
+  un `owner` activo al confirmar la transacción.
+
+Errores esperados:
+
+- `400 VALIDATION_ERROR` para `businessId` o `newOwnerUserId` inválidos, o
+  campos adicionales.
+- `401 AUTH_REQUIRED` sin sesión.
+- `403 SUPER_ADMIN_REQUIRED` para usuarios sin rol global suficiente.
+- `404 BUSINESS_NOT_FOUND` si el negocio no existe.
+- `404 USER_NOT_FOUND` si la persona seleccionada no existe.
+- `409 OWNER_ALREADY_ASSIGNED` si se intenta transferir al mismo owner actual.
+- `409 BUSINESS_INVALID_STATE` si el negocio no está en un estado transferible.
+
+### Transiciones de estado de negocios
+
+`POST /api/admin/businesses/:businessId/suspend`, `/reactivate` y `/archive`
+requieren CSRF y `super_admin`; no requieren negocio activo ni membresía. No
+aceptan un estado ni campos arbitrarios en el cuerpo: el destino se determina
+por la ruta.
+
+- `suspend`: únicamente `active` a `suspended`.
+- `reactivate`: únicamente `suspended` a `active`.
+- `archive`: `active` o `suspended` a `archived`.
+
+Cada transición bloquea la fila del negocio y valida su estado dentro de una
+transacción. Actualiza únicamente `businesses.status` y `updated_at`; no borra
+datos ni modifica membresías, invitaciones, productos, ubicaciones, balances,
+movimientos, transferencias o umbrales. Un negocio suspendido o archivado deja
+de ser seleccionable como negocio activo por sus miembros; las sesiones no se
+borran y reactivarlo no lo selecciona automáticamente ni reactiva membresías.
+
+ID inválido responde `400 VALIDATION_ERROR`, sesión ausente `401
+AUTH_REQUIRED`, rol insuficiente `403 SUPER_ADMIN_REQUIRED` y negocio
+inexistente `404 BUSINESS_NOT_FOUND`. Las transiciones repetidas o incompatibles
+responden `409` con `BUSINESS_ALREADY_SUSPENDED`, `BUSINESS_ALREADY_ACTIVE`,
+`BUSINESS_ALREADY_ARCHIVED` o `BUSINESS_INVALID_TRANSITION`.
+
 La API no redirige al login: devuelve `401`. Las rutas EJS existentes pueden
 conservar sus redirecciones actuales.
 
@@ -168,18 +324,21 @@ usa `Cache-Control: no-store`.
 ### `GET /api/products/form-options`
 
 Requiere una sesión, negocio activo y rol `owner` o `manager`. Devuelve las
-categorías del negocio ordenadas por nombre e ID, junto con la configuración
-informativa de SKU automático. No crea una categoría predeterminada.
+categorías del negocio ordenadas con la predeterminada primero, junto con la
+configuración informativa de SKU automático. Cada categoría incluye `isDefault`;
+la categoría predeterminada del negocio es `Sin categoría`.
 
 ### `POST /api/products`
 
 Requiere una sesión, negocio activo y rol `owner` o `manager`; `viewer`
 recibe `403 FORBIDDEN`. Recibe `name`, `description`, `brand`, `price`,
-`categoryId` y `sku`. Un SKU vacío se genera de forma transaccional según la
-categoría; uno manual se normaliza a mayúsculas. El producto inicia activo y
-con stock cero. `stock` no se acepta porque las existencias se gestionan por
-movimientos. Una categoría ajena es un error de validación y un SKU duplicado
-responde `409 SKU_ALREADY_EXISTS` asociado al campo `sku`.
+`categoryId` opcional y `sku`. Si `categoryId` falta, está vacío o es `null`,
+se usa la categoría predeterminada del negocio. Un SKU vacío se genera de forma
+transaccional según la categoría resuelta; uno manual se normaliza a
+mayúsculas. El producto inicia activo y con stock cero. `stock` no se acepta
+porque las existencias se gestionan por movimientos. Una categoría ajena es un
+error de validación y un SKU duplicado responde `409 SKU_ALREADY_EXISTS`
+asociado al campo `sku`.
 
 ### `GET /api/products/:productId/edit`
 
@@ -191,11 +350,13 @@ inexistente responde `404 PRODUCT_NOT_FOUND`.
 ### `PUT /api/products/:productId`
 
 Requiere sesión, negocio activo y rol `owner` o `manager`. Actualiza solamente
-`name`, `description`, `brand`, `price`, `categoryId` y un SKU manual
-obligatorio. La categoría debe pertenecer al negocio y el `UPDATE` limita por
-producto, negocio y estado activo. `stock`, `status`, los metadatos de archivo
-y `businessId` se rechazan como errores de validación; las existencias nunca se
-modifican. SKU duplicado responde `409 SKU_ALREADY_EXISTS`.
+`name`, `description`, `brand`, `price`, `categoryId` opcional y un SKU manual
+obligatorio. Si `categoryId` falta, está vacío o es `null`, se asigna la
+categoría predeterminada del negocio. La categoría indicada debe pertenecer al
+negocio y el `UPDATE` limita por producto, negocio y estado activo. `stock`,
+`status`, los metadatos de archivo y `businessId` se rechazan como errores de
+validación; las existencias nunca se modifican. SKU duplicado responde `409
+SKU_ALREADY_EXISTS`.
 
 ### `POST /api/products/:productId/archive`
 
@@ -281,7 +442,8 @@ viewer pueden consultar. Acepta `q` y `page`, busca parcialmente por nombre sin
 distinguir mayúsculas y pagina 20 categorías en PostgreSQL con orden
 `LOWER(name), id`. Conteo y resultados comparten filtros por `business_id`.
 Cada categoría incluye productos activos, productos archivados y existencias
-totales solo de los activos.
+totales solo de los activos, además de `isDefault` para identificar la
+categoría predeterminada.
 
 `GET /api/categories/:categoryId` requiere los mismos permisos. Un ID inválido
 responde `400 VALIDATION_ERROR`; una categoría inexistente o ajena responde
@@ -308,7 +470,8 @@ ID y `business_id`; una categoría ajena o inexistente responde `404
 CATEGORY_NOT_FOUND`. Si contiene productos activos o archivados responde `409
 CATEGORY_IN_USE` y no modifica productos. La FK mantiene la protección final
 frente a una inserción concurrente. Una categoría vacía responde `204` sin
-cuerpo.
+cuerpo. La categoría predeterminada del negocio puede renombrarse, pero no
+eliminarse; su eliminación responde `409 DEFAULT_CATEGORY_PROTECTED`.
 
 ### Ubicaciones
 
@@ -422,6 +585,26 @@ produce cero filas. El conteo y las filas comparten filtros, cada join exige
 el negocio activo y un balance ausente equivale a cero. La respuesta devuelve
 productos, ubicaciones, existencias local/total, opciones de filtros y
 paginación sin exponer `business_id`.
+
+`GET /api/reports/movements` requiere los mismos permisos y acepta `q`,
+`dateFrom`, `dateTo`, `location`, `user`, `movementType` y `page`. Las fechas
+usan `YYYY-MM-DD`, el fin es inclusivo y un rango inválido devuelve `400
+VALIDATION_ERROR`. Owner puede incluir movimientos de archivados; manager y
+viewer reciben solo activos. Opciones ajenas producen cero filas y resultados/
+conteo comparten filtros por negocio, orden `created_at DESC, id DESC` y
+paginación SQL.
+
+`GET /api/reports/inventory.csv` requiere owner, manager o viewer y acepta los
+mismos filtros del reporte de existencias excepto `page`, que se ignora. Owner
+puede exportar archivados; manager/viewer se limitan a activos. Descarga
+`existencias.csv` con `Content-Type: text/csv; charset=utf-8`; errores se
+responden como JSON y los filtros ajenos generan encabezados sin filas.
+
+`GET /api/reports/movements.csv` requiere los mismos roles y acepta `q`,
+`dateFrom`, `dateTo`, `location`, `user` y `movementType`; `page` se ignora.
+Owner puede exportar archivados, mientras manager/viewer reciben solo activos.
+Fechas inválidas o rangos invertidos devuelven `400 VALIDATION_ERROR`. Descarga
+`movimientos.csv` como `text/csv; charset=utf-8`; los errores se devuelven JSON.
 
 `GET /api/products/:productId/thresholds` requiere owner o manager y devuelve
 el producto activo junto con sus ubicaciones activas, saldo local y umbral por
@@ -610,9 +793,8 @@ membresía y los permisos calculados por el servidor.
 
 ## Fuera de alcance
 
-Este contrato no documenta todavía endpoints de productos, categorías,
-movimientos, proveedores, ubicaciones, transferencias, alertas, reportes ni
-superadministración.
+Este contrato no cubre todavía todos los flujos de transición de las vistas
+EJS ni mutaciones administrativas de negocios.
 
 ## Decisiones pendientes
 

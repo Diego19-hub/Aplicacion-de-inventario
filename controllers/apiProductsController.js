@@ -61,7 +61,7 @@ export async function listProducts(req, res, next) {
             name: product.category_name
           }
         })),
-        categories,
+        categories: categories.map(serializeCategory),
         filters: {
           q: filters.q,
           categoryId: filters.categoryId > 0 ? filters.categoryId : null
@@ -81,6 +81,14 @@ export async function listProducts(req, res, next) {
 
 function validationFields(errors) {
   return errors.map((error) => ({ field: error.path, message: error.msg }));
+}
+
+function serializeCategory(category) {
+  return {
+    id: Number(category.id),
+    name: category.name,
+    isDefault: Boolean(category.is_default)
+  };
 }
 
 function productIdFromRequest(value) {
@@ -109,7 +117,7 @@ export async function getProductFormOptions(req, res, next) {
 
     return res.status(200).json({
       data: {
-        categories,
+        categories: categories.map(serializeCategory),
         sku: {
           automatic: true,
           editable: true,
@@ -207,7 +215,7 @@ export async function getProductForEdit(req, res, next) {
           sku: product.sku,
           categoryId: product.category_id
         },
-        categories
+        categories: categories.map(serializeCategory)
       }
     });
   } catch (error) {
@@ -242,7 +250,9 @@ export async function updateProduct(req, res, next) {
   try {
     const categories = await getApiProductCategories(req.business.id);
     const data = matchedData(req);
-    const category = categories.find((candidate) => candidate.id === data.categoryId);
+    const category = data.categoryId
+      ? categories.find((candidate) => candidate.id === data.categoryId)
+      : categories.find((candidate) => candidate.is_default);
 
     if (!category) {
       return res.status(400).json({

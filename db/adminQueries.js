@@ -201,6 +201,12 @@ export async function createBusinessWithOwner(data, ownerId, createdBy) {
       [business.id]
     );
 
+    await client.query(
+      `INSERT INTO categories (business_id, name, description, is_default)
+       VALUES ($1, 'Sin categoría', '', true)`,
+      [business.id]
+    );
+
     await client.query("COMMIT");
     return business;
   } catch (error) {

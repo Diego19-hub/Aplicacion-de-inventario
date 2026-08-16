@@ -39,13 +39,14 @@ export function EditProductPage() {
     setNotFound(false);
     try {
       const result = await apiRequest(`/products/${productId}/edit`);
+      const defaultCategory = result.categories.find((category) => category.isDefault);
       setData(result);
       setForm({
         name: result.product.name,
         description: result.product.description ?? "",
         brand: result.product.brand,
         price: String(result.product.price),
-        categoryId: String(result.product.categoryId),
+        categoryId: defaultCategory?.id === result.product.categoryId ? "" : String(result.product.categoryId),
         sku: result.product.sku
       });
     } catch (error) {

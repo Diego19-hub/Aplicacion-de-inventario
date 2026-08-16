@@ -36,7 +36,7 @@ function archivedProductFilters({ businessId, query, categoryId }) {
 
 export async function getApiProductCategories(businessId) {
   const result = await pool.query(
-    "SELECT id, name FROM categories WHERE business_id = $1 ORDER BY LOWER(name), id",
+    "SELECT id, name, is_default FROM categories WHERE business_id = $1 ORDER BY is_default DESC, LOWER(name), id",
     [businessId]
   );
   return result.rows;

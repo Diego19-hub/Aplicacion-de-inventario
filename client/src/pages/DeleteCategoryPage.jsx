@@ -58,6 +58,8 @@ export function DeleteCategoryPage() {
     } catch (requestError) {
       if (requestError.code === "CATEGORY_NOT_FOUND") {
         setNotFound(true);
+      } else if (requestError.code === "DEFAULT_CATEGORY_PROTECTED") {
+        setError("La categoría predeterminada no se puede eliminar.");
       } else if (requestError.code === "CATEGORY_IN_USE") {
         setError("La categoría tiene productos asociados. Cámbialos de categoría antes de eliminarla.");
       } else {
@@ -76,15 +78,16 @@ export function DeleteCategoryPage() {
   if (error && !category) return <Alert><div className="dashboard-error"><span>{error}</span><Button variant="secondary" onClick={loadCategory}>Reintentar</Button></div></Alert>;
 
   const hasProducts = category.activeProductCount > 0 || category.archivedProductCount > 0;
+  const isProtectedDefault = category.isDefault;
   return <section className="archive-product-page">
     <Link to={`/app/categories/${categoryId}`} className="back-link"><ArrowLeft aria-hidden="true" />Volver a la categoría</Link>
     <PageHeader title="Eliminar categoría" description="Esta acción elimina la categoría de forma permanente." />
     <Card className="archive-product-card">
       <div><p className="eyebrow">Categoría seleccionada</p><h2>{category.name}</h2>{category.description && <p className="muted">{category.description}</p>}</div>
       <dl className="category-detail-metrics"><div><dt>Productos activos</dt><dd>{category.activeProductCount}</dd></div><div><dt>Productos archivados</dt><dd>{category.archivedProductCount}</dd></div></dl>
-      <div className="archive-warning" role="note"><strong><AlertTriangle aria-hidden="true" /> Eliminación permanente</strong><p>{hasProducts ? "Debes cambiar los productos activos y archivados a otra categoría antes de eliminarla." : "Esta acción no se puede deshacer."}</p></div>
+      <div className="archive-warning" role="note"><strong><AlertTriangle aria-hidden="true" /> Eliminación permanente</strong><p>{isProtectedDefault ? "Esta es la categoría predeterminada del negocio y no se puede eliminar." : hasProducts ? "Debes cambiar los productos activos y archivados a otra categoría antes de eliminarla." : "Esta acción no se puede deshacer."}</p></div>
       {error && <Alert><span>{error}</span></Alert>}
-      <div className="product-form__actions"><Link className="button button--secondary" to={`/app/categories/${categoryId}`}>Cancelar</Link><Button variant="danger" onClick={remove} disabled={hasProducts || isSubmitting}>{isSubmitting ? "Eliminando categoría…" : "Eliminar categoría"}</Button></div>
+      <div className="product-form__actions"><Link className="button button--secondary" to={`/app/categories/${categoryId}`}>Cancelar</Link><Button variant="danger" onClick={remove} disabled={isProtectedDefault || hasProducts || isSubmitting}>{isSubmitting ? "Eliminando categoría…" : "Eliminar categoría"}</Button></div>
     </Card>
   </section>;
 }

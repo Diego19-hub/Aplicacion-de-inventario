@@ -18,19 +18,22 @@ export function errorHandler(error, req, res, next) {
 
   console.error(error);
 
-  if (statusCode === 404) {
-    return res.status(404).render("404", {
-      title: "Página no encontrada",
-      message: error.message
-    });
-  }
+  const codeByStatus = {
+    400: "VALIDATION_ERROR",
+    401: "AUTH_REQUIRED",
+    403: "FORBIDDEN",
+    404: "NOT_FOUND",
+    409: "CONFLICT",
+    429: "RATE_LIMITED"
+  };
 
-  res.status(statusCode).render("error", {
-    title: "Error",
-    statusCode,
-    message:
-      statusCode === 500
-        ? "Ocurrió un error interno. Inténtalo nuevamente."
-        : error.message
+  return res.status(statusCode).json({
+    error: {
+      code: codeByStatus[statusCode] ?? "INTERNAL_ERROR",
+      message:
+        statusCode === 500
+          ? "Ocurrió un error interno."
+          : error.message
+    }
   });
 }

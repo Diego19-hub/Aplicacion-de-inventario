@@ -83,6 +83,19 @@ import { apiRegisterValidation, loginValidation } from "../middleware/authValida
 import { requireApiAuth } from "../middleware/apiAuthMiddleware.js";
 import { requireApiActiveBusiness } from "../middleware/apiActiveBusinessMiddleware.js";
 import { requireApiBusinessRole } from "../middleware/apiAuthorizationMiddleware.js";
+import { requireApiSuperAdmin } from "../middleware/apiAuthorizationMiddleware.js";
+import {
+  businesses as adminBusinesses,
+  changeOwner as changeAdminBusinessOwner,
+  create as createAdminBusiness,
+  dashboard as adminDashboard,
+  detail as adminBusinessDetail,
+  formOptions as adminBusinessFormOptions,
+  getEdit as getAdminBusinessEdit,
+  ownerOptions as adminBusinessOwnerOptions,
+  transition as transitionAdminBusiness,
+  update as updateAdminBusiness
+} from "../controllers/apiAdminController.js";
 import {
   apiArchiveItemValidation,
   apiItemUpdateValidation,
@@ -96,7 +109,7 @@ import { apiSupplierValidation } from "../middleware/supplierValidation.js";
 import { listStockAlerts } from "../controllers/apiAlertsController.js";
 import { getThresholds, removeThreshold, saveThreshold } from "../controllers/apiThresholdsController.js";
 import { apiThresholdValidation } from "../middleware/alertValidation.js";
-import { inventoryReportApi } from "../controllers/apiReportsController.js";
+import { inventoryCsvApi, inventoryReportApi, movementCsvApi, movementReportApi } from "../controllers/apiReportsController.js";
 import {
   apiInvitationActionValidation,
   apiInvitationValidation,
@@ -122,8 +135,32 @@ apiRouter.post("/auth/logout", logout);
 apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
+apiRouter.get("/admin/dashboard", requireApiAuth, requireApiSuperAdmin, adminDashboard);
+apiRouter.get("/admin/businesses", requireApiAuth, requireApiSuperAdmin, adminBusinesses);
+apiRouter.get("/admin/businesses/form-options", requireApiAuth, requireApiSuperAdmin, adminBusinessFormOptions);
+apiRouter.post("/admin/businesses", requireApiAuth, requireApiSuperAdmin, createAdminBusiness);
+apiRouter.get("/admin/businesses/:businessId/edit", requireApiAuth, requireApiSuperAdmin, getAdminBusinessEdit);
+apiRouter.put("/admin/businesses/:businessId", requireApiAuth, requireApiSuperAdmin, updateAdminBusiness);
+apiRouter.get("/admin/businesses/:businessId/change-owner/options", requireApiAuth, requireApiSuperAdmin, adminBusinessOwnerOptions);
+apiRouter.post("/admin/businesses/:businessId/change-owner", requireApiAuth, requireApiSuperAdmin, changeAdminBusinessOwner);
+apiRouter.post("/admin/businesses/:businessId/suspend", requireApiAuth, requireApiSuperAdmin, (req, res, next) => {
+  req.params.action = "suspend";
+  transitionAdminBusiness(req, res, next);
+});
+apiRouter.post("/admin/businesses/:businessId/reactivate", requireApiAuth, requireApiSuperAdmin, (req, res, next) => {
+  req.params.action = "reactivate";
+  transitionAdminBusiness(req, res, next);
+});
+apiRouter.post("/admin/businesses/:businessId/archive", requireApiAuth, requireApiSuperAdmin, (req, res, next) => {
+  req.params.action = "archive";
+  transitionAdminBusiness(req, res, next);
+});
+apiRouter.get("/admin/businesses/:businessId", requireApiAuth, requireApiSuperAdmin, adminBusinessDetail);
 apiRouter.get("/alerts/stock", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listStockAlerts);
 apiRouter.get("/reports/inventory", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), inventoryReportApi);
+apiRouter.get("/reports/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementReportApi);
+apiRouter.get("/reports/inventory.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), inventoryCsvApi);
+apiRouter.get("/reports/movements.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementCsvApi);
 apiRouter.get("/products/:productId/thresholds", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), getThresholds);
 apiRouter.put("/products/:productId/thresholds/:locationId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), apiThresholdValidation, saveThreshold);
 apiRouter.delete("/products/:productId/thresholds/:locationId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), removeThreshold);
