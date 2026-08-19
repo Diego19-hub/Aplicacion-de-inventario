@@ -49,7 +49,15 @@ export function SelectBusinessPage() {
   return (
     <main className="selection-page">
       <div className="selection-page__content">
-        <PageHeader title="Selecciona un negocio" description="Elige el espacio de trabajo con el que deseas continuar." />
+        <PageHeader
+          title="Selecciona un negocio"
+          description="Elige el espacio de trabajo con el que deseas continuar."
+          actions={!isLoading && businesses.length > 0 ? (
+            <Button variant="secondary" onClick={() => navigate("/onboarding/business")}>
+              Crear negocio
+            </Button>
+          ) : null}
+        />
         {error && <Alert>{error}</Alert>}
         {isLoading ? (
           <div className="centered-state">
@@ -57,9 +65,18 @@ export function SelectBusinessPage() {
           </div>
         ) : businesses.length === 0 ? (
           <EmptyState
-            title="No hay negocios disponibles"
-            description="Tu cuenta no tiene una membresía activa en ningún negocio."
-            action={<Button variant="secondary" onClick={handleLogout}>Cerrar sesión</Button>}
+            title="Configura tu negocio"
+            description="Tu cuenta todavía no tiene un negocio. Crea uno para comenzar a usar el inventario."
+            action={
+              <div className="form-actions">
+                <Button onClick={() => navigate("/onboarding/business")}>
+                  Crear mi negocio
+                </Button>
+                <Button variant="secondary" onClick={handleLogout}>
+                  Cerrar sesión
+                </Button>
+              </div>
+            }
           />
         ) : (
           <div className="business-grid">

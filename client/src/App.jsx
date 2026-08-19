@@ -36,6 +36,7 @@ import { EditSupplierPage } from "./pages/EditSupplierPage.jsx";
 import { SupplierTransitionPage } from "./pages/SupplierTransitionPage.jsx";
 import { MembersPage } from "./pages/MembersPage.jsx";
 import { SelectBusinessPage } from "./pages/SelectBusinessPage.jsx";
+import { CreateBusinessPage } from "./pages/CreateBusinessPage.jsx";
 import { InvitationPage } from "./pages/InvitationPage.jsx";
 import { AlertsPage } from "./pages/AlertsPage.jsx";
 import { ProductThresholdsPage } from "./pages/ProductThresholdsPage.jsx";
@@ -283,6 +284,14 @@ export default function App() {
       <Route
         path="/app/products/:productId"
         element={<SessionGuard><AppShell><ProductDetailsPage /></AppShell></SessionGuard>}
+      />
+      <Route
+        path="/onboarding/business"
+        element={
+          <BusinessSelectionGuard>
+            <CreateBusinessPage />
+          </BusinessSelectionGuard>
+        }
       />
       <Route path="*" element={<NotFoundRoute />} />
     </Routes>

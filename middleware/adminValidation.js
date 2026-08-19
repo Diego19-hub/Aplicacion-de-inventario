@@ -1,11 +1,11 @@
 import { body } from "express-validator";
 
 function normalizeSlug(value) {
-  return value.trim().toLowerCase();
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
 function normalizeTaxId(value) {
-  return value.trim().toUpperCase();
+  return typeof value === "string" ? value.trim().toUpperCase() : "";
 }
 
 function validTimezone(value) {
@@ -63,3 +63,5 @@ export const createBusinessValidation = [
 ];
 
 export const editBusinessValidation = commonBusinessValidation;
+
+export const onboardingBusinessValidation = commonBusinessValidation;

@@ -13,6 +13,7 @@ import {
   listBusinesses,
   selectActiveBusiness
 } from "../controllers/apiBusinessController.js";
+import { createOnboardingBusiness } from "../controllers/apiOnboardingController.js";
 import { getDashboard } from "../controllers/apiDashboardController.js";
 import { changeApiMemberRole, getMembers, reactivateApiMember, removeApiMember, suspendApiMember } from "../controllers/apiMembersController.js";
 import {
@@ -106,6 +107,7 @@ import { apiTransferValidation } from "../middleware/transferValidation.js";
 import { apiCategoryValidation } from "../middleware/categoryValidation.js";
 import { apiLocationValidation } from "../middleware/locationValidation.js";
 import { apiSupplierValidation } from "../middleware/supplierValidation.js";
+import { onboardingBusinessValidation } from "../middleware/adminValidation.js";
 import { listStockAlerts } from "../controllers/apiAlertsController.js";
 import { getThresholds, removeThreshold, saveThreshold } from "../controllers/apiThresholdsController.js";
 import { apiThresholdValidation } from "../middleware/alertValidation.js";
@@ -456,6 +458,12 @@ apiRouter.get(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager", "viewer"),
   getProductMovements
+);
+apiRouter.post(
+  "/onboarding/business",
+  requireApiAuth,
+  onboardingBusinessValidation,
+  createOnboardingBusiness
 );
 apiRouter.get("/products/:productId", requireApiAuth, requireApiActiveBusiness, getProductDetails);
 
