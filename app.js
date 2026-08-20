@@ -139,8 +139,9 @@ app.use((error, req, res, next) => {
 app.use("/api", apiRouter);
 
 app.get("/", (req, res) => {
-  res.redirect("/app");
+  res.redirect("/login");
 });
+
 
 if (isProduction) {
   app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {

@@ -147,7 +147,7 @@ Uso:
 npm run db:bootstrap
 ```
 
-El bootstrap rechaza bases no vacías o con `schema_migrations` existente. Si pasa las defensas, aplica `db/auth-schema.sql`, `db/schema.sql` y las migraciones `001` a `014` en orden; después registra los checksums SHA-256 actuales en `schema_migrations`. La operación evita imprimir URL, usuario, contraseña o hash. Si ocurre un error durante la preparación transaccional, PostgreSQL revierte el esquema creado en esa ejecución.
+El bootstrap rechaza bases no vacías o con `schema_migrations` existente. Si pasa las defensas, aplica `db/auth-schema.sql`, `db/schema.sql` y las migraciones `001` a `015` en orden; después registra los checksums SHA-256 actuales en `schema_migrations`. La operación evita imprimir URL, usuario, contraseña o hash. Si ocurre un error durante la preparación transaccional, PostgreSQL revierte el esquema creado en esa ejecución.
 
 ## Seguridad y autorización
 
