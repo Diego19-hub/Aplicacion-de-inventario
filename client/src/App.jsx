@@ -4,6 +4,7 @@ import { Spinner } from "./components/Spinner.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { AppShell } from "./layout/AppShell.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
+import { LandingPage } from "./pages/LandingPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { RegisterPage } from "./pages/RegisterPage.jsx";
 import { ProductsPage } from "./pages/ProductsPage.jsx";
@@ -132,6 +133,7 @@ function NotFoundRoute() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/invitations/:token" element={<InvitationPage />} />

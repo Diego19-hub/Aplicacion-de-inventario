@@ -11,6 +11,7 @@
     "client:build": "npm --prefix client run build",
     "build": "npm run client:build",
     "db:seed": "node db/populatedb.js",
+    "db:seed:dashboard": "node scripts/seedDashboardDemo.js",
     "db:bootstrap": "node scripts/bootstrapDatabase.js",
     "db:migrations:status": "node scripts/migrations.js status",
     "db:migrations:baseline": "node scripts/migrations.js baseline",

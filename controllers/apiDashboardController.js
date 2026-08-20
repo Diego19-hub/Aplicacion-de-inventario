@@ -1,5 +1,8 @@
 import {
+  getDashboardLowStockProducts,
+  getDashboardMovementTrend,
   getDashboardStockByLocation,
+  getDashboardStockByCategory,
   getDashboardSummary,
   getRecentDashboardMovements
 } from "../db/dashboardQueries.js";
@@ -10,10 +13,13 @@ function number(value) {
 
 export async function getDashboard(req, res, next) {
   try {
-    const [summary, recentMovements, stockByLocation] = await Promise.all([
+    const [summary, recentMovements, stockByLocation, movementTrend, stockByCategory, lowStockProducts] = await Promise.all([
       getDashboardSummary(req.business.id),
       getRecentDashboardMovements(req.business.id),
-      getDashboardStockByLocation(req.business.id)
+      getDashboardStockByLocation(req.business.id),
+      getDashboardMovementTrend(req.business.id),
+      getDashboardStockByCategory(req.business.id),
+      getDashboardLowStockProducts(req.business.id)
     ]);
 
     return res.status(200).json({
@@ -41,7 +47,10 @@ export async function getDashboard(req, res, next) {
           name: location.name,
           code: location.code,
           totalStock: number(location.total_stock)
-        }))
+        })),
+        movementTrend: movementTrend.map((row) => ({ date: String(row.date).slice(0, 10), entries: number(row.entries), exits: number(row.exits), adjustments: number(row.adjustments) })),
+        stockByCategory: stockByCategory.map((category) => ({ id: category.id, name: category.name, totalStock: number(category.total_stock) })),
+        lowStockProducts: lowStockProducts.map((product) => ({ id: product.id, name: product.name, sku: product.sku, categoryName: product.category_name, totalStock: number(product.total_stock), minimumStock: number(product.minimum_stock), lowStockLocations: number(product.low_stock_locations) }))
       }
     });
   } catch (error) {

@@ -91,3 +91,53 @@ export async function getDashboardStockByLocation(businessId) {
 
   return result.rows;
 }
+
+export async function getDashboardMovementTrend(businessId, days = 30) {
+  const result = await pool.query(
+    `WITH dates AS (
+       SELECT generate_series(CURRENT_DATE - ($2::integer - 1), CURRENT_DATE, INTERVAL '1 day')::date AS movement_date
+     )
+     SELECT dates.movement_date AS date,
+       COALESCE(SUM(CASE WHEN m.movement_type IN ('entry', 'transfer_in') THEN m.quantity_delta ELSE 0 END), 0)::INTEGER AS entries,
+       COALESCE(SUM(CASE WHEN m.movement_type IN ('exit', 'transfer_out') THEN ABS(m.quantity_delta) ELSE 0 END), 0)::INTEGER AS exits,
+       COALESCE(SUM(CASE WHEN m.movement_type = 'adjustment' THEN m.quantity_delta ELSE 0 END), 0)::INTEGER AS adjustments
+     FROM dates
+     LEFT JOIN inventory_movements m ON m.business_id = $1
+       AND m.created_at >= dates.movement_date AND m.created_at < dates.movement_date + INTERVAL '1 day'
+     GROUP BY dates.movement_date ORDER BY dates.movement_date`,
+    [businessId, days]
+  );
+  return result.rows;
+}
+
+export async function getDashboardStockByCategory(businessId) {
+  const result = await pool.query(
+    `SELECT c.id, c.name, COALESCE(SUM(b.stock), 0)::INTEGER AS total_stock
+     FROM categories c
+     INNER JOIN items i ON (i.business_id, i.category_id) = (c.business_id, c.id) AND i.status = 'active'
+     LEFT JOIN inventory_balances b ON (b.business_id, b.item_id) = (i.business_id, i.id)
+     WHERE c.business_id = $1
+     GROUP BY c.id, c.name ORDER BY total_stock DESC, LOWER(c.name), c.id`,
+    [businessId]
+  );
+  return result.rows;
+}
+
+export async function getDashboardLowStockProducts(businessId) {
+  const result = await pool.query(
+    `SELECT i.id, i.name, i.sku, c.name AS category_name,
+       COALESCE(SUM(b.stock), 0)::INTEGER AS total_stock,
+       MAX(t.minimum_stock)::INTEGER AS minimum_stock,
+       COUNT(*) FILTER (WHERE COALESCE(b.stock, 0) <= t.minimum_stock)::INTEGER AS low_stock_locations
+     FROM inventory_stock_thresholds t
+     INNER JOIN items i ON (i.business_id, i.id) = (t.business_id, t.item_id) AND i.status = 'active'
+     INNER JOIN categories c ON (c.business_id, c.id) = (i.business_id, i.category_id)
+     LEFT JOIN inventory_balances b ON (b.business_id, b.item_id, b.location_id) = (t.business_id, t.item_id, t.location_id)
+     WHERE t.business_id = $1
+     GROUP BY i.id, i.name, i.sku, c.name
+     HAVING COUNT(*) FILTER (WHERE COALESCE(b.stock, 0) <= t.minimum_stock) > 0
+     ORDER BY low_stock_locations DESC, total_stock, LOWER(i.name), i.id LIMIT 8`,
+    [businessId]
+  );
+  return result.rows;
+}

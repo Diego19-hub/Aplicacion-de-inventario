@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { apiRequest } from "../api/client.js";
 
@@ -18,6 +19,7 @@ const anonymousSession = {
 };
 
 export function AuthProvider({ children }) {
+  const location = useLocation();
   const [session, setSession] = useState(anonymousSession);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
@@ -28,6 +30,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (location.pathname === "/") {
+      setIsInitialLoading(false);
+      return undefined;
+    }
+
     let active = true;
 
     reloadSession()
@@ -41,7 +48,7 @@ export function AuthProvider({ children }) {
     return () => {
       active = false;
     };
-  }, [reloadSession]);
+  }, [location.pathname, reloadSession]);
 
   useEffect(() => {
     function handleUnauthorized() {

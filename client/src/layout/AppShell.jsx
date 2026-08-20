@@ -1,5 +1,5 @@
 import { ArrowRightLeft, BellRing, Boxes, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, Settings, Tags, Truck, UsersRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Button } from "../components/Button.jsx";
@@ -12,6 +12,37 @@ export function AppShell({ children }) {
   const navigate = useNavigate();
   const activeBusinessName = session.activeBusiness?.name ?? "Administración global";
 
+  function closeMobileMenu() {
+    setIsMobileMenuOpen(false);
+  }
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === "Escape") closeMobileMenu();
+    }
+
+    function handleResize() {
+      if (window.matchMedia("(min-width: 761px)").matches) closeMobileMenu();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileMenuOpen]);
+
   async function handleLogout() {
     await logout();
     navigate("/login", { replace: true });
@@ -19,9 +50,17 @@ export function AppShell({ children }) {
 
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${isMobileMenuOpen ? "sidebar--open" : ""}`} aria-label="Navegación principal">
+      {isMobileMenuOpen && (
+        <button
+          type="button"
+          className="sidebar-overlay"
+          aria-label="Cerrar menú"
+          onPointerDown={closeMobileMenu}
+        />
+      )}
+      <aside className={`sidebar ${isMobileMenuOpen ? "sidebar--open" : ""}`} aria-label="Navegación principal" onClick={closeMobileMenu}>
         <Link to="/app" className="brand"><Boxes aria-hidden="true" /><span>Inventario</span></Link>
-        <nav className="sidebar__nav">
+        <nav className="sidebar__nav" onClick={closeMobileMenu}>
           <Link to="/app" className={`nav-link ${location.pathname === "/app" ? "nav-link--active" : ""}`}><LayoutDashboard aria-hidden="true" />Dashboard</Link>
           <Link to="/app/products" className={`nav-link ${location.pathname === "/app/products" ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Productos</Link>
           <Link to="/app/categories" className={`nav-link ${location.pathname.startsWith("/app/categories") ? "nav-link--active" : ""}`}><Tags aria-hidden="true" />Categorías</Link>
