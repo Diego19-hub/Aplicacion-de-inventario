@@ -150,6 +150,14 @@ export async function createOnboardingBusiness(req, res, next) {
       }
     });
   } catch (error) {
+    console.error("[onboarding/business]", {
+    code: error.code,
+    message: error.message,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    stack: error.stack
+    });
     if (error.code === "23505" && error.constraint === "businesses_slug_key") {
       return duplicateSlug(res);
     }

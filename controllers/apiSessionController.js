@@ -63,12 +63,28 @@ function saveSession(req) {
   });
 }
 
-export function getCsrfToken(req, res) {
-  res.status(200).json({
-    data: {
-      csrfToken: req.csrfToken()
-    }
-  });
+export async function getCsrfToken(req, res, next) {
+  try {
+    const csrfToken = req.csrfToken();
+
+    await new Promise((resolve, reject) => {
+      req.session.save((error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    return res.status(200).json({
+      data: {
+        csrfToken
+      }
+    });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 export async function getSession(req, res, next) {
