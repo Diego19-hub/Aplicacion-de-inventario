@@ -53,6 +53,7 @@ export async function listProducts(req, res, next) {
           id: product.id,
           name: product.name,
           sku: product.sku,
+          barcode: product.barcode,
           brand: product.brand,
           price: Number(product.price),
           stock: Number(product.stock),
@@ -103,6 +104,7 @@ function serializeProduct(product, categoryName = product.category_name) {
     id: product.id,
     name: product.name,
     sku: product.sku,
+    barcode: product.barcode,
     description: product.description,
     brand: product.brand,
     price: Number(product.price),
@@ -165,9 +167,9 @@ export async function createProduct(req, res, next) {
     if (error.code === "23505") {
       return res.status(409).json({
         error: {
-          code: "SKU_ALREADY_EXISTS",
-          message: "Ese SKU ya existe en este negocio.",
-          fields: [{ field: "sku", message: "Ese SKU ya existe en este negocio." }]
+          code: error.constraint?.includes("barcode") ? "BARCODE_ALREADY_EXISTS" : "SKU_ALREADY_EXISTS",
+          message: error.constraint?.includes("barcode") ? "Ese código de barras ya existe en este negocio." : "Ese SKU ya existe en este negocio.",
+          fields: [{ field: error.constraint?.includes("barcode") ? "barcode" : "sku", message: error.constraint?.includes("barcode") ? "Ese código de barras ya existe en este negocio." : "Ese SKU ya existe en este negocio." }]
         }
       });
     }
@@ -213,6 +215,7 @@ export async function getProductForEdit(req, res, next) {
           brand: product.brand,
           price: Number(product.price),
           sku: product.sku,
+          barcode: product.barcode,
           categoryId: product.category_id
         },
         categories: categories.map(serializeCategory)
@@ -293,9 +296,9 @@ export async function updateProduct(req, res, next) {
     if (error.code === "23505") {
       return res.status(409).json({
         error: {
-          code: "SKU_ALREADY_EXISTS",
-          message: "Ese SKU ya existe en este negocio.",
-          fields: [{ field: "sku", message: "Ese SKU ya existe en este negocio." }]
+          code: error.constraint?.includes("barcode") ? "BARCODE_ALREADY_EXISTS" : "SKU_ALREADY_EXISTS",
+          message: error.constraint?.includes("barcode") ? "Ese código de barras ya existe en este negocio." : "Ese SKU ya existe en este negocio.",
+          fields: [{ field: error.constraint?.includes("barcode") ? "barcode" : "sku", message: error.constraint?.includes("barcode") ? "Ese código de barras ya existe en este negocio." : "Ese SKU ya existe en este negocio." }]
         }
       });
     }

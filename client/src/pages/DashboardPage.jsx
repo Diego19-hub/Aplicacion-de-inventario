@@ -6,7 +6,7 @@ import {
   Package,
   RefreshCw
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { apiRequest } from "../api/client.js";
@@ -45,28 +45,55 @@ function formatDate(date) {
   }).format(new Date(date));
 }
 
+function isAbortError(error) {
+  return error?.name === "AbortError" || error?.message?.toLowerCase().includes("aborted");
+}
+
 export function DashboardPage() {
   const { session } = useAuth();
   const { activeBusiness, membership, user } = session;
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [period, setPeriod] = useState("1m");
+  const [isTrendLoading, setIsTrendLoading] = useState(false);
+  const trendAbortRef = useRef(null);
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (selectedPeriod = period, signal) => {
     setIsLoading(true);
     setError("");
     try {
-      setDashboard(await apiRequest("/dashboard"));
+      setDashboard(await apiRequest(`/dashboard?period=${selectedPeriod}`, { signal }));
     } catch (requestError) {
+      if (isAbortError(requestError)) return;
       setError(requestError.message || "No fue posible cargar el dashboard.");
     } finally {
-      setIsLoading(false);
+      if (!signal || !signal.aborted) setIsLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    const controller = new AbortController();
+    loadDashboard(period, controller.signal);
+    return () => controller.abort();
+  }, []);
+
+  async function changePeriod(event) {
+    const selectedPeriod = event.target.value;
+    trendAbortRef.current?.abort();
+    trendAbortRef.current = new AbortController();
+    setPeriod(selectedPeriod);
+    setIsTrendLoading(true);
+    const controller = trendAbortRef.current;
+    try {
+      const nextDashboard = await apiRequest(`/dashboard?period=${selectedPeriod}`, { signal: controller.signal });
+      setDashboard((current) => current ? { ...current, period: nextDashboard.period, movementTrend: nextDashboard.movementTrend, totals: nextDashboard.totals } : nextDashboard);
+    } catch (requestError) {
+      if (!isAbortError(requestError)) setError(requestError.message || "No fue posible actualizar la gráfica.");
+    } finally {
+      if (trendAbortRef.current === controller) setIsTrendLoading(false);
+    }
+  }
 
   return (
     <>
@@ -76,18 +103,18 @@ export function DashboardPage() {
         actions={<Link to="/select-business" className="button button--secondary">Cambiar negocio</Link>}
       />
       {isLoading && <section className="dashboard-state"><Spinner label="Cargando resumen del negocio" /></section>}
-      {!isLoading && error && <Alert><div className="dashboard-error"><span>{error}</span><Button variant="secondary" onClick={loadDashboard}><RefreshCw aria-hidden="true" />Reintentar</Button></div></Alert>}
+      {!isLoading && error && <Alert><div className="dashboard-error"><span>{error}</span><Button variant="secondary" onClick={() => loadDashboard(period)}><RefreshCw aria-hidden="true" />Reintentar</Button></div></Alert>}
       {!isLoading && dashboard && <>
         <section className="metric-grid" aria-label="Resumen del inventario">
           {metricCards(dashboard.summary, activeBusiness.currency).map(({ label, value, icon: Icon }) => <Card key={label} className="metric-card"><Icon aria-hidden="true" className="card-icon" /><p>{label}</p><strong>{value}</strong></Card>)}
         </section>
         <section className="dashboard-sections">
-          <Card className="dashboard-card--wide"><header className="section-heading"><div><p className="eyebrow">Últimos 30 días</p><h2>Entradas contra salidas</h2></div></header>{(dashboard.movementTrend ?? []).length === 0 ? <EmptyState title="Sin actividad en este periodo" description="Los movimientos aparecerán aquí cuando se registren." /> : <MovementTrendChart data={dashboard.movementTrend ?? []} />}</Card>
+          <Card className="dashboard-card--wide"><header className="section-heading movement-trend-header"><div><p className="eyebrow">Evolución del inventario</p><h2>Movimientos</h2></div><label className="trend-period">Periodo:<select value={period} onChange={changePeriod} disabled={isTrendLoading}><option value="1m">Último mes</option><option value="3m">Últimos 3 meses</option><option value="6m">Últimos 6 meses</option><option value="12m">Último año</option></select></label></header>{isTrendLoading && <div className="trend-loading"><Spinner label="Actualizando gráfica" /></div>}{!isTrendLoading && (dashboard.movementTrend ?? []).every((row) => !(row.entries || row.exits || row.adjustments || row.netChange)) ? <EmptyState title="Sin movimientos en este periodo" description="Los movimientos aparecerán aquí cuando se registren." /> : <MovementTrendChart data={dashboard.movementTrend ?? []} totals={dashboard.totals} />}</Card>
           <Card><header className="section-heading"><div><p className="eyebrow">Distribución</p><h2>Stock por categoría</h2></div></header>{dashboard.stockByCategory.length === 0 ? <EmptyState title="Sin categorías con stock" description="El stock por categoría aparecerá aquí." /> : <ul className="category-stock-list">{dashboard.stockByCategory.map((category) => <li key={category.id}><div><strong>{category.name}</strong><span>{category.totalStock} unidades</span></div><div className="category-stock-bar"><span style={{ width: `${Math.min(100, (category.totalStock / Math.max(dashboard.summary.totalUnits, 1)) * 100)}%` }} /></div></li>)}</ul>}</Card>
           <Card><header className="section-heading"><div><p className="eyebrow">Atención</p><h2>Productos con stock bajo</h2></div></header>{dashboard.lowStockProducts.length === 0 ? <EmptyState title="Sin productos en riesgo" description="No hay productos por debajo de su umbral configurado." /> : <ul className="low-stock-list">{dashboard.lowStockProducts.map((product) => <li key={product.id}><div><strong>{product.name}</strong><span>{product.sku} · {product.categoryName}</span></div><strong className="stock-status stock-status--low_stock">{product.totalStock} / {product.minimumStock}</strong></li>)}</ul>}</Card>
           <Card>
             <header className="section-heading"><div><p className="eyebrow">Actividad</p><h2>Movimientos recientes</h2></div></header>
-            {dashboard.recentMovements.length === 0 ? <EmptyState title="Aún no hay movimientos" description="Los movimientos registrados aparecerán aquí." /> : <div className="movement-list">{dashboard.recentMovements.map((movement) => <article className="movement-row" key={movement.id}><div><strong>{movement.itemName}</strong><span>{movement.sku} · {movement.locationName} ({movement.locationCode})</span></div><div><strong className={movement.quantityDelta >= 0 ? "delta delta--positive" : "delta delta--negative"}>{movement.quantityDelta >= 0 ? "+" : ""}{movement.quantityDelta}</strong><span>{movementLabels[movement.movementType] ?? movement.movementType}</span></div><div><span>{movement.username}</span><time dateTime={movement.createdAt}>{formatDate(movement.createdAt)}</time></div></article>)}</div>}
+            {dashboard.recentMovements.length === 0 ? <EmptyState title="Aún no hay movimientos" description="Los movimientos registrados aparecerán aquí." /> : <div className="movement-list">{dashboard.recentMovements.map((movement) => <article className="movement-row" key={movement.id}><div><strong>{movement.itemName}</strong><span>{movement.sku} · {movement.locationName} ({movement.locationCode})</span></div><div><strong className={movement.quantityDelta >= 0 ? "delta delta--positive" : "delta delta--negative"}>{movement.quantityDelta >= 0 ? "+" : ""}{movement.quantityDelta}</strong></div><div className="movement-row__title"><strong>{movementLabels[movement.movementType] ?? movement.movementType}</strong><time dateTime={movement.createdAt}>{formatDate(movement.createdAt)}</time><span>{movement.username}</span></div></article>)}</div>}
           </Card>
           <Card>
             <header className="section-heading"><div><p className="eyebrow">Distribución</p><h2>Stock por ubicación</h2></div></header>

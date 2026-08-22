@@ -49,6 +49,7 @@ export async function getProductDetails(req, res, next) {
           id: product.id,
           name: product.name,
           sku: product.sku,
+          barcode: product.barcode,
           description: product.description,
           brand: product.brand,
           price: Number(product.price),

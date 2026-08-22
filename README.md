@@ -155,6 +155,20 @@ Las contraseñas se hashean con bcrypt. Las sesiones se guardan en PostgreSQL, s
 
 La autorización es de servidor: los botones ocultos no conceden permisos. Cada acción de inventario y de miembros valida la membresía activa y el negocio activo; los recursos administrativos se consultan siempre dentro de su `business_id`.
 
+## Inicio de sesión con Google
+
+El login tradicional continúa disponible y el botón `Continuar con Google` usa OAuth 2.0/OpenID Connect con PKCE, `state`, `nonce` y validación del emisor, audiencia, firma y expiración del ID token.
+
+Para habilitarlo localmente:
+
+1. Crea un proyecto en Google Cloud y configura OAuth consent screen.
+2. Crea un OAuth Client ID de tipo Web application.
+3. Agrega `http://localhost:3000/api/auth/google/callback` como redirect URI autorizado.
+4. Configura `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_CALLBACK_URL` desde `.env.example`.
+5. En desarrollo el callback redirige a `http://localhost:5173`; en producción configura `FRONTEND_URL` con la URL pública HTTPS del frontend.
+
+En producción registra la URL HTTPS real y configura las mismas variables en Dokploy/VPS. El secreto nunca debe comenzar con `VITE_` ni enviarse al frontend.
+
 ## Vercel y Supabase
 
 `app.js` exporta la aplicación y evita abrir un puerto cuando existe `VERCEL`, por lo que está preparado para Vercel. En producción también sirve `client/dist` como frontend unificado. El pool acepta `DATABASE_URL` o `POSTGRES_URL`, compatibles con una base de Supabase.

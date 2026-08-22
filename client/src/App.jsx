@@ -10,6 +10,7 @@ import { RegisterPage } from "./pages/RegisterPage.jsx";
 import { ProductsPage } from "./pages/ProductsPage.jsx";
 import { ProductDetailsPage } from "./pages/ProductDetailsPage.jsx";
 import { NewProductPage } from "./pages/NewProductPage.jsx";
+import { ProductImportPage } from "./pages/ProductImportPage.jsx";
 import { EditProductPage } from "./pages/EditProductPage.jsx";
 import { ArchiveProductPage } from "./pages/ArchiveProductPage.jsx";
 import { ArchivedProductsPage } from "./pages/ArchivedProductsPage.jsx";
@@ -163,6 +164,7 @@ export default function App() {
         path="/app/products"
         element={<SessionGuard><AppShell><ProductsPage /></AppShell></SessionGuard>}
       />
+      <Route path="/app/products/import" element={<SessionGuard><AppShell><ProductImportPage /></AppShell></SessionGuard>} />
       <Route
         path="/app/categories"
         element={<SessionGuard><AppShell><CategoriesPage /></AppShell></SessionGuard>}

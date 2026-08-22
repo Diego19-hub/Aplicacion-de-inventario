@@ -47,7 +47,8 @@ export function EditProductPage() {
         brand: result.product.brand,
         price: String(result.product.price),
         categoryId: defaultCategory?.id === result.product.categoryId ? "" : String(result.product.categoryId),
-        sku: result.product.sku
+        sku: result.product.sku,
+        barcode: result.product.barcode ?? ""
       });
     } catch (error) {
       if (error.code === "PRODUCT_NOT_FOUND") setNotFound(true);
@@ -81,7 +82,7 @@ export function EditProductPage() {
     } catch (error) {
       if (error.code === "PRODUCT_NOT_FOUND") {
         setNotFound(true);
-      } else if (error.code === "VALIDATION_ERROR" || error.code === "SKU_ALREADY_EXISTS") {
+      } else if (["VALIDATION_ERROR", "SKU_ALREADY_EXISTS", "BARCODE_ALREADY_EXISTS"].includes(error.code)) {
         setErrors(fieldsByName(error.fields));
         setRequestError(error.message);
       } else {

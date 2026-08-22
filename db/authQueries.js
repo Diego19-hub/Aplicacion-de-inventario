@@ -16,9 +16,9 @@ export async function findUserByUsername(username) {
 export async function findUserByEmail(email) {
   const result = await pool.query(
     `
-      SELECT id, username, email, password_hash, platform_role
+      SELECT id, username, email, password_hash, platform_role, auth_provider, provider_subject, email_verified
       FROM users
-      WHERE LOWER(email) = LOWER($1)
+      WHERE LOWER(BTRIM(email)) = LOWER(BTRIM($1))
     `,
     [email]
   );
@@ -36,6 +36,34 @@ export async function createUser({ username, email, passwordHash }) {
     [username, email, passwordHash]
   );
 
+  return result.rows[0];
+}
+
+export async function findUserByProviderSubject(provider, subject) {
+  const result = await pool.query(
+    `SELECT id, username, email, password_hash, platform_role, auth_provider, provider_subject, email_verified
+     FROM users WHERE auth_provider = $1 AND provider_subject = $2 LIMIT 1`,
+    [provider, subject]
+  );
+  return result.rows[0];
+}
+
+export async function createGoogleUser({ username, email, providerSubject }) {
+  const result = await pool.query(
+    `INSERT INTO users (username, email, password_hash, auth_provider, provider_subject, email_verified)
+     VALUES ($1, $2, NULL, 'google', $3, true)
+     RETURNING id, username, email, password_hash, platform_role, auth_provider, provider_subject, email_verified, created_at`,
+    [username, email, providerSubject]
+  );
+  return result.rows[0];
+}
+
+export async function linkGoogleIdentity(userId, providerSubject) {
+  const result = await pool.query(
+    `UPDATE users SET auth_provider = 'google', provider_subject = $2, email_verified = true
+     WHERE id = $1 RETURNING id, username, email, password_hash, platform_role, auth_provider, provider_subject, email_verified`,
+    [userId, providerSubject]
+  );
   return result.rows[0];
 }
 

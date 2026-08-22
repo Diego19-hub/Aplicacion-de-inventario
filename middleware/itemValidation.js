@@ -3,6 +3,12 @@ import { normalizeSku } from "../utils/sku.js";
 
 function createItemValidation({ descriptionOptional = false } = {}) {
   return [
+    body("barcode")
+      .optional({ values: "undefined" })
+      .customSanitizer((value) => typeof value === "string" ? value.replace(/[\s-]/g, "") : value)
+      .custom((barcode) => barcode === "" || /^\d{8,14}$/.test(barcode))
+      .withMessage("El código de barras debe contener entre 8 y 14 dígitos.")
+      .customSanitizer((value) => value === "" ? null : value),
     body("sku")
       .customSanitizer(normalizeSku)
       .custom((sku, { req }) => {

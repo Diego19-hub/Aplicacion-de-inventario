@@ -56,7 +56,7 @@ export async function inventoryExport(f) {
   return result.rows;
 }
 export async function movementOptions(businessId) {
-  const [users, locations] = await Promise.all([
+  const [users, locations, categories, products] = await Promise.all([
     pool.query(
       "SELECT DISTINCT u.id,u.username FROM inventory_movements m JOIN users u ON u.id=m.created_by WHERE m.business_id=$1 ORDER BY u.username",
       [businessId],
@@ -65,19 +65,30 @@ export async function movementOptions(businessId) {
       "SELECT id,name,code FROM business_locations WHERE business_id=$1 ORDER BY lower(name)",
       [businessId],
     ),
+    pool.query(
+      "SELECT id,name FROM categories WHERE business_id=$1 ORDER BY lower(name),id",
+      [businessId],
+    ),
+    pool.query(
+      "SELECT id,name,sku FROM items WHERE business_id=$1 AND status='active' ORDER BY lower(name),lower(sku),id",
+      [businessId],
+    ),
   ]);
-  return { users: users.rows, locations: locations.rows };
+  return { users: users.rows, locations: locations.rows, categories: categories.rows, products: products.rows };
 }
 export async function movementReport(f) {
   const v = [f.businessId],
     w = ["m.business_id=$1"];
   if (f.role !== "owner") w.push("i.status='active'");
   if (f.q) {
-    v.push("%" + f.q + "%");
+    v.push(f.q);
     w.push(
-      `(i.name ILIKE $${v.length} OR i.sku ILIKE $${v.length} OR m.reference ILIKE $${v.length})`,
+      `(regexp_replace(lower(translate(i.name,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(i.sku,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(COALESCE(i.barcode,''),'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(COALESCE(i.brand,''),'áéíóúüñÁÉÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(c.name,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(u.username,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(l.name,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(COALESCE(m.reason || ' ' || m.reference,''),'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%')`,
+      `(regexp_replace(lower(translate(i.name,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(i.sku,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(COALESCE(i.barcode,''),'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(COALESCE(i.brand,''),'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(c.name,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(u.username,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(l.name,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(COALESCE(m.reason || ' ' || m.reference,''),'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%')`,
     );
   }
+  if (f.productId) { v.push(f.productId); w.push(`m.item_id=$${v.length}`); }
+  if (f.categoryId) { v.push(f.categoryId); w.push(`i.category_id=$${v.length}`); }
   if (f.locationId) {
     v.push(f.locationId);
     w.push(`m.location_id=$${v.length}`);
@@ -98,14 +109,14 @@ export async function movementReport(f) {
     v.push(f.dateTo);
     w.push(`m.created_at < ($${v.length}::date+interval '1 day')`);
   }
-  const base = ` FROM inventory_movements m JOIN items i ON(i.business_id,i.id)=(m.business_id,m.item_id) JOIN business_locations l ON(l.business_id,l.id)=(m.business_id,m.location_id) JOIN users u ON u.id=m.created_by WHERE ${w.join(" AND ")}`;
+  const base = ` FROM inventory_movements m JOIN items i ON(i.business_id,i.id)=(m.business_id,m.item_id) JOIN categories c ON(c.business_id,c.id)=(i.business_id,i.category_id) JOIN business_locations l ON(l.business_id,l.id)=(m.business_id,m.location_id) JOIN users u ON u.id=m.created_by WHERE ${w.join(" AND ")}`;
   const count = await pool.query("SELECT count(*)::int count" + base, v);
   const p = [...v, f.limit, f.offset];
   const rows = await pool.query(
     `SELECT
   m.*,
   i.name AS item_name,
-  i.sku,
+  i.sku, i.barcode, i.category_id, c.name AS category_name,
   i.status AS product_status,
   l.name AS location_name,
   l.code,
@@ -118,13 +129,15 @@ export async function movementReport(f) {
 export async function movementExport(f) {
   const v = [f.businessId], w = ["m.business_id=$1"];
   if (f.role !== "owner") w.push("i.status='active'");
-  if (f.q) { v.push("%" + f.q + "%"); w.push(`(i.name ILIKE $${v.length} OR i.sku ILIKE $${v.length} OR m.reference ILIKE $${v.length})`); }
+  if (f.q) { v.push(f.q); w.push(`(regexp_replace(lower(translate(i.name,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(i.sku,'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%' OR regexp_replace(lower(translate(COALESCE(i.barcode,''),'áéíóúüñÁÉÍÓÚÜÑ','aeiouunAEIOUUN')),'[^a-z0-9]','','g') LIKE '%' || $${v.length} || '%')`); }
+  if (f.productId) { v.push(f.productId); w.push(`m.item_id=$${v.length}`); }
+  if (f.categoryId) { v.push(f.categoryId); w.push(`i.category_id=$${v.length}`); }
   if (f.locationId) { v.push(f.locationId); w.push(`m.location_id=$${v.length}`); }
   if (f.userId) { v.push(f.userId); w.push(`m.created_by=$${v.length}`); }
   if (f.type) { v.push(f.type); w.push(`m.movement_type=$${v.length}`); }
   if (f.dateFrom) { v.push(f.dateFrom); w.push(`m.created_at >= $${v.length}::date`); }
   if (f.dateTo) { v.push(f.dateTo); w.push(`m.created_at < ($${v.length}::date+interval '1 day')`); }
-  const base = ` FROM inventory_movements m JOIN items i ON(i.business_id,i.id)=(m.business_id,m.item_id) JOIN business_locations l ON(l.business_id,l.id)=(m.business_id,m.location_id) JOIN users u ON u.id=m.created_by WHERE ${w.join(" AND ")}`;
-  const result = await pool.query(`SELECT m.*,i.name item_name,i.sku,l.name location_name,l.code,u.username ${base} ORDER BY m.created_at DESC,m.id DESC`, v);
+  const base = ` FROM inventory_movements m JOIN items i ON(i.business_id,i.id)=(m.business_id,m.item_id) JOIN categories c ON(c.business_id,c.id)=(i.business_id,i.category_id) JOIN business_locations l ON(l.business_id,l.id)=(m.business_id,m.location_id) JOIN users u ON u.id=m.created_by WHERE ${w.join(" AND ")}`;
+  const result = await pool.query(`SELECT m.*,i.name item_name,i.sku,i.barcode,c.name category_name,l.name location_name,l.code,u.username ${base} ORDER BY m.created_at DESC,m.id DESC`, v);
   return result.rows;
 }

@@ -156,7 +156,7 @@ function itemListFilters({ businessId, query, categoryId }) {
 
   if (query) {
     values.push(`%${query}%`);
-    filters.push(`(items.name ILIKE $${values.length} OR items.sku ILIKE $${values.length})`);
+    filters.push(`(items.name ILIKE $${values.length} OR items.sku ILIKE $${values.length} OR items.barcode ILIKE $${values.length})`);
   }
 
   if (categoryId !== null) {
@@ -173,7 +173,7 @@ export async function getPaginatedItems({ businessId, query, categoryId, limit, 
   const result = await pool.query(
     `
       SELECT
-        items.id, items.sku, items.name, items.description, items.brand,
+        items.id, items.sku, items.barcode, items.name, items.description, items.brand,
         items.price, items.stock, items.category_id,
         categories.name AS category_name
       FROM items
@@ -203,7 +203,7 @@ export async function getItemById(id, businessId) {
   const result = await pool.query(
     `
       SELECT
-        items.id, items.sku, items.name, items.description, items.brand,
+        items.id, items.sku, items.barcode, items.name, items.description, items.brand,
         items.price, items.stock, items.category_id, items.created_at,
         categories.name AS category_name
       FROM items
@@ -221,7 +221,7 @@ export async function getItemById(id, businessId) {
 }
 
 export async function createItem(
-  { sku, name, description, brand, price, categoryId },
+  { sku, barcode, name, description, brand, price, categoryId },
   businessId
 ) {
   const client = await pool.connect();
@@ -262,11 +262,11 @@ export async function createItem(
 
     const result = await client.query(
       `INSERT INTO items (
-        sku, name, description, brand, price, stock, category_id, business_id
+        sku, barcode, name, description, brand, price, stock, category_id, business_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING id, sku, name, description, brand, price, stock, category_id`,
-      [resolvedSku, name, description, brand, price, 0, category.id, businessId]
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, sku, barcode, name, description, brand, price, stock, category_id`,
+      [resolvedSku, barcode || null, name, description, brand, price, 0, category.id, businessId]
     );
     await client.query("COMMIT");
     return { ...result.rows[0], category_name: category.name };
@@ -281,34 +281,35 @@ export async function createItem(
 export async function updateItem(
   id,
   businessId,
-  { sku, name, description, brand, price, categoryId }
+  { sku, barcode, name, description, brand, price, categoryId }
 ) {
   const result = await pool.query(
     `
       WITH resolved_category AS (
         SELECT id
         FROM categories
-        WHERE business_id = $8
+        WHERE business_id = $9
           AND (
-            ($6::integer IS NULL AND is_default)
-            OR id = $6
+            ($7::integer IS NULL AND is_default)
+            OR id = $7
           )
       )
       UPDATE items
       SET
         sku = $1,
-        name = $2,
-        description = $3,
-        brand = $4,
-        price = $5,
+        barcode = $2,
+        name = $3,
+        description = $4,
+        brand = $5,
+        price = $6,
         category_id = resolved_category.id
       FROM resolved_category
-      WHERE items.id = $7
-        AND items.business_id = $8
+      WHERE items.id = $8
+        AND items.business_id = $9
         AND items.status = 'active'
-      RETURNING items.id, items.sku, items.name, items.description, items.brand, items.price, items.stock, items.category_id
+      RETURNING items.id, items.sku, items.barcode, items.name, items.description, items.brand, items.price, items.stock, items.category_id
     `,
-    [sku, name, description, brand, price, categoryId ?? null, id, businessId]
+    [sku, barcode || null, name, description, brand, price, categoryId ?? null, id, businessId]
   );
 
   return result.rows[0];

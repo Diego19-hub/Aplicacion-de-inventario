@@ -72,7 +72,7 @@ export function ProductsPage() {
     <PageHeader
       title="Productos"
       description={data ? `${data.pagination.totalItems} resultados` : "Consulta el inventario activo"}
-      actions={<>{session.permissions.canManageInventory && <Link className="button button--primary" to="/app/products/new">Crear producto</Link>}{session.permissions.canDeleteInventory && <Link className="button button--secondary" to="/app/products/archived">Productos archivados</Link>}</>}
+      actions={<>{session.permissions.canManageInventory && <><Link className="button button--secondary" to="/app/products/import">Importar Excel</Link><Link className="button button--primary" to="/app/products/new">Crear producto</Link></>}{session.permissions.canDeleteInventory && <Link className="button button--secondary" to="/app/products/archived">Productos archivados</Link>}</>}
     />
     <Card className="product-filter-card">
       <form className="product-filters" onSubmit={handleSubmit}>

@@ -22,7 +22,7 @@ export function AppShell({ children }) {
     }
 
     function handleResize() {
-      if (window.matchMedia("(min-width: 761px)").matches) closeMobileMenu();
+      if (window.matchMedia("(min-width: 901px)").matches) closeMobileMenu();
     }
 
     document.addEventListener("keydown", handleKeyDown);

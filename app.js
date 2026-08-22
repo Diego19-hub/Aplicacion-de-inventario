@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./config/env.js";
 import express from "express";
 import session from "express-session";
 import helmet from "helmet";
@@ -7,6 +7,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import apiRouter from "./routes/apiRouter.js";
+import { apiTiming } from "./middleware/apiTiming.js";
+import { productImportTemplateBuffer } from "./utils/productImportTemplate.js";
+import { googleOAuthConfigStatus } from "./config/env.js";
 
 import {
   notFoundHandler,
@@ -23,6 +26,9 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const clientDistDir = path.join(rootDir, "client", "dist");
 const reactIndexFile = path.join(clientDistDir, "index.html");
 
+if (process.env.NODE_ENV === "development") {
+  console.info("[google-oauth-config]", googleOAuthConfigStatus());
+}
 
 if (!sessionSecret) {
   throw new Error(
@@ -53,6 +59,20 @@ app.get("/health", (req, res) => {
   });
 });
 
+app.get("/favicon.ico", (req, res) => {
+  res.status(204).end();
+});
+
+app.get("/.well-known/appspecific/com.chrome.devtools.json", (req, res) => {
+  res.status(204).end();
+});
+
+app.get("/plantilla_importacion_productos.xlsx", (req, res) => {
+  res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.set("Content-Disposition", 'attachment; filename="plantilla_importacion_productos.xlsx"');
+  return res.send(productImportTemplateBuffer());
+});
+
 let sessionStore;
 
 if (!isTest) {
@@ -80,6 +100,7 @@ const {
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use("/api", apiTiming);
 
 if (isProduction) {
   app.use(express.static(clientDistDir, { index: false }));

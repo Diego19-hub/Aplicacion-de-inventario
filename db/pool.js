@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../config/env.js";
 import pg from "pg";
 
 const { Pool } = pg;
@@ -29,13 +29,52 @@ if (!connectionString) {
   );
 }
 
+function databaseOption(name, fallback) {
+  const value = process.env[name];
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) throw new Error(`${name} debe ser un entero positivo.`);
+  return parsed;
+}
+
 const pool = new Pool({
   connectionString,
+  max: databaseOption("DATABASE_POOL_MAX", 10),
+  idleTimeoutMillis: databaseOption("DATABASE_IDLE_TIMEOUT_MS", 10000),
+  connectionTimeoutMillis: databaseOption("DATABASE_CONNECTION_TIMEOUT_MS", 5000),
   ssl: useSsl
     ? {
         rejectUnauthorized: false
       }
     : false
 });
+
+pool.on("error", (error) => {
+  if (process.env.NODE_ENV === "development") console.error(`[db-pool] ${error.code || "pool error"}`);
+});
+
+if (process.env.NODE_ENV === "development") {
+  const originalQuery = pool.query.bind(pool);
+  pool.query = async (...args) => {
+    const startedAt = process.hrtime.bigint();
+    try {
+      return await originalQuery(...args);
+    } finally {
+      const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+      console.info(`[db-timing] query ${elapsedMs.toFixed(0)} ms`);
+    }
+  };
+
+  const originalConnect = pool.connect.bind(pool);
+  pool.connect = async (...args) => {
+    const startedAt = process.hrtime.bigint();
+    try {
+      return await originalConnect(...args);
+    } finally {
+      const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+      console.info(`[db-timing] checkout ${elapsedMs.toFixed(0)} ms`);
+    }
+  };
+}
 
 export default pool;

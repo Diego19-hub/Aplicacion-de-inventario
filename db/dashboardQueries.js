@@ -92,20 +92,42 @@ export async function getDashboardStockByLocation(businessId) {
   return result.rows;
 }
 
-export async function getDashboardMovementTrend(businessId, days = 30) {
+export async function getDashboardMovementTrend(businessId, period = "1m") {
+  const periods = {
+    "1m": { bucket: "day", lookback: "1 month", step: "1 day" },
+    "3m": { bucket: "week", lookback: "3 months", step: "1 week" },
+    "6m": { bucket: "week", lookback: "6 months", step: "1 week" },
+    "12m": { bucket: "month", lookback: "12 months", step: "1 month" }
+  };
+  const selected = periods[period] ?? periods["1m"];
   const result = await pool.query(
-    `WITH dates AS (
-       SELECT generate_series(CURRENT_DATE - ($2::integer - 1), CURRENT_DATE, INTERVAL '1 day')::date AS movement_date
+    `WITH periods AS (
+       SELECT generate_series(
+         date_trunc($2, CURRENT_DATE - $3::interval),
+         date_trunc($2, CURRENT_DATE),
+         $4::interval
+       ) AS bucket_date
+     ), grouped AS (
+       SELECT date_trunc($2, m.created_at) AS bucket_date,
+         COALESCE(SUM(CASE WHEN m.movement_type IN ('opening_balance', 'entry', 'transfer_in') THEN m.quantity_delta ELSE 0 END), 0)::INTEGER AS entries,
+         COALESCE(SUM(CASE WHEN m.movement_type IN ('exit', 'transfer_out') THEN ABS(m.quantity_delta) ELSE 0 END), 0)::INTEGER AS exits,
+         COALESCE(SUM(CASE WHEN m.movement_type = 'adjustment' THEN m.quantity_delta ELSE 0 END), 0)::INTEGER AS adjustments,
+         COALESCE(SUM(CASE WHEN m.movement_type = 'transfer_in' THEN m.quantity_delta ELSE 0 END), 0)::INTEGER AS transfers_in,
+         COALESCE(SUM(CASE WHEN m.movement_type = 'transfer_out' THEN ABS(m.quantity_delta) ELSE 0 END), 0)::INTEGER AS transfers_out
+       FROM inventory_movements m
+       WHERE m.business_id = $1
+         AND m.created_at >= CURRENT_DATE - $3::interval
+       GROUP BY date_trunc($2, m.created_at)
      )
-     SELECT dates.movement_date AS date,
-       COALESCE(SUM(CASE WHEN m.movement_type IN ('entry', 'transfer_in') THEN m.quantity_delta ELSE 0 END), 0)::INTEGER AS entries,
-       COALESCE(SUM(CASE WHEN m.movement_type IN ('exit', 'transfer_out') THEN ABS(m.quantity_delta) ELSE 0 END), 0)::INTEGER AS exits,
-       COALESCE(SUM(CASE WHEN m.movement_type = 'adjustment' THEN m.quantity_delta ELSE 0 END), 0)::INTEGER AS adjustments
-     FROM dates
-     LEFT JOIN inventory_movements m ON m.business_id = $1
-       AND m.created_at >= dates.movement_date AND m.created_at < dates.movement_date + INTERVAL '1 day'
-     GROUP BY dates.movement_date ORDER BY dates.movement_date`,
-    [businessId, days]
+     SELECT periods.bucket_date AS date,
+       COALESCE(grouped.entries, 0)::INTEGER AS entries,
+       COALESCE(grouped.exits, 0)::INTEGER AS exits,
+       COALESCE(grouped.adjustments, 0)::INTEGER AS adjustments,
+       COALESCE(grouped.transfers_in, 0)::INTEGER AS transfers_in,
+       COALESCE(grouped.transfers_out, 0)::INTEGER AS transfers_out
+     FROM periods LEFT JOIN grouped USING (bucket_date)
+     ORDER BY periods.bucket_date`,
+    [businessId, selected.bucket, selected.lookback, selected.step]
   );
   return result.rows;
 }

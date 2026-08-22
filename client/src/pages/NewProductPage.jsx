@@ -18,7 +18,8 @@ const initialForm = {
   brand: "",
   price: "",
   categoryId: "",
-  sku: ""
+  sku: "",
+  barcode: ""
 };
 
 function fieldsByName(fields = []) {
@@ -69,7 +70,7 @@ export function NewProductPage() {
       const data = await apiRequest("/products", { method: "POST", body: form, csrf: true });
       navigate(`/app/products/${data.product.id}`);
     } catch (error) {
-      if (error.code === "VALIDATION_ERROR" || error.code === "SKU_ALREADY_EXISTS") {
+      if (["VALIDATION_ERROR", "SKU_ALREADY_EXISTS", "BARCODE_ALREADY_EXISTS"].includes(error.code)) {
         setErrors(fieldsByName(error.fields));
         setRequestError(error.message);
       } else {

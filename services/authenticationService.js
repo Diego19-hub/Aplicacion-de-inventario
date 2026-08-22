@@ -86,7 +86,7 @@ export async function establishAuthenticatedSession(req, user, { activeBusinessI
 export async function authenticateLogin(req, { identifier, password, returnTo }) {
   const user = await findUserByIdentifier(identifier);
 
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+  if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
     return null;
   }
 

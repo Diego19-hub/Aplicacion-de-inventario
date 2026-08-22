@@ -15,7 +15,7 @@ function formatDate(value) {
 }
 
 function MovementCard({ title, movement }) {
-  return <Card className="transfer-movement-card"><p className="eyebrow">{title}</p><h2>{movement.location.name} ({movement.location.code})</h2><dl className="detail-list"><div><dt>Cambio</dt><dd>{movement.quantityDelta > 0 ? "+" : ""}{movement.quantityDelta} unidades</dd></div><div><dt>Saldo</dt><dd>{movement.previousStock} → {movement.resultingStock}</dd></div><div><dt>Fecha</dt><dd><time dateTime={movement.createdAt}>{formatDate(movement.createdAt)}</time></dd></div></dl></Card>;
+  return <Card className="transfer-movement-card"><p className="eyebrow">Movimiento registrado</p><h2>{movement.location.name} ({movement.location.code})</h2><div className="movement-card__title"><strong>{title}</strong><time dateTime={movement.createdAt}>{formatDate(movement.createdAt)}</time></div><dl className="detail-list"><div><dt>Cambio</dt><dd>{movement.quantityDelta > 0 ? "+" : ""}{movement.quantityDelta} unidades</dd></div><div><dt>Saldo</dt><dd>{movement.previousStock} → {movement.resultingStock}</dd></div></dl></Card>;
 }
 
 export function TransferDetailsPage() {

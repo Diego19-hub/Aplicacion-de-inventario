@@ -6,7 +6,7 @@ function productFilters({ businessId, query, categoryId }) {
 
   if (query) {
     values.push(`%${query}%`);
-    where.push(`(i.name ILIKE $${values.length} OR i.sku ILIKE $${values.length})`);
+    where.push(`(i.name ILIKE $${values.length} OR i.sku ILIKE $${values.length} OR i.barcode ILIKE $${values.length})`);
   }
 
   if (categoryId !== null) {
@@ -59,7 +59,7 @@ export async function getApiProducts({ limit, offset, ...filters }) {
       SELECT
         i.id,
         i.name,
-        i.sku,
+        i.sku, i.barcode,
         i.brand,
         i.price,
         i.stock,
@@ -108,7 +108,7 @@ export async function getApiProductById(businessId, productId) {
   const result = await pool.query(
     `
       SELECT
-        i.id, i.name, i.sku, i.description, i.brand, i.price, i.stock, i.created_at,
+        i.id, i.name, i.sku, i.barcode, i.description, i.brand, i.price, i.stock, i.created_at,
         c.id AS category_id, c.name AS category_name
       FROM items i
       INNER JOIN categories c

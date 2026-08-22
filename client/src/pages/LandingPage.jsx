@@ -22,12 +22,12 @@ const demoStats = [
 ];
 
 const features = [
-  [Package, "Control de productos", "Centraliza fichas, SKU, precios y existencias en un solo lugar."],
-  [BellRing, "Alertas de stock", "Anticípate a faltantes con umbrales claros y accionables."],
+  [Package, "Exportaciones y importacion de productos", "Carga todos tus productos de excel en la pagina y gestionalos intuitivamente."],
+  [BellRing, "Alertas de stock", "Anticípate a faltantes con notificaciones claras y accionables."],
   [MapPin, "Varias ubicaciones", "Conoce cuánto tienes en cada sucursal o almacén."],
   [BarChart3, "Movimientos de inventario", "Registra entradas, salidas y transferencias con trazabilidad."],
   [Boxes, "Proveedores y categorías", "Ordena tu catálogo para encontrar la información más rápido."],
-  [Users, "Usuarios y permisos", "Invita a tu equipo y controla qué puede consultar o modificar."]
+  [Users, "Usuarios y permisos", "Invita a tu equipo y tu controla qué puede consultar o modificar."]
 ];
 
 const categoryBars = [
@@ -38,7 +38,7 @@ export function LandingPage() {
   return <main className="landing-page">
     <nav className="landing-nav" aria-label="Navegación principal">
       <Link className="landing-brand" to="/"><span className="landing-brand__mark"><Boxes aria-hidden="true" /></span>Inventario</Link>
-      <div className="landing-nav__links"><a href="#caracteristicas">Características</a><a href="#como-funciona">Cómo funciona</a></div>
+      <div className="landing-nav__links"><a href="#como-funciona">Cómo funciona</a></div>
       <div className="landing-nav__actions"><Link className="landing-login" to="/login">Iniciar sesión</Link><Link className="button button--primary" to="/register">Crear cuenta</Link></div>
     </nav>
 

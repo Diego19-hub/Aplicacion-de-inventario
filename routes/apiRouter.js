@@ -64,6 +64,8 @@ import {
   updateProduct
 } from "../controllers/apiProductsController.js";
 import { getProductDetails } from "../controllers/apiProductDetailsController.js";
+import { confirmProductImport, downloadProductImportTemplate, previewProductImport } from "../controllers/apiProductImportController.js";
+import { handleProductImportUploadError, productImportUpload } from "../middleware/productImportUpload.js";
 import {
   createProductMovement,
   getProductMovementFormOptions,
@@ -119,6 +121,7 @@ import {
   apiMemberRoleValidation
 } from "../middleware/memberValidation.js";
 import { authLimiter, invitationLimiter } from "../middleware/securityMiddleware.js";
+import { googleCallback, startGoogleAuth } from "../controllers/apiGoogleAuthController.js";
 
 const apiRouter = Router();
 
@@ -129,6 +132,8 @@ apiRouter.use((req, res, next) => {
 
 apiRouter.get("/csrf-token", getCsrfToken);
 apiRouter.get("/session", getSession);
+apiRouter.get("/auth/google", startGoogleAuth);
+apiRouter.get("/auth/google/callback", googleCallback);
 apiRouter.get("/invitations/:token", invitationLimiter, getPublicInvitation);
 apiRouter.post("/invitations/:token/accept", invitationLimiter, requireApiAuth, acceptPublicInvitation);
 apiRouter.post("/auth/register", apiRegisterValidation, authLimiter, register);
@@ -161,6 +166,7 @@ apiRouter.get("/admin/businesses/:businessId", requireApiAuth, requireApiSuperAd
 apiRouter.get("/alerts/stock", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listStockAlerts);
 apiRouter.get("/reports/inventory", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), inventoryReportApi);
 apiRouter.get("/reports/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementReportApi);
+apiRouter.get("/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementReportApi);
 apiRouter.get("/reports/inventory.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), inventoryCsvApi);
 apiRouter.get("/reports/movements.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementCsvApi);
 apiRouter.get("/products/:productId/thresholds", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), getThresholds);
@@ -399,6 +405,23 @@ apiRouter.post(
   requireApiBusinessRole("owner", "manager"),
   apiItemValidation,
   createProduct
+);
+apiRouter.post(
+  "/products/import/preview",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  productImportUpload,
+  handleProductImportUploadError,
+  previewProductImport
+);
+apiRouter.get("/products/import/template", downloadProductImportTemplate);
+apiRouter.post(
+  "/products/import/confirm",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager"),
+  confirmProductImport
 );
 apiRouter.get(
   "/products/:productId/edit",

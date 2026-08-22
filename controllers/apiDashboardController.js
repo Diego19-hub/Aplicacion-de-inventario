@@ -8,16 +8,26 @@ import {
 } from "../db/dashboardQueries.js";
 
 function number(value) {
-  return Number(value);
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+const allowedPeriods = new Set(["1m", "3m", "6m", "12m"]);
+const periodLabels = new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short" });
+
+function formatTrendDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : periodLabels.format(date);
 }
 
 export async function getDashboard(req, res, next) {
   try {
+    const period = allowedPeriods.has(req.query.period) ? req.query.period : "1m";
     const [summary, recentMovements, stockByLocation, movementTrend, stockByCategory, lowStockProducts] = await Promise.all([
       getDashboardSummary(req.business.id),
       getRecentDashboardMovements(req.business.id),
       getDashboardStockByLocation(req.business.id),
-      getDashboardMovementTrend(req.business.id),
+      getDashboardMovementTrend(req.business.id, period),
       getDashboardStockByCategory(req.business.id),
       getDashboardLowStockProducts(req.business.id)
     ]);
@@ -48,7 +58,19 @@ export async function getDashboard(req, res, next) {
           code: location.code,
           totalStock: number(location.total_stock)
         })),
-        movementTrend: movementTrend.map((row) => ({ date: String(row.date).slice(0, 10), entries: number(row.entries), exits: number(row.exits), adjustments: number(row.adjustments) })),
+        period,
+        movementTrend: movementTrend.map((row) => {
+          const entries = number(row.entries);
+          const exits = number(row.exits);
+          const adjustments = number(row.adjustments);
+          return { date: String(row.date).slice(0, 10), label: formatTrendDate(row.date), entries, exits, adjustments, transfersIn: number(row.transfers_in), transfersOut: number(row.transfers_out), totalMovements: entries + exits + Math.abs(adjustments), netChange: entries - exits + adjustments };
+        }),
+        totals: movementTrend.reduce((totals, row) => {
+          const entries = number(row.entries);
+          const exits = number(row.exits);
+          const adjustments = number(row.adjustments);
+          return { entries: totals.entries + entries, exits: totals.exits + exits, adjustments: totals.adjustments + adjustments, transfersIn: totals.transfersIn + number(row.transfers_in), transfersOut: totals.transfersOut + number(row.transfers_out), netChange: totals.netChange + entries - exits + adjustments };
+        }, { entries: 0, exits: 0, adjustments: 0, transfersIn: 0, transfersOut: 0, netChange: 0 }),
         stockByCategory: stockByCategory.map((category) => ({ id: category.id, name: category.name, totalStock: number(category.total_stock) })),
         lowStockProducts: lowStockProducts.map((product) => ({ id: product.id, name: product.name, sku: product.sku, categoryName: product.category_name, totalStock: number(product.total_stock), minimumStock: number(product.minimum_stock), lowStockLocations: number(product.low_stock_locations) }))
       }
