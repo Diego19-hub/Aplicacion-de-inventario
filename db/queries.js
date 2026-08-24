@@ -204,7 +204,7 @@ export async function getItemById(id, businessId) {
     `
       SELECT
         items.id, items.sku, items.barcode, items.name, items.description, items.brand,
-        items.price, items.stock, items.category_id, items.created_at,
+        items.price, items.cost_price, items.stock, items.category_id, items.created_at,
         categories.name AS category_name
       FROM items
       INNER JOIN categories
@@ -221,7 +221,7 @@ export async function getItemById(id, businessId) {
 }
 
 export async function createItem(
-  { sku, barcode, name, description, brand, price, categoryId },
+  { sku, barcode, name, description, brand, price, costPrice, categoryId },
   businessId
 ) {
   const client = await pool.connect();
@@ -262,11 +262,11 @@ export async function createItem(
 
     const result = await client.query(
       `INSERT INTO items (
-        sku, barcode, name, description, brand, price, stock, category_id, business_id
+        sku, barcode, name, description, brand, price, cost_price, stock, category_id, business_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id, sku, barcode, name, description, brand, price, stock, category_id`,
-      [resolvedSku, barcode || null, name, description, brand, price, 0, category.id, businessId]
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING id, sku, barcode, name, description, brand, price, cost_price, stock, category_id`,
+      [resolvedSku, barcode || null, name, description, brand, price, costPrice ?? null, 0, category.id, businessId]
     );
     await client.query("COMMIT");
     return { ...result.rows[0], category_name: category.name };
@@ -281,17 +281,18 @@ export async function createItem(
 export async function updateItem(
   id,
   businessId,
-  { sku, barcode, name, description, brand, price, categoryId }
+  { sku, barcode, name, description, brand, price, costPrice, categoryId }
 ) {
+  const hasCostPrice = costPrice !== undefined;
   const result = await pool.query(
     `
       WITH resolved_category AS (
         SELECT id
         FROM categories
-        WHERE business_id = $9
+        WHERE business_id = $10
           AND (
-            ($7::integer IS NULL AND is_default)
-            OR id = $7
+            ($8::integer IS NULL AND is_default)
+            OR id = $8
           )
       )
       UPDATE items
@@ -302,14 +303,15 @@ export async function updateItem(
         description = $4,
         brand = $5,
         price = $6,
+        cost_price = CASE WHEN $11::BOOLEAN THEN $7::NUMERIC ELSE items.cost_price END,
         category_id = resolved_category.id
       FROM resolved_category
-      WHERE items.id = $8
-        AND items.business_id = $9
+      WHERE items.id = $9
+        AND items.business_id = $10
         AND items.status = 'active'
-      RETURNING items.id, items.sku, items.barcode, items.name, items.description, items.brand, items.price, items.stock, items.category_id
+      RETURNING items.id, items.sku, items.barcode, items.name, items.description, items.brand, items.price, items.cost_price, items.stock, items.category_id
     `,
-    [sku, barcode || null, name, description, brand, price, categoryId ?? null, id, businessId]
+    [sku, barcode || null, name, description, brand, price, costPrice ?? null, categoryId ?? null, id, businessId, hasCostPrice]
   );
 
   return result.rows[0];

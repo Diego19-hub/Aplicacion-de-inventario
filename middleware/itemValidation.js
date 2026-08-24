@@ -43,6 +43,11 @@ function createItemValidation({ descriptionOptional = false } = {}) {
       .isFloat({ min: 0, max: 99999999.99 })
       .withMessage("El precio debe ser un número válido mayor o igual a 0.")
       .toFloat(),
+    body("costPrice")
+      .optional({ values: "undefined" })
+      .custom((value) => value === null || value === "" || (Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 9999999999.99))
+      .withMessage("El costo debe ser un número mayor o igual a cero.")
+      .customSanitizer((value) => value === null || value === "" ? null : Number(value)),
     body("categoryId")
       .optional({ values: "falsy" })
       .isInt({ min: 1 })

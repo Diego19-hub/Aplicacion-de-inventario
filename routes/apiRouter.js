@@ -122,6 +122,36 @@ import {
 } from "../middleware/memberValidation.js";
 import { authLimiter, invitationLimiter } from "../middleware/securityMiddleware.js";
 import { googleCallback, startGoogleAuth } from "../controllers/apiGoogleAuthController.js";
+import { createSale, getPosFormOptionsController, getPosProductsController, getSaleDetailsController, listSales } from "../controllers/apiSaleController.js";
+import { apiSaleValidation } from "../middleware/saleValidation.js";
+import { getBreakEven } from "../controllers/apiBreakEvenController.js";
+import { breakEvenValidation } from "../middleware/breakEvenValidation.js";
+import {
+  closeCashSessionController,
+  createCashMovementController,
+  createCashRegisterController,
+  getCurrentCashSessionController,
+  listCashSessionMovements,
+  listCashSessions,
+  listCashRegisters,
+  openCashSessionController
+} from "../controllers/apiCashController.js";
+import {
+  cashMovementValidation,
+  cashRegisterValidation,
+  cashSessionCloseValidation,
+  cashSessionOpenValidation
+} from "../middleware/cashValidation.js";
+import {
+  createBusinessCostController,
+  listBusinessCosts,
+  updateBusinessCostController,
+  updateBusinessCostStatusController
+} from "../controllers/apiBusinessCostController.js";
+import {
+  businessCostStatusValidation,
+  businessCostValidation
+} from "../middleware/businessCostValidation.js";
 
 const apiRouter = Router();
 
@@ -142,6 +172,24 @@ apiRouter.post("/auth/logout", logout);
 apiRouter.get("/businesses", requireApiAuth, listBusinesses);
 apiRouter.put("/session/active-business", requireApiAuth, selectActiveBusiness);
 apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboard);
+apiRouter.get("/break-even", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), breakEvenValidation, getBreakEven);
+apiRouter.get("/pos/products", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), getPosProductsController);
+apiRouter.get("/pos/form-options", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), getPosFormOptionsController);
+apiRouter.post("/sales", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), apiSaleValidation, createSale);
+apiRouter.get("/sales", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listSales);
+apiRouter.get("/sales/:saleId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getSaleDetailsController);
+apiRouter.get("/business-costs", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listBusinessCosts);
+apiRouter.post("/business-costs", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostValidation, createBusinessCostController);
+apiRouter.put("/business-costs/:costId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostValidation, updateBusinessCostController);
+apiRouter.patch("/business-costs/:costId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostStatusValidation, updateBusinessCostStatusController);
+apiRouter.get("/cash/registers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCashRegisters);
+apiRouter.post("/cash/registers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cashRegisterValidation, createCashRegisterController);
+apiRouter.get("/cash/sessions/current", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getCurrentCashSessionController);
+apiRouter.get("/cash/sessions", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCashSessions);
+apiRouter.get("/cash/sessions/:sessionId/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCashSessionMovements);
+apiRouter.post("/cash/sessions/open", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cashSessionOpenValidation, openCashSessionController);
+apiRouter.post("/cash/sessions/:sessionId/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cashMovementValidation, createCashMovementController);
+apiRouter.post("/cash/sessions/:sessionId/close", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cashSessionCloseValidation, closeCashSessionController);
 apiRouter.get("/admin/dashboard", requireApiAuth, requireApiSuperAdmin, adminDashboard);
 apiRouter.get("/admin/businesses", requireApiAuth, requireApiSuperAdmin, adminBusinesses);
 apiRouter.get("/admin/businesses/form-options", requireApiAuth, requireApiSuperAdmin, adminBusinessFormOptions);

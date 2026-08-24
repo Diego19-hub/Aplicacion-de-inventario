@@ -53,6 +53,13 @@ import { NewAdminBusinessPage } from "./pages/NewAdminBusinessPage.jsx";
 import { EditAdminBusinessPage } from "./pages/EditAdminBusinessPage.jsx";
 import { AdminBusinessTransitionPage } from "./pages/AdminBusinessTransitionPage.jsx";
 import { ChangeAdminBusinessOwnerPage } from "./pages/ChangeAdminBusinessOwnerPage.jsx";
+import { PointOfSalePage } from "./pages/PointOfSalePage.jsx";
+import { SalesPage } from "./pages/SalesPage.jsx";
+import { SaleDetailsPage } from "./pages/SaleDetailsPage.jsx";
+import { CashPage } from "./pages/CashPage.jsx";
+import { CashHistoryPage } from "./pages/CashHistoryPage.jsx";
+import { BusinessCostsPage } from "./pages/BusinessCostsPage.jsx";
+import { BreakEvenPage } from "./pages/BreakEvenPage.jsx";
 import { ForbiddenPage, NotFoundPage } from "./pages/ErrorPages.jsx";
 
 function loginPath(returnTo) {
@@ -152,6 +159,31 @@ export default function App() {
       <Route path="/app/reports/movements" element={<SessionGuard><AppShell><MovementReportPage title="Reporte de movimientos" description="Historial de inventario por ubicación." /></AppShell></SessionGuard>} />
       <Route path="/app/movements" element={<SessionGuard><AppShell><MovementReportPage /></AppShell></SessionGuard>} />
       <Route path="/app/settings" element={<SessionGuard><AppShell><SettingsPage /></AppShell></SessionGuard>} />
+      <Route path="/app/point-of-sale" element={<SessionGuard><AppShell><PointOfSalePage /></AppShell></SessionGuard>} />
+      <Route path="/app/cash" element={<SessionGuard><AppShell><CashPage /></AppShell></SessionGuard>} />
+      <Route path="/app/cash/history" element={<SessionGuard><AppShell><CashHistoryPage /></AppShell></SessionGuard>} />
+      <Route
+        path="/app/costs"
+        element={
+          <SessionGuard>
+            <AppShell>
+              <BusinessCostsPage />
+            </AppShell>
+          </SessionGuard>
+        }
+      />
+      <Route
+        path="/app/break-even"
+        element={
+          <SessionGuard>
+            <AppShell>
+              <BreakEvenPage />
+            </AppShell>
+          </SessionGuard>
+        }
+      />
+      <Route path="/app/sales" element={<SessionGuard><AppShell><SalesPage /></AppShell></SessionGuard>} />
+      <Route path="/app/sales/:saleId" element={<SessionGuard><AppShell><SaleDetailsPage /></AppShell></SessionGuard>} />
       <Route path="/app/admin" element={<SuperAdminGuard><AppShell><AdminDashboardPage /></AppShell></SuperAdminGuard>} />
       <Route path="/app/admin/businesses" element={<SuperAdminGuard><AppShell><AdminBusinessesPage /></AppShell></SuperAdminGuard>} />
       <Route path="/app/admin/businesses/new" element={<SuperAdminGuard><AppShell><NewAdminBusinessPage /></AppShell></SuperAdminGuard>} />

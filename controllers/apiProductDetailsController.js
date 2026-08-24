@@ -53,6 +53,7 @@ export async function getProductDetails(req, res, next) {
           description: product.description,
           brand: product.brand,
           price: Number(product.price),
+          costPrice: product.cost_price === null ? null : Number(product.cost_price),
           stock: Number(product.stock),
           createdAt: product.created_at,
           category: { id: product.category_id, name: product.category_name }

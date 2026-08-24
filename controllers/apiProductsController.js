@@ -56,6 +56,7 @@ export async function listProducts(req, res, next) {
           barcode: product.barcode,
           brand: product.brand,
           price: Number(product.price),
+          costPrice: product.cost_price === null ? null : Number(product.cost_price),
           stock: Number(product.stock),
           category: {
             id: product.category_id,
@@ -108,6 +109,7 @@ function serializeProduct(product, categoryName = product.category_name) {
     description: product.description,
     brand: product.brand,
     price: Number(product.price),
+    costPrice: product.cost_price === null ? null : Number(product.cost_price),
     stock: Number(product.stock),
     category: { id: product.category_id, name: categoryName }
   };
@@ -214,6 +216,7 @@ export async function getProductForEdit(req, res, next) {
           description: product.description,
           brand: product.brand,
           price: Number(product.price),
+          costPrice: product.cost_price === null ? null : Number(product.cost_price),
           sku: product.sku,
           barcode: product.barcode,
           categoryId: product.category_id

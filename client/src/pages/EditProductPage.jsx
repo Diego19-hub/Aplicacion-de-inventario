@@ -46,6 +46,7 @@ export function EditProductPage() {
         description: result.product.description ?? "",
         brand: result.product.brand,
         price: String(result.product.price),
+        costPrice: result.product.costPrice === null || result.product.costPrice === undefined ? "" : String(result.product.costPrice),
         categoryId: defaultCategory?.id === result.product.categoryId ? "" : String(result.product.categoryId),
         sku: result.product.sku,
         barcode: result.product.barcode ?? ""

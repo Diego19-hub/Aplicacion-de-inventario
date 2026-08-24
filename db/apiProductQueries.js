@@ -62,6 +62,7 @@ export async function getApiProducts({ limit, offset, ...filters }) {
         i.sku, i.barcode,
         i.brand,
         i.price,
+        i.cost_price,
         i.stock,
         c.id AS category_id,
         c.name AS category_name
@@ -91,7 +92,7 @@ export async function getApiArchivedProducts({ limit, offset, ...filters }) {
   values.push(limit, offset);
   const result = await pool.query(
     `
-      SELECT i.id, i.name, i.sku, i.brand, i.stock, i.archived_at, i.archive_reason,
+      SELECT i.id, i.name, i.sku, i.brand, i.stock, i.cost_price, i.archived_at, i.archive_reason,
              c.id AS category_id, c.name AS category_name
       FROM items i
       INNER JOIN categories c ON (c.business_id, c.id) = (i.business_id, i.category_id)
@@ -108,7 +109,7 @@ export async function getApiProductById(businessId, productId) {
   const result = await pool.query(
     `
       SELECT
-        i.id, i.name, i.sku, i.barcode, i.description, i.brand, i.price, i.stock, i.created_at,
+        i.id, i.name, i.sku, i.barcode, i.description, i.brand, i.price, i.cost_price, i.stock, i.created_at,
         c.id AS category_id, c.name AS category_name
       FROM items i
       INNER JOIN categories c
@@ -125,7 +126,7 @@ export async function getApiProductById(businessId, productId) {
 export async function getApiArchivedProductById(businessId, productId) {
   const result = await pool.query(
     `
-      SELECT i.id, i.name, i.sku, i.description, i.brand, i.price, i.stock, i.created_at,
+      SELECT i.id, i.name, i.sku, i.description, i.brand, i.price, i.cost_price, i.stock, i.created_at,
              i.archived_at, i.archive_reason, u.username AS archived_by_username,
              c.id AS category_id, c.name AS category_name
       FROM items i

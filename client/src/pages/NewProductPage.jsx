@@ -17,6 +17,7 @@ const initialForm = {
   description: "",
   brand: "",
   price: "",
+  costPrice: "",
   categoryId: "",
   sku: "",
   barcode: ""

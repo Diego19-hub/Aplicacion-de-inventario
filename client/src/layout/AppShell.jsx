@@ -1,4 +1,4 @@
-import { ArrowRightLeft, BellRing, Boxes, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, Settings, Tags, Truck, UsersRound } from "lucide-react";
+import { ArrowRightLeft, Banknote, BellRing, Boxes, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, Tags, Truck, UsersRound, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -11,6 +11,9 @@ export function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const activeBusinessName = session.activeBusiness?.name ?? "Administración global";
+  const canViewSales = ["owner", "manager", "viewer"].includes(session.membership?.role);
+  const canManageCash = ["owner", "manager"].includes(session.membership?.role);
+  const canViewCosts = ["owner", "manager", "viewer"].includes(session.membership?.role);
 
   function closeMobileMenu() {
     setIsMobileMenuOpen(false);
@@ -67,6 +70,11 @@ export function AppShell({ children }) {
           <Link to="/app/locations" className={`nav-link ${location.pathname.startsWith("/app/locations") ? "nav-link--active" : ""}`}><MapPin aria-hidden="true" />Ubicaciones</Link>
           <Link to="/app/suppliers" className={`nav-link ${location.pathname.startsWith("/app/suppliers") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Proveedores</Link>
           <Link to="/app/transfers" className={`nav-link ${location.pathname.startsWith("/app/transfers") ? "nav-link--active" : ""}`}><ArrowRightLeft aria-hidden="true" />Transferencias</Link>
+          {session.permissions.canManageInventory && <Link to="/app/point-of-sale" className={`nav-link ${location.pathname.startsWith("/app/point-of-sale") ? "nav-link--active" : ""}`}><ShoppingCart aria-hidden="true" />Punto de venta</Link>}
+          {canManageCash && <Link to="/app/cash" className={`nav-link ${location.pathname.startsWith("/app/cash") ? "nav-link--active" : ""}`}><Banknote aria-hidden="true" />Caja</Link>}
+          {canViewSales && <Link to="/app/sales" className={`nav-link ${location.pathname.startsWith("/app/sales") ? "nav-link--active" : ""}`}><ReceiptText aria-hidden="true" />Ventas</Link>}
+          {canViewCosts && <Link to="/app/costs" className={`nav-link ${location.pathname.startsWith("/app/costs") ? "nav-link--active" : ""}`}><WalletCards aria-hidden="true" />Costos</Link>}
+          {canViewCosts && <Link to="/app/break-even" className={`nav-link ${location.pathname.startsWith("/app/break-even") ? "nav-link--active" : ""}`}><Scale aria-hidden="true" />Punto de equilibrio</Link>}
           <Link to="/app/movements" className={`nav-link ${location.pathname.startsWith("/app/movements") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Movimientos</Link>
           <Link to="/app/alerts" className={`nav-link ${location.pathname.startsWith("/app/alerts") ? "nav-link--active" : ""}`}><BellRing aria-hidden="true" />Alertas</Link>
           <Link to="/app/reports" className={`nav-link ${location.pathname.startsWith("/app/reports") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Reportes</Link>

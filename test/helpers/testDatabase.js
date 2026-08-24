@@ -30,6 +30,8 @@ const requiredTables = [
   "inventory_balances",
   "inventory_transfers",
   "suppliers",
+  "sales",
+  "sale_items",
   "inventory_stock_thresholds"
 ];
 
