@@ -1,0 +1,5 @@
+/Users/diegoulisesortegabarajas/Documents/aprender_desarrolloweb/js/projects_odin/nodejs /aplicacion_inventario/src-tauri/target/release/build/serde-5d382742219a1d5f/build_script_build-5d382742219a1d5f.d: /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/build.rs
+
+/Users/diegoulisesortegabarajas/Documents/aprender_desarrolloweb/js/projects_odin/nodejs /aplicacion_inventario/src-tauri/target/release/build/serde-5d382742219a1d5f/build_script_build-5d382742219a1d5f: /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/build.rs
+
+/Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/build.rs:

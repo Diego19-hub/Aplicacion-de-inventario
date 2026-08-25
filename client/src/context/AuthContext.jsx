@@ -22,8 +22,10 @@ export function AuthProvider({ children }) {
   const location = useLocation();
   const [session, setSession] = useState(anonymousSession);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [initialLoadError, setInitialLoadError] = useState(false);
 
   const reloadSession = useCallback(async () => {
+    setInitialLoadError(false);
     const nextSession = await apiRequest("/session");
     setSession(nextSession);
     return nextSession;
@@ -31,6 +33,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (location.pathname === "/") {
+      setInitialLoadError(false);
       setIsInitialLoading(false);
       return undefined;
     }
@@ -38,8 +41,11 @@ export function AuthProvider({ children }) {
     let active = true;
 
     reloadSession()
-      .catch(() => {
-        if (active) setSession(anonymousSession);
+      .catch((requestError) => {
+        if (active) {
+          setSession(anonymousSession);
+          if (requestError?.name !== "ApiError") setInitialLoadError(true);
+        }
       })
       .finally(() => {
         if (active) setIsInitialLoading(false);
@@ -114,6 +120,7 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     session,
     isInitialLoading,
+    initialLoadError,
     clearSession: () => setSession(anonymousSession),
     login,
     register,
@@ -122,7 +129,7 @@ export function AuthProvider({ children }) {
     selectBusiness,
     acceptInvitation,
     createBusiness
-  }), [session, isInitialLoading, login, register, logout, reloadSession, selectBusiness, acceptInvitation, createBusiness]);
+  }), [session, isInitialLoading, initialLoadError, login, register, logout, reloadSession, selectBusiness, acceptInvitation, createBusiness]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

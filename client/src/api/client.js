@@ -1,3 +1,5 @@
+import { apiCredentials, apiUrl } from "./config.js";
+
 export class ApiError extends Error {
   constructor({ code = "INTERNAL_ERROR", message = "Ocurrió un error interno.", fields = [], status } = {}) {
     super(message);
@@ -21,8 +23,8 @@ async function parseResponse(response) {
 }
 
 async function csrfToken() {
-  const response = await fetch("/api/csrf-token", {
-    credentials: "same-origin"
+  const response = await fetch(apiUrl("/csrf-token"), {
+    credentials: apiCredentials
   });
   const payload = await parseResponse(response);
 
@@ -48,6 +50,16 @@ function invalidateCache() {
 function notifyUnauthorized() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("api:unauthorized"));
+  }
+}
+
+function logRequestFailure(path, status) {
+  if (import.meta.env.DEV) {
+    console.warn("[api-request]", {
+      baseUrl: apiUrl(""),
+      endpoint: path,
+      status
+    });
   }
 }
 
@@ -77,10 +89,18 @@ export async function apiRequest(path, { method = "GET", body, csrf = false, sig
     body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body)
   };
   if (signal !== undefined) requestOptions.signal = signal;
-  const response = await fetch(`/api${path}`, requestOptions);
+  requestOptions.credentials = apiCredentials;
+  let response;
+  try {
+    response = await fetch(apiUrl(path), requestOptions);
+  } catch (error) {
+    logRequestFailure(path, null);
+    throw error;
+  }
   const payload = await parseResponse(response);
 
   if (!response.ok) {
+    logRequestFailure(path, response.status);
     if (response.status === 401) {
       notifyUnauthorized();
     }

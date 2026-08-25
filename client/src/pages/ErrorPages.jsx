@@ -74,3 +74,23 @@ export function UnexpectedErrorPage({ onReset }) {
     </main>
   );
 }
+
+export function ConnectionErrorPage({ onRetry }) {
+  return (
+    <main className="centered-state">
+      <Card className="auth-card">
+        <div className="auth-card__icon">
+          <AlertTriangle aria-hidden="true" />
+        </div>
+        <div>
+          <p className="eyebrow">Sin conexión</p>
+          <h1>No se pudo cargar Inventario</h1>
+          <p className="muted">No se pudo conectar con el servidor. Verifica tu conexión a internet.</p>
+        </div>
+        <div className="form-actions">
+          <Button variant="primary" onClick={onRetry}>Reintentar</Button>
+        </div>
+      </Card>
+    </main>
+  );
+}

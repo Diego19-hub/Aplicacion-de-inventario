@@ -1,0 +1,9 @@
+/Users/diegoulisesortegabarajas/Documents/aprender_desarrolloweb/js/projects_odin/nodejs /aplicacion_inventario/src-tauri/target/release/deps/dtoa-fe6841e14a21dc00.d: /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/lib.rs /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/diyfp.rs /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/dtoa.rs
+
+/Users/diegoulisesortegabarajas/Documents/aprender_desarrolloweb/js/projects_odin/nodejs /aplicacion_inventario/src-tauri/target/release/deps/libdtoa-fe6841e14a21dc00.rlib: /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/lib.rs /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/diyfp.rs /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/dtoa.rs
+
+/Users/diegoulisesortegabarajas/Documents/aprender_desarrolloweb/js/projects_odin/nodejs /aplicacion_inventario/src-tauri/target/release/deps/libdtoa-fe6841e14a21dc00.rmeta: /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/lib.rs /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/diyfp.rs /Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/dtoa.rs
+
+/Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/lib.rs:
+/Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/diyfp.rs:
+/Users/diegoulisesortegabarajas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dtoa-1.0.11/src/dtoa.rs:

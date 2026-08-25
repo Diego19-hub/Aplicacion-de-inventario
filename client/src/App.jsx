@@ -60,7 +60,7 @@ import { CashPage } from "./pages/CashPage.jsx";
 import { CashHistoryPage } from "./pages/CashHistoryPage.jsx";
 import { BusinessCostsPage } from "./pages/BusinessCostsPage.jsx";
 import { BreakEvenPage } from "./pages/BreakEvenPage.jsx";
-import { ForbiddenPage, NotFoundPage } from "./pages/ErrorPages.jsx";
+import { ConnectionErrorPage, ForbiddenPage, NotFoundPage } from "./pages/ErrorPages.jsx";
 
 function loginPath(returnTo) {
   const params = new URLSearchParams();
@@ -139,6 +139,12 @@ function NotFoundRoute() {
 }
 
 export default function App() {
+  const { initialLoadError, reloadSession } = useAuth();
+
+  if (initialLoadError) {
+    return <ConnectionErrorPage onRetry={() => reloadSession().catch(() => undefined)} />;
+  }
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />

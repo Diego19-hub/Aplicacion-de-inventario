@@ -9,7 +9,10 @@
     "dev:client": "npm --prefix client run dev",
     "client:install": "npm --prefix client install",
     "client:build": "npm --prefix client run build",
+    "client:build:tauri": "npm --prefix client run build:tauri",
     "build": "npm run client:build",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "db:seed": "node db/populatedb.js",
     "db:seed:dashboard": "node scripts/seedDashboardDemo.js",
     "db:bootstrap": "node scripts/bootstrapDatabase.js",
@@ -40,6 +43,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
     "supertest": "^7.2.2"
   }
 }

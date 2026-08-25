@@ -1,5 +1,7 @@
+import { apiCredentials, apiUrl } from "./config.js";
+
 export async function downloadCsv(path, fallbackName) {
-  const response = await fetch(`/api${path}`, { credentials: "same-origin" });
+  const response = await fetch(apiUrl(path), { credentials: apiCredentials });
   if (!response.ok) {
     let message = "No fue posible descargar el archivo.";
     try { message = (await response.json()).error?.message || message; } catch {}
