@@ -1,0 +1,33 @@
+{
+  "name": "Inventario",
+  "short_name": "Inventario",
+  "description": "Sistema de inventario, ventas y control de caja",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#3730a3",
+  "background_color": "#f6f7fb",
+  "lang": "es-MX",
+  "categories": ["business"],
+  "icons": [
+    {
+      "src": "/pwa-icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
