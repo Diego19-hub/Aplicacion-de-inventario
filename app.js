@@ -25,6 +25,10 @@ const sessionSecret = process.env.SESSION_SECRET;
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const clientDistDir = path.join(rootDir, "client", "dist");
 const reactIndexFile = path.join(clientDistDir, "index.html");
+const allowedCorsOrigins = new Set([
+  "http://tauri.localhost",
+  ...(isProduction ? [] : ["http://localhost:5173", "http://127.0.0.1:5173"])
+]);
 
 if (process.env.NODE_ENV === "development") {
   console.info("[google-oauth-config]", googleOAuthConfigStatus());
@@ -102,6 +106,52 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use("/api", apiTiming);
 
+app.use((req, res, next) => {
+  const requestOrigin = req.get("origin");
+  const hasOrigin = Boolean(requestOrigin);
+  const isAllowed = !hasOrigin || allowedCorsOrigins.has(requestOrigin);
+
+  if (isAllowed && hasOrigin) {
+    res.set("Access-Control-Allow-Origin", requestOrigin);
+    res.set("Access-Control-Allow-Credentials", "true");
+    res.set("Access-Control-Allow-Headers", "Accept, Content-Type, X-CSRF-Token");
+    res.set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.vary("Origin");
+  }
+
+  if (!isAllowed) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[cors-rejected]", {
+        origin: requestOrigin,
+        endpoint: `${req.method} ${req.originalUrl}`,
+        reason: "origin-not-allowed"
+      });
+    }
+
+    return res.status(403).json({
+      error: {
+        code: "CORS_ORIGIN_NOT_ALLOWED",
+        message: "El origen de la aplicación no está permitido."
+      }
+    });
+  }
+
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+
+  if (process.env.NODE_ENV === "development" && hasOrigin) {
+    res.on("finish", () => {
+      console.info("[cors-request]", {
+        origin: requestOrigin,
+        endpoint: `${req.method} ${req.originalUrl}`,
+        status: res.statusCode,
+        reason: "origin-allowed"
+      });
+    });
+  }
+
+  return next();
+});
+
 if (isProduction) {
   app.use(express.static(clientDistDir, { index: false }));
 }
@@ -113,7 +163,7 @@ const sessionOptions = {
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: isProduction ? "none" : "lax",
     secure: isProduction,
     maxAge: 1000 * 60 * 60 * 24 * 7
   }
