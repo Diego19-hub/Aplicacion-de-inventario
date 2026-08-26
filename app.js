@@ -56,6 +56,16 @@ app.use(
   })
 );
 
+if (isProduction) {
+  app.use(express.static(clientDistDir, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".js")) {
+        res.set("Content-Type", "application/javascript; charset=utf-8");
+      }
+    }
+  }));
+}
+
 app.get("/health", (req, res) => {
   res.set("Cache-Control", "no-store");
   res.status(200).json({
@@ -151,10 +161,6 @@ app.use((req, res, next) => {
 
   return next();
 });
-
-if (isProduction) {
-  app.use(express.static(clientDistDir, { index: false }));
-}
 
 const sessionOptions = {
   name: "boxing_inventory_session",
