@@ -53,12 +53,13 @@ function notifyUnauthorized() {
   }
 }
 
-function logRequestFailure(path, status) {
-  if (import.meta.env.DEV) {
+function logRequestFailure(path, status, response) {
+  if (import.meta.env.DEV || import.meta.env.VITE_API_DEBUG === "true") {
+    // Solo se registra el error JSON del servidor; nunca request headers/body.
     console.warn("[api-request]", {
-      baseUrl: apiUrl(""),
-      endpoint: path,
-      status
+      url: apiUrl(path),
+      status,
+      response: response?.error ?? response ?? null
     });
   }
 }
@@ -94,13 +95,13 @@ export async function apiRequest(path, { method = "GET", body, csrf = false, sig
   try {
     response = await fetch(apiUrl(path), requestOptions);
   } catch (error) {
-    logRequestFailure(path, null);
+    logRequestFailure(path, null, { message: error.message });
     throw error;
   }
   const payload = await parseResponse(response);
 
   if (!response.ok) {
-    logRequestFailure(path, response.status);
+    logRequestFailure(path, response.status, payload);
     if (response.status === 401) {
       notifyUnauthorized();
     }

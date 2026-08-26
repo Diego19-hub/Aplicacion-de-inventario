@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import apiRouter from "./routes/apiRouter.js";
 import { apiTiming } from "./middleware/apiTiming.js";
 import { productImportTemplateBuffer } from "./utils/productImportTemplate.js";
-import { googleOAuthConfigStatus } from "./config/env.js";
+import { getFrontendUrl, googleOAuthConfigStatus } from "./config/env.js";
 
 import {
   notFoundHandler,
@@ -25,9 +25,13 @@ const sessionSecret = process.env.SESSION_SECRET;
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const clientDistDir = path.join(rootDir, "client", "dist");
 const reactIndexFile = path.join(clientDistDir, "index.html");
-const allowedCsrfOrigins = new Set([
+const configuredFrontendUrl = getFrontendUrl();
+const configuredFrontendOrigin = configuredFrontendUrl
+  ? new URL(configuredFrontendUrl).origin
+  : null;
+const allowedCorsOrigins = new Set([
   "http://tauri.localhost",
-  "https://inventario.saas.duob.tech",
+  configuredFrontendOrigin || "https://inventario.saas.duob.tech",
   ...(isProduction ? [] : ["http://localhost:5173", "http://127.0.0.1:5173"])
 ]);
 
@@ -124,7 +128,7 @@ app.use("/api", apiTiming);
 app.use((req, res, next) => {
   const requestOrigin = req.get("origin");
   const hasOrigin = Boolean(requestOrigin);
-  const isAllowed = !hasOrigin || allowedCsrfOrigins.has(requestOrigin);
+  const isAllowed = !hasOrigin || allowedCorsOrigins.has(requestOrigin);
 
   if (isAllowed && hasOrigin) {
     res.set("Access-Control-Allow-Origin", requestOrigin);
