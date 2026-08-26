@@ -82,10 +82,14 @@ app.get("/.well-known/appspecific/com.chrome.devtools.json", (req, res) => {
   res.status(204).end();
 });
 
-app.get("/plantilla_importacion_productos.xlsx", (req, res) => {
+app.get("/plantilla_importacion_productos.xlsx", async (req, res, next) => {
   res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.set("Content-Disposition", 'attachment; filename="plantilla_importacion_productos.xlsx"');
-  return res.send(productImportTemplateBuffer());
+  try {
+    return res.send(await productImportTemplateBuffer());
+  } catch (error) {
+    return next(error);
+  }
 });
 
 let sessionStore;
