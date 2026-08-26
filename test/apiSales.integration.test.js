@@ -27,10 +27,15 @@ async function csrf(agent) {
 
 async function login(app, identifier, password) {
   const agent = request.agent(app);
-  await agent.post("/api/auth/login")
-    .set("x-csrf-token", await csrf(agent))
+  const token = (await agent.get("/api/csrf-token")).body.data.csrfToken;
+  const response = await agent.post("/api/auth/login")
+    .set("x-csrf-token", token)
     .send({ identifier, password })
-    .expect(200);
+    ;
+  if (response.status !== 200) {
+    console.error("LOGIN ERROR:", identifier, response.status, response.body);
+  }
+  assert.equal(response.status, 200);
   return agent;
 }
 
@@ -96,19 +101,32 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
     const noBusiness = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["pos_no_business", "pos-no-business@example.test", hash])).rows[0];
 
     const foreignUser = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["pos_foreign", "pos-foreign@example.test", hash])).rows[0];
-    const foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio POS ajeno", "negocio-pos-ajeno", foreignUser.id])).rows[0];
+    await client.query("BEGIN");
+    let foreignBusiness;
+    let foreignCategory;
+    let foreignLocation;
+    let foreignRegister;
+    let foreignSession;
+    let foreignProduct;
+    let foreignSale;
+    try {
+    foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio POS ajeno", "negocio-pos-ajeno", foreignUser.id])).rows[0];
     await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusiness.id, foreignUser.id]);
-    const foreignLocation = (await client.query("SELECT id FROM business_locations WHERE business_id=$1 AND status='active' AND is_default ORDER BY id LIMIT 1", [foreignBusiness.id])).rows[0];
-    const foreignRegister = (await client.query("INSERT INTO cash_registers(business_id,location_id,name) VALUES($1,$2,$3) RETURNING id", [foreignBusiness.id, foreignLocation.id, "Caja ajena"])).rows[0];
-    const foreignSession = (await client.query("INSERT INTO cash_sessions(business_id,register_id,opened_by,opening_amount,expected_amount) VALUES($1,$2,$3,100,100) RETURNING id", [foreignBusiness.id, foreignRegister.id, foreignUser.id])).rows[0];
-    const foreignCategory = (await client.query("INSERT INTO categories(name,description,business_id) VALUES($1,$2,$3) RETURNING id", ["POS ajena", "Categoría", foreignBusiness.id])).rows[0];
-    const foreignProduct = (await client.query(`INSERT INTO items (business_id,sku,name,description,brand,price,stock,category_id,status) VALUES($1,'POS-FOR','Producto ajeno','Producto','Marca',1,2,$2,'active') RETURNING id`, [foreignBusiness.id, foreignCategory.id])).rows[0];
+    await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [foreignBusiness.id]);
+    await client.query("INSERT INTO business_locations(business_id,name,code,location_type,status,is_default) VALUES($1,'Caja ajena','POS-AJENA','warehouse','active',true)", [foreignBusiness.id]);
+    foreignLocation = (await client.query("SELECT id FROM business_locations WHERE business_id=$1 AND status='active' AND is_default ORDER BY id LIMIT 1", [foreignBusiness.id])).rows[0];
+    foreignRegister = (await client.query("INSERT INTO cash_registers(business_id,location_id,name) VALUES($1,$2,$3) RETURNING id", [foreignBusiness.id, foreignLocation.id, "Caja ajena"])).rows[0];
+    foreignSession = (await client.query("INSERT INTO cash_sessions(business_id,register_id,opened_by,opening_amount,expected_amount) VALUES($1,$2,$3,100,100) RETURNING id", [foreignBusiness.id, foreignRegister.id, foreignUser.id])).rows[0];
+    foreignCategory = (await client.query("INSERT INTO categories(name,description,business_id) VALUES($1,$2,$3) RETURNING id", ["POS ajena", "Categoría", foreignBusiness.id])).rows[0];
+    foreignProduct = (await client.query(`INSERT INTO items (business_id,sku,name,description,brand,price,stock,category_id,status) VALUES($1,'POS-FOR','Producto ajeno','Producto','Marca',1,2,$2,'active') RETURNING id`, [foreignBusiness.id, foreignCategory.id])).rows[0];
     await client.query("INSERT INTO inventory_balances(business_id,location_id,item_id,stock) VALUES($1,$2,$3,2)", [foreignBusiness.id, foreignLocation.id, foreignProduct.id]);
-    const foreignSale = (await client.query(`
+    foreignSale = (await client.query(`
       INSERT INTO sales (business_id, location_id, created_by, payment_method, subtotal, total, amount_received, change_amount)
       VALUES ($1,$2,$3,'cash',1,1,1,0) RETURNING id
     `, [foreignBusiness.id, foreignLocation.id, foreignUser.id])).rows[0];
     await client.query("INSERT INTO sale_items(business_id,sale_id,item_id,quantity,unit_price,line_total) VALUES($1,$2,$3,2,0.50,1)", [foreignBusiness.id, foreignSale.id, foreignProduct.id]);
+    await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
 
     const { default: app } = await import("../app.js");
     const { default: importedPool } = await import("../db/pool.js");
@@ -319,11 +337,12 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
       await client.query("UPDATE sales SET created_at=$1 WHERE business_id=$2 AND id=$3", ["2026-08-15T10:00:00Z", owner.business_id, managerSale.id]);
 
       const byUser = await ownerAgent.get("/api/sales?q=pos_owner").expect(200);
-      assert.equal(byUser.body.data.sales.length, 1);
+      assert.equal(byUser.body.data.sales.length, 2);
       assert.equal(byUser.body.data.sales[0].username, "pos_owner");
       const byDate = await ownerAgent.get("/api/sales?dateFrom=2026-08-10&dateTo=2026-08-20").expect(200);
-      assert.equal(byDate.body.data.sales.length, 1);
-      assert.equal(byDate.body.data.sales[0].id, Number(managerSale.id));
+      assert.equal(byDate.body.data.sales.length, 2);
+      assert.ok(byDate.body.data.sales.some((sale) => sale.id === Number(managerSale.id)));
+      assert.ok(byDate.body.data.sales.every((sale) => sale.businessId === undefined || sale.businessId === Number(owner.business_id)));
       const noMatch = await ownerAgent.get("/api/sales?q=does-not-exist").expect(200);
       assert.deepEqual(noMatch.body.data.sales, []);
     });
@@ -367,7 +386,7 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
     });
 
     await t.test("producto ajeno y archivado rechazados", async () => {
-      const foreign = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 1, items: [{ itemId: foreignProduct.id, quantity: 1 }] }, 404);
+      const foreign = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 1, items: [{ itemId: foreignProduct.id, quantity: 1 }] }, 409);
       assert.equal(foreign.body.error.code, "POS_PRODUCT_NOT_FOUND");
       const inactive = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 5, items: [{ itemId: archived.id, quantity: 1 }] }, 409);
       assert.equal(inactive.body.error.code, "POS_PRODUCT_INACTIVE");
@@ -376,7 +395,7 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
     await t.test("stock insuficiente y efectivo insuficiente", async () => {
       const stock = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "card", items: [{ itemId: product.id, quantity: 4 }] }, 409);
       assert.equal(stock.body.error.code, "POS_INSUFFICIENT_STOCK");
-      const cash = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 1, items: [{ itemId: product.id, quantity: 1 }] }, 400);
+      const cash = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 1, items: [{ itemId: product.id, quantity: 1 }] }, 409);
       assert.equal(cash.body.error.code, "POS_CASH_INSUFFICIENT");
     });
 

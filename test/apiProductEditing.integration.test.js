@@ -104,17 +104,22 @@ test("edición de productos mediante API", { skip: !hasTestDatabaseUrl }, async 
       "INSERT INTO users(username, email, password_hash, platform_role) VALUES($1, $2, $3, 'user') RETURNING id",
       ["editing_foreign", "editing-foreign@example.test", passwordHash]
     )).rows[0];
-    const foreignBusiness = (await client.query(
+    await client.query("BEGIN");
+    let foreignBusiness;
+    let foreignCategory; let foreignProduct;
+    try { foreignBusiness = (await client.query(
       "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
       ["Negocio ajeno edición", "negocio-ajeno-edicion", foreignUser.id]
     )).rows[0];
     await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [foreignBusiness.id, foreignUser.id]);
-    const foreignCategory = (await client.query("INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id", ["Categoría ajena edición", "Categoría", foreignBusiness.id])).rows[0];
-    const foreignProduct = (await client.query(
+    await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [foreignBusiness.id]);
+    foreignCategory = (await client.query("INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id", ["Categoría ajena edición", "Categoría", foreignBusiness.id])).rows[0];
+    foreignProduct = (await client.query(
       `INSERT INTO items(sku, name, description, brand, price, stock, category_id, business_id, status)
        VALUES($1, $2, $3, $4, $5, $6, $7, $8, 'active') RETURNING id`,
       ["FOREIGN-EDIT", "Producto ajeno", "Descripción ajena", "Marca", 2, 4, foreignCategory.id, foreignBusiness.id]
     )).rows[0];
+    await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK"); throw error; }
 
     const { default: app } = await import("../app.js");
     const { default: importedPool } = await import("../db/pool.js");
@@ -124,7 +129,10 @@ test("edición de productos mediante API", { skip: !hasTestDatabaseUrl }, async 
     await t.test("owner actualiza nombre, categoría y SKU sin cambiar existencias", async () => {
       const editData = await ownerAgent.get(`/api/products/${product.id}/edit`).expect(200).expect("Cache-Control", "no-store");
       assert.equal(editData.body.data.product.sku, "EDIT-001");
-      assert.deepEqual(editData.body.data.categories.map((category) => category.id), [destinationCategory.id, originalCategory.id]);
+      assert.deepEqual(editData.body.data.categories.map((category) => category.id).sort((a, b) => a - b), [
+        ...[destinationCategory.id, originalCategory.id].sort((a, b) => a - b),
+        (await client.query("SELECT id FROM categories WHERE business_id = $1 AND is_default", [owner.business_id])).rows[0].id
+      ].sort((a, b) => a - b));
 
       const token = await csrfToken(ownerAgent);
       const response = await ownerAgent

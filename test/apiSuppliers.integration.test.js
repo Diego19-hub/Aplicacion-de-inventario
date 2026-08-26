@@ -105,14 +105,17 @@ test("listado y detalle de proveedores mediante API", { skip: !hasTestDatabaseUr
       );
     }
 
-    const foreignBusiness = (await client.query(
-      "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
-      ["Negocio ajeno proveedores", "negocio-ajeno-proveedores", foreignUser.rows[0].id]
-    )).rows[0];
-    await client.query(
-      "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
-      [foreignBusiness.id, foreignUser.rows[0].id]
-    );
+    await client.query("BEGIN");
+    let foreignBusiness;
+    try {
+      foreignBusiness = (await client.query(
+        "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
+        ["Negocio ajeno proveedores", "negocio-ajeno-proveedores", foreignUser.rows[0].id]
+      )).rows[0];
+      await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [foreignBusiness.id, foreignUser.rows[0].id]);
+      await client.query("INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)", [foreignBusiness.id]);
+      await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
     const foreignSupplier = (await client.query(
       "INSERT INTO suppliers(business_id, name, email, status) VALUES($1, $2, $3, 'active') RETURNING id",
       [foreignBusiness.id, "Proveedor exclusivo ajeno", "ajeno@proveedor.test"]

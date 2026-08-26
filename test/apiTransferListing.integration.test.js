@@ -117,7 +117,14 @@ test("listado y detalle de transferencias mediante API", { skip: !hasTestDatabas
       "INSERT INTO users(username, email, password_hash, platform_role) VALUES($1, $2, $3, 'user') RETURNING id",
       ["transfer_list_foreign", "transfer-list-foreign@example.test", passwordHash]
     )).rows[0];
-    const foreignBusiness = (await client.query(
+    await client.query("BEGIN");
+    let foreignBusiness;
+    let foreignMain;
+    let foreignNorth;
+    let foreignCategory;
+    let foreignProduct;
+    try {
+    foreignBusiness = (await client.query(
       "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
       ["Negocio ajeno listado", "negocio-ajeno-listado", foreignUser.id]
     )).rows[0];
@@ -125,21 +132,22 @@ test("listado y detalle de transferencias mediante API", { skip: !hasTestDatabas
       "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
       [foreignBusiness.id, foreignUser.id]
     );
-    const foreignMain = (await client.query(
+    await client.query("INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)", [foreignBusiness.id]);
+    foreignMain = (await client.query(
       `INSERT INTO business_locations(business_id, name, code, location_type, status, is_default)
        VALUES($1, $2, $3, 'branch', 'active', true) RETURNING id`,
       [foreignBusiness.id, "Sucursal ajena principal", "MAIN-FOREIGN"]
     )).rows[0];
-    const foreignNorth = (await client.query(
+    foreignNorth = (await client.query(
       `INSERT INTO business_locations(business_id, name, code, location_type, status, is_default)
        VALUES($1, $2, $3, 'warehouse', 'active', false) RETURNING id`,
       [foreignBusiness.id, "Bodega ajena listado", "FOREIGN-LIST"]
     )).rows[0];
-    const foreignCategory = (await client.query(
+    foreignCategory = (await client.query(
       "INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id",
       ["Categoría ajena listado", "Categoría", foreignBusiness.id]
     )).rows[0];
-    const foreignProduct = (await client.query(
+    foreignProduct = (await client.query(
       `INSERT INTO items(sku, name, description, brand, price, stock, category_id, business_id, status)
        VALUES($1, $2, $3, $4, $5, $6, $7, $8, 'active') RETURNING id`,
       ["FOREIGN-LIST-001", "Producto solo negocio ajeno", "Descripción", "Marca", 10, 2, foreignCategory.id, foreignBusiness.id]
@@ -154,6 +162,8 @@ test("listado y detalle de transferencias mediante API", { skip: !hasTestDatabas
        VALUES($1, $2, $3, 'opening_balance', 2, 0, 2, $4, $5)`,
       [foreignBusiness.id, foreignMain.id, foreignProduct.id, "Saldo inicial ajeno", foreignUser.id]
     );
+    await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
 
     ({ createInventoryTransfer } = await import("../db/transferQueries.js"));
     const createdTransfers = [];

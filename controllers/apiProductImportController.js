@@ -1,16 +1,17 @@
-import XLSX from "xlsx";
-
 import pool from "../db/pool.js";
 import { findExistingProductBarcodes, findExistingProductSkus, importProducts } from "../db/productImportQueries.js";
 import { parseCurrencyValue } from "../utils/currency.js";
 import { productImportTemplateBuffer } from "../utils/productImportTemplate.js";
+import { readProductWorkbook } from "../utils/productImportWorker.js";
+
+const activeImports = new Set();
 
 const headers = ["nombre_producto", "sku", "codigo_barras", "descripcion", "marca", "precio", "existencias", "categoria", "existencias_minimas", "ubicacion", "proveedor"];
 
-export function downloadProductImportTemplate(req, res) {
+export async function downloadProductImportTemplate(req, res, next) {
   res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.set("Content-Disposition", 'attachment; filename="plantilla_importacion_productos.xlsx"');
-  return res.send(productImportTemplateBuffer());
+  try { return res.send(await productImportTemplateBuffer()); } catch (error) { return next(error); }
 }
 
 function text(value) { return value === undefined || value === null ? "" : String(value).trim(); }
@@ -39,17 +40,13 @@ function parsePrice(value, row) {
   return { value: parsed, error: null };
 }
 
-function readWorkbook(file) {
-  const workbook = XLSX.read(file.buffer, { type: "buffer", cellDates: false });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) throw Object.assign(new Error("El archivo no contiene hojas."), { code: "EMPTY_WORKBOOK" });
-  return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
-}
-
 export async function previewProductImport(req, res, next) {
   if (!req.file) return res.status(400).json({ error: { code: "FILE_REQUIRED", message: "Selecciona un archivo .xlsx." } });
+  const importKey = `${req.session.user.id}:${req.business.id}`;
+  if (activeImports.has(importKey)) return res.status(429).json({ error: { code: "IMPORT_IN_PROGRESS", message: "Ya hay una importación en curso." } });
+  activeImports.add(importKey);
   try {
-    const rows = readWorkbook(req.file);
+    const rows = await readProductWorkbook(req.file.buffer);
     const rawHeaders = (rows[0] || []).map((value) => text(value).replace(/\*$/, ""));
     const missingHeaders = headers.filter((header) => !rawHeaders.includes(header));
     if (missingHeaders.length > 0) {
@@ -90,13 +87,18 @@ export async function previewProductImport(req, res, next) {
     const validProducts = products.filter((product) => !invalidRows.has(product.row)).map(({ row, ...product }) => product);
     return res.status(200).json({ data: { valid: errors.length === 0, totalRows: dataRows.length, validRows: validProducts.length, invalidRows: invalidRows.size, products: validProducts, errors } });
   } catch (err) { return next(err); }
+  finally { activeImports.delete(importKey); }
 }
 
 export async function confirmProductImport(req, res, next) {
   const products = req.body?.products;
   if (!Array.isArray(products) || products.length === 0 || products.length > 1000) return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Envía productos válidos para importar." } });
-  const client = await pool.connect();
+  const importKey = `${req.session.user.id}:${req.business.id}`;
+  if (activeImports.has(importKey)) return res.status(429).json({ error: { code: "IMPORT_IN_PROGRESS", message: "Ya hay una importación en curso." } });
+  activeImports.add(importKey);
+  let client;
   try {
+    client = await pool.connect();
     await client.query("BEGIN");
     const created = await importProducts(client, req.business.id, req.session.user.id, products);
     await client.query("COMMIT");
@@ -105,5 +107,5 @@ export async function confirmProductImport(req, res, next) {
     await client.query("ROLLBACK").catch(() => {});
     if (["SKU_DUPLICATE", "SKU_ALREADY_EXISTS", "LOCATION_NOT_FOUND"].includes(err.code)) return res.status(409).json({ error: { code: err.code, message: err.message } });
     return next(err);
-  } finally { client.release(); }
+  } finally { client?.release(); activeImports.delete(importKey); }
 }

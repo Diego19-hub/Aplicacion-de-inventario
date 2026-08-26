@@ -96,14 +96,17 @@ test("creación y edición de ubicaciones mediante API", { skip: !hasTestDatabas
        VALUES($1, $2, 'manager', 'active'), ($1, $3, 'viewer', 'active')`,
       [owner.business_id, manager.rows[0].id, viewer.rows[0].id]
     );
-    const foreignBusiness = (await client.query(
-      "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
-      ["Negocio ajeno ubicaciones mutación", "negocio-ajeno-ubicaciones-mutacion", foreignUser.rows[0].id]
-    )).rows[0];
-    await client.query(
-      "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
-      [foreignBusiness.id, foreignUser.rows[0].id]
-    );
+    await client.query("BEGIN");
+    let foreignBusiness;
+    try {
+      foreignBusiness = (await client.query(
+        "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
+        ["Negocio ajeno ubicaciones mutación", "negocio-ajeno-ubicaciones-mutacion", foreignUser.rows[0].id]
+      )).rows[0];
+      await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [foreignBusiness.id, foreignUser.rows[0].id]);
+      await client.query("INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)", [foreignBusiness.id]);
+      await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
     const foreignLocation = (await client.query(
       "INSERT INTO business_locations(business_id, name, code, location_type) VALUES($1, $2, $3, 'warehouse') RETURNING id",
       [foreignBusiness.id, "Bodega ajena mutación", "AJENA-MUT"]

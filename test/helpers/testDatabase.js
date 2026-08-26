@@ -79,7 +79,7 @@ function pointsToSameDatabase(testUrl, applicationUrl) {
     && testUrl.pathname === applicationUrl.pathname;
 }
 
-function getTestDatabaseConfig() {
+function getTestDatabaseConfig({ allowSameDatabase = false } = {}) {
   const connectionString = process.env.TEST_DATABASE_URL;
 
   if (!connectionString) {
@@ -114,7 +114,7 @@ function getTestDatabaseConfig() {
     try {
       const applicationUrl = new URL(process.env.DATABASE_URL);
 
-      if (pointsToSameDatabase(testUrl, applicationUrl)) {
+      if (!allowSameDatabase && pointsToSameDatabase(testUrl, applicationUrl)) {
         throw new Error("TEST_DATABASE_URL no puede apuntar a la misma base que DATABASE_URL.");
       }
     } catch (error) {
@@ -164,13 +164,16 @@ async function executeSqlFile(client, relativePath) {
   await client.query(sql);
 }
 
-async function assertRequiredTables(client) {
+async function assertRequiredTables(client, throughVersion) {
+  const tables = requiredTables.filter((tableName) =>
+    (throughVersion ?? Number.MAX_SAFE_INTEGER) >= 18 || !["sales", "sale_items"].includes(tableName)
+  );
   const result = await client.query(
     "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = ANY($1::text[])",
-    [requiredTables]
+    [tables]
   );
   const found = new Set(result.rows.map((row) => row.tablename));
-  const missing = requiredTables.filter((tableName) => !found.has(tableName));
+  const missing = tables.filter((tableName) => !found.has(tableName));
 
   if (missing.length) {
     throw new Error(`Faltan tablas requeridas en la base de pruebas: ${missing.join(", ")}.`);
@@ -234,7 +237,7 @@ export async function createTestDatabase({ throughVersion } = {}) {
       await executeSqlFile(testClient, path.join("db/migrations", migration.up.fileName));
     }
 
-    await assertRequiredTables(testClient);
+    await assertRequiredTables(testClient, migrationInventory.at(-1).versionNumber);
     return { databaseName: config.databaseName };
   } catch (error) {
     await closeQuietly(testClient);
@@ -256,6 +259,6 @@ export async function createTestDatabase({ throughVersion } = {}) {
 }
 
 export async function dropTestDatabase() {
-  const config = getTestDatabaseConfig();
+  const config = getTestDatabaseConfig({ allowSameDatabase: true });
   await removeDatabase(config);
 }

@@ -66,9 +66,12 @@ test(
 
       const noBusiness = await client.query("INSERT INTO users (username,email,password_hash,platform_role) VALUES ($1,$2,$3,'user') RETURNING id", ["dashboard_without_business", "dashboard-without-business@example.test", passwordHash]);
       const foreignUser = await client.query("INSERT INTO users (username,email,password_hash,platform_role) VALUES ($1,$2,$3,'user') RETURNING id", ["dashboard_foreign_owner", "dashboard-foreign-owner@example.test", passwordHash]);
+      await client.query("BEGIN");
       const foreignBusiness = await client.query("INSERT INTO businesses (name,slug,created_by,status) VALUES ($1,$2,$3,'active') RETURNING id", ["Negocio ajeno dashboard", "negocio-ajeno-dashboard", foreignUser.rows[0].id]);
       const foreignBusinessId = foreignBusiness.rows[0].id;
       await client.query("INSERT INTO business_members (business_id,user_id,role,status) VALUES ($1,$2,'owner','active')", [foreignBusinessId, foreignUser.rows[0].id]);
+      await client.query("INSERT INTO categories (business_id,name,description,is_default) VALUES ($1,'General','Categoría predeterminada',true)", [foreignBusinessId]);
+      await client.query("COMMIT");
       const foreignLocation = await client.query("INSERT INTO business_locations (business_id,name,code,location_type,status,is_default) VALUES ($1,$2,$3,'branch','active',true) RETURNING id", [foreignBusinessId, "Ubicación ajena", "FOREIGN"]);
       const foreignCategory = await client.query("INSERT INTO categories (name,description,business_id) VALUES ($1,$2,$3) RETURNING id", ["Categoría ajena dashboard", "Datos ajenos", foreignBusinessId]);
       const foreignItem = await client.query("INSERT INTO items (sku,name,description,brand,price,stock,category_id,business_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id", ["FOREIGN-001", "Producto ajeno dashboard", "Producto ajeno", "Marca", 99, 9, foreignCategory.rows[0].id, foreignBusinessId]);

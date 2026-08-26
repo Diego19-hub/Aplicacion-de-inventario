@@ -49,9 +49,18 @@ test("GET /api/products", { skip: !hasTestDatabaseUrl }, async (t) => {
     await client.query("INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status,archived_at,archived_by,archive_reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'archived',clock_timestamp(),$9,$10)", ["ARC-001", "Archivado oculto", "Descripción", "Marca C", 30, 9, categoryId, owner.business_id, owner.id, "Producto archivado para prueba"]);
 
     const foreignUser = await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["products_foreign", "products-foreign@example.test", passwordHash]);
-    const foreignBusiness = await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio ajeno productos", "negocio-ajeno-productos", foreignUser.rows[0].id]);
-    const foreignBusinessId = foreignBusiness.rows[0].id;
-    await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusinessId, foreignUser.rows[0].id]);
+    await client.query("BEGIN");
+    let foreignBusinessId;
+    try {
+      const foreignBusiness = await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio ajeno productos", "negocio-ajeno-productos", foreignUser.rows[0].id]);
+      foreignBusinessId = foreignBusiness.rows[0].id;
+      await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusinessId, foreignUser.rows[0].id]);
+      await client.query("INSERT INTO categories(name,description,business_id,is_default) VALUES('General','Categoría predeterminada',$1,true)", [foreignBusinessId]);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
     const foreignCategory = await client.query("INSERT INTO categories(name,description,business_id) VALUES($1,$2,$3) RETURNING id", ["Categoría ajena productos", "Categoría ajena", foreignBusinessId]);
     await client.query("INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active')", ["FOREIGN-001", "Producto ajeno", "Descripción", "Marca", 99, 1, foreignCategory.rows[0].id, foreignBusinessId]);
 

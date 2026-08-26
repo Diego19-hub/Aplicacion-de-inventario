@@ -39,8 +39,17 @@ test("administración API de miembros", { skip: !hasTestDatabaseUrl }, async (t)
       users[name] = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", [`members_${name}`, `members-${name}@example.test`, hash])).rows[0];
       if (name !== "foreign") await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,$3,'active')", [owner.business_id, users[name].id, role]);
     }
-    const foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by) VALUES('Ajeno miembros','ajeno-miembros',$1) RETURNING id", [users.foreign.id])).rows[0];
-    const foreignMember = (await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'viewer','active') RETURNING id", [foreignBusiness.id, users.foreign.id])).rows[0];
+    users.foreignViewer = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["members_foreign_viewer", "members-foreign-viewer@example.test", hash])).rows[0];
+    await client.query("BEGIN");
+    let foreignBusiness;
+    let foreignMember;
+    try {
+      foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES('Ajeno miembros','ajeno-miembros',$1,'active') RETURNING id", [users.foreign.id])).rows[0];
+      await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusiness.id, users.foreign.id]);
+      await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [foreignBusiness.id]);
+      foreignMember = (await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'viewer','active') RETURNING id", [foreignBusiness.id, users.foreignViewer.id])).rows[0];
+      await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
     const memberIds = Object.fromEntries((await client.query("SELECT id,user_id FROM business_members WHERE business_id=$1", [owner.business_id])).rows.map((row) => [row.user_id, row.id]));
     const { default: app } = await import("../app.js"); const { default: importedPool } = await import("../db/pool.js"); pool = importedPool;
     const ownerAgent = await login(app, "members_admin_owner", password);

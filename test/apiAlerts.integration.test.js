@@ -39,7 +39,18 @@ test("GET /api/alerts/stock", { skip: !enabled }, async (t) => {
     const out = await addItem("Sin saldo", "ALT-OUT"); const low = await addItem("Saldo bajo", "ALT-LOW"); const high = await addItem("Saldo alto", "ALT-HIGH"); const archived = await addItem("Archivado", "ALT-ARC", "archived");
     await client.query("INSERT INTO inventory_balances(business_id,location_id,item_id,stock) VALUES($1,$2,$3,2),($1,$2,$4,9)", [owner.business_id, location.id, low.id, high.id]);
     await client.query("INSERT INTO inventory_stock_thresholds(business_id,item_id,location_id,minimum_stock,created_by) VALUES($1,$2,$3,5,$4),($1,$5,$3,5,$4),($1,$6,$3,5,$4),($1,$7,$3,5,$4)", [owner.business_id, out.id, location.id, owner.id, low.id, high.id, archived.id]);
-    const foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by) VALUES('Ajeno alertas','ajeno-alertas',$1) RETURNING id", [owner.id])).rows[0];
+    const foreignUser = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES('alerts_foreign_owner','alerts-foreign-owner@test.local',$1,'user') RETURNING id", [hash])).rows[0];
+    await client.query("BEGIN");
+    let foreignBusiness;
+    try {
+      foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES('Ajeno alertas','ajeno-alertas',$1,'active') RETURNING id", [foreignUser.id])).rows[0];
+      await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusiness.id, foreignUser.id]);
+      await client.query("INSERT INTO categories(name,description,business_id,is_default) VALUES('General','Categoría predeterminada',$1,true)", [foreignBusiness.id]);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
     const foreignCategory = (await client.query("INSERT INTO categories(name,description,business_id) VALUES('Categoria ajena','',$1) RETURNING id", [foreignBusiness.id])).rows[0];
     const foreignLocation = (await client.query("INSERT INTO business_locations(business_id,name,code,location_type,is_default) VALUES($1,'Bodega ajena','AJE','warehouse',true) RETURNING id", [foreignBusiness.id])).rows[0];
     const { default: app } = await import("../app.js"); const { default: importedPool } = await import("../db/pool.js"); pool = importedPool;

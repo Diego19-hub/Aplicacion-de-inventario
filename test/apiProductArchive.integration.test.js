@@ -111,17 +111,23 @@ test("archivado de productos mediante API", { skip: !hasTestDatabaseUrl }, async
       "INSERT INTO users(username, email, password_hash, platform_role) VALUES($1, $2, $3, 'user') RETURNING id",
       ["archive_foreign", "archive-foreign@example.test", passwordHash]
     )).rows[0];
-    const foreignBusiness = (await client.query(
+    await client.query("BEGIN");
+    let foreignBusiness; let foreignCategory; let foreignProduct;
+    try {
+    foreignBusiness = (await client.query(
       "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
       ["Negocio ajeno archivado", "negocio-ajeno-archivado", foreignUser.id]
     )).rows[0];
     await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [foreignBusiness.id, foreignUser.id]);
-    const foreignCategory = (await client.query("INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id", ["Categoría ajena", "Categoría", foreignBusiness.id])).rows[0];
-    const foreignProduct = (await client.query(
+    await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [foreignBusiness.id]);
+    foreignCategory = (await client.query("INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id", ["Categoría ajena", "Categoría", foreignBusiness.id])).rows[0];
+    foreignProduct = (await client.query(
       `INSERT INTO items(sku, name, description, brand, price, stock, category_id, business_id, status)
        VALUES($1, $2, $3, $4, $5, $6, $7, $8, 'active') RETURNING id`,
       ["FOREIGN-ARCH", "Producto ajeno", "Descripción ajena", "Marca", 1, 0, foreignCategory.id, foreignBusiness.id]
     )).rows[0];
+    await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
 
     const { default: app } = await import("../app.js");
     const { default: importedPool } = await import("../db/pool.js");

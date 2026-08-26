@@ -146,7 +146,11 @@ test("creación de transferencias mediante API", { skip: !hasTestDatabaseUrl }, 
       "INSERT INTO users(username, email, password_hash, platform_role) VALUES($1, $2, $3, 'user') RETURNING id",
       ["transfer_foreign", "transfer-foreign@example.test", passwordHash]
     )).rows[0];
-    const foreignBusiness = (await client.query(
+    await client.query("BEGIN");
+    let foreignBusiness;
+    let foreignLocation;
+    try {
+    foreignBusiness = (await client.query(
       "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
       ["Negocio ajeno transferencias API", "negocio-ajeno-transferencias-api", foreignUser.id]
     )).rows[0];
@@ -154,11 +158,14 @@ test("creación de transferencias mediante API", { skip: !hasTestDatabaseUrl }, 
       "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
       [foreignBusiness.id, foreignUser.id]
     );
-    const foreignLocation = (await client.query(
+    await client.query("INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)", [foreignBusiness.id]);
+    foreignLocation = (await client.query(
       `INSERT INTO business_locations(business_id, name, code, location_type, status, is_default)
        VALUES($1, $2, $3, 'warehouse', 'active', false) RETURNING id`,
       [foreignBusiness.id, "Bodega ajena API", "FOREIGN-API"]
     )).rows[0];
+    await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
 
     const { default: app } = await import("../app.js");
     const { default: importedPool } = await import("../db/pool.js");

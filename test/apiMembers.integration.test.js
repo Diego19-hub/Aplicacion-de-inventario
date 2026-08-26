@@ -104,7 +104,10 @@ test("consulta del equipo mediante API", { skip: !hasTestDatabaseUrl }, async (t
       [owner.business_id, owner.id]
     );
 
-    const foreignBusiness = (await client.query(
+    await client.query("BEGIN");
+    let foreignBusiness;
+    try {
+    foreignBusiness = (await client.query(
       "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
       ["Negocio ajeno equipo", "negocio-ajeno-equipo", foreignUser.id]
     )).rows[0];
@@ -112,6 +115,9 @@ test("consulta del equipo mediante API", { skip: !hasTestDatabaseUrl }, async (t
       "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
       [foreignBusiness.id, foreignUser.id]
     );
+    await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [foreignBusiness.id]);
+    await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
     await client.query(
       `INSERT INTO business_invitations(business_id, email_normalized, offered_role, token_hash, invited_by)
        VALUES($1, 'ajena-equipo@example.test', 'viewer', repeat('d', 64), $2)`,
@@ -155,14 +161,14 @@ test("consulta del equipo mediante API", { skip: !hasTestDatabaseUrl }, async (t
         const denied = await agent.get("/api/members").expect(403);
         assert.equal(denied.body.error.code, "FORBIDDEN");
       }
-      const ownedOtherBusiness = (await client.query(
-        "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
-        ["Segundo negocio equipo", "segundo-negocio-equipo", owner.id]
-      )).rows[0];
-      await client.query(
-        "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
-        [ownedOtherBusiness.id, owner.id]
-      );
+      await client.query("BEGIN");
+      let ownedOtherBusiness;
+      try {
+        ownedOtherBusiness = (await client.query("INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id", ["Segundo negocio equipo", "segundo-negocio-equipo", owner.id])).rows[0];
+        await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [ownedOtherBusiness.id, owner.id]);
+        await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [ownedOtherBusiness.id]);
+        await client.query("COMMIT");
+      } catch (error) { await client.query("ROLLBACK"); throw error; }
       await client.query(
         `INSERT INTO business_invitations(business_id, email_normalized, offered_role, token_hash, invited_by)
          VALUES($1, 'segundo-negocio-equipo@example.test', 'viewer', repeat('e', 64), $2)`,

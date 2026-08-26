@@ -110,14 +110,26 @@ test("consulta de categorías mediante API", { skip: !hasTestDatabaseUrl }, asyn
       "INSERT INTO users(username, email, password_hash, platform_role) VALUES($1, $2, $3, 'user') RETURNING id",
       ["categories_foreign", "categories-foreign@example.test", passwordHash]
     )).rows[0];
-    const foreignBusiness = (await client.query(
-      "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
-      ["Negocio ajeno categorías", "negocio-ajeno-categorias", foreignUser.id]
-    )).rows[0];
-    await client.query(
-      "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
-      [foreignBusiness.id, foreignUser.id]
-    );
+    await client.query("BEGIN");
+    let foreignBusiness;
+    try {
+      foreignBusiness = (await client.query(
+        "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
+        ["Negocio ajeno categorías", "negocio-ajeno-categorias", foreignUser.id]
+      )).rows[0];
+      await client.query(
+        "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
+        [foreignBusiness.id, foreignUser.id]
+      );
+      await client.query(
+        "INSERT INTO categories(name, description, business_id, is_default) VALUES('General', 'Categoría predeterminada', $1, true)",
+        [foreignBusiness.id]
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
     const foreignCategory = (await client.query(
       "INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id",
       ["Categoría exclusiva ajena", "No debe ser visible", foreignBusiness.id]
@@ -138,7 +150,7 @@ test("consulta de categorías mediante API", { skip: !hasTestDatabaseUrl }, asyn
     await t.test("los tres roles ven únicamente categorías y métricas del negocio activo", async () => {
       for (const agent of [ownerAgent, managerAgent, viewerAgent]) {
         const response = await agent.get("/api/categories").expect(200).expect("Cache-Control", "no-store");
-        assert.equal(response.body.data.pagination.totalItems, 21);
+        assert.equal(response.body.data.pagination.totalItems, 22);
         assert.equal(response.body.data.categories.some((item) => item.name === "Categoría exclusiva ajena"), false);
         const targetResponse = await agent.get("/api/categories?q=principal").expect(200);
         assert.deepEqual(targetResponse.body.data.categories[0], {
@@ -147,7 +159,8 @@ test("consulta de categorías mediante API", { skip: !hasTestDatabaseUrl }, asyn
           description: "Categoría con métricas separadas",
           activeProductCount: 2,
           archivedProductCount: 1,
-          totalStock: 8
+          totalStock: 8,
+          isDefault: false
         });
       }
     });
@@ -158,8 +171,8 @@ test("consulta de categorías mediante API", { skip: !hasTestDatabaseUrl }, asyn
       assert.equal(search.body.data.categories[0].id, category.id);
       const pageTwo = await ownerAgent.get("/api/categories?page=2").expect(200);
       assert.equal(pageTwo.body.data.pagination.page, 2);
-      assert.equal(pageTwo.body.data.pagination.totalItems, 21);
-      assert.equal(pageTwo.body.data.categories.length, 1);
+      assert.equal(pageTwo.body.data.pagination.totalItems, 22);
+      assert.equal(pageTwo.body.data.categories.length, 2);
     });
 
     await t.test("el detalle excluye archivados y protege categoría ajena o ID inválido", async () => {
@@ -170,7 +183,8 @@ test("consulta de categorías mediante API", { skip: !hasTestDatabaseUrl }, asyn
         description: "Categoría con métricas separadas",
         activeProductCount: 2,
         archivedProductCount: 1,
-        totalStock: 8
+        totalStock: 8,
+        isDefault: false
       });
       assert.equal(detail.body.data.products.length, 2);
       assert.equal(detail.body.data.products.some((product) => product.sku === "CAT-ARC-001"), false);

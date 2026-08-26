@@ -36,11 +36,17 @@ test("registro de movimientos manuales mediante API", { skip: !available }, asyn
     const viewer = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["movement_viewer", "movement-viewer@example.test", hash])).rows[0];
     await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'viewer','active')", [owner.business_id, viewer.id]);
     const foreignUser = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["movement_foreign", "movement-foreign@example.test", hash])).rows[0];
-    const foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio ajeno movimientos", "negocio-ajeno-movimientos", foreignUser.id])).rows[0];
+    await client.query("BEGIN");
+    let foreignBusiness; let foreignCategory; let foreignProduct; let foreignLocation;
+    try {
+    foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio ajeno movimientos", "negocio-ajeno-movimientos", foreignUser.id])).rows[0];
     await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusiness.id, foreignUser.id]);
-    const foreignCategory = (await client.query("INSERT INTO categories(name,description,business_id) VALUES($1,$2,$3) RETURNING id", ["Categoría ajena", "Categoría", foreignBusiness.id])).rows[0];
-    const foreignProduct = (await client.query(`INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active') RETURNING id`, ["MOV-FOR", "Producto ajeno", "Descripción", "Marca", 1, 0, foreignCategory.id, foreignBusiness.id])).rows[0];
-    const foreignLocation = (await client.query("INSERT INTO business_locations(business_id,name,code,location_type,status,is_default) VALUES($1,$2,$3,'warehouse','active',false) RETURNING id", [foreignBusiness.id, "Ubicación ajena", "AJENA"])).rows[0];
+    await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [foreignBusiness.id]);
+    foreignCategory = (await client.query("INSERT INTO categories(name,description,business_id) VALUES($1,$2,$3) RETURNING id", ["Categoría ajena", "Categoría", foreignBusiness.id])).rows[0];
+    foreignProduct = (await client.query(`INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active') RETURNING id`, ["MOV-FOR", "Producto ajeno", "Descripción", "Marca", 1, 0, foreignCategory.id, foreignBusiness.id])).rows[0];
+    foreignLocation = (await client.query("INSERT INTO business_locations(business_id,name,code,location_type,status,is_default) VALUES($1,$2,$3,'warehouse','active',false) RETURNING id", [foreignBusiness.id, "Ubicación ajena", "AJENA"])).rows[0];
+    await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
     const archivedProduct = (await client.query(`INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status,archived_at,archived_by,archive_reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'archived',clock_timestamp(),$9,$10) RETURNING id`, ["MOV-ARC", "Producto archivado", "Descripción", "Marca", 1, 0, category.id, owner.business_id, owner.id, "Prueba"])).rows[0];
     const { default: app } = await import("../app.js"); const { default: importedPool } = await import("../db/pool.js"); pool = importedPool;
     const ownerAgent = await login(app, "movement_owner", password);

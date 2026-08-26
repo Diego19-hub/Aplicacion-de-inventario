@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import bcrypt from "bcrypt";
 import pg from "pg";
 import request from "supertest";
-import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 import { createTestDatabase, dropTestDatabase } from "./helpers/testDatabase.js";
 
@@ -17,10 +17,11 @@ function restore() {
   }
 }
 
-function workbookBuffer(rows) {
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), "Productos");
-  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+async function workbookBuffer(rows) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Productos");
+  rows.forEach((row) => sheet.addRow(row));
+  return workbook.xlsx.writeBuffer();
 }
 
 async function login(app, identifier, password) {
@@ -53,7 +54,7 @@ test("importación masiva de productos valida Excel y confirma atómicamente", {
 
     await t.test("archivo válido, filas vacías y SKU existente", async () => {
       const csrf = (await agent.get("/api/csrf-token")).body.data.csrfToken;
-      const response = await agent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", workbookBuffer([headers, validRow, [], ["Otro", "EXIST-001", "", "", "", "2", "1"]]), "Hoja de cálculo sin título.xlsx").expect(200);
+      const response = await agent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", await workbookBuffer([headers, validRow, [], ["Otro", "EXIST-001", "", "", "", "2", "1"]]), "Hoja de cálculo sin título.xlsx").expect(200);
       assert.equal(response.body.data.totalRows, 2);
       assert.equal(response.body.data.validRows, 1);
       assert.equal(response.body.data.invalidRows, 1);
@@ -70,11 +71,12 @@ test("importación masiva de productos valida Excel y confirma atómicamente", {
 
     await t.test("encabezados, SKU duplicado y números inválidos", async () => {
       const csrf = (await agent.get("/api/csrf-token")).body.data.csrfToken;
-      const response = await agent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", workbookBuffer([["nombre_producto", "sku"], ["A", "DUP-1"], ["B", "DUP-1"], ["C", "NUM-1", "", "", "-1", "-2"]]), "plantilla.xlsx").expect(400);
+      const response = await agent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", await workbookBuffer([["nombre_producto", "sku"], ["A", "DUP-1"], ["B", "DUP-1"], ["C", "NUM-1", "", "", "-1", "-2"]]), "plantilla.xlsx").expect(400);
       assert.equal(response.body.error.code, "INVALID_HEADERS");
-      const valid = await agent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", workbookBuffer([headers, ["A", "DUP-1", "", "", "", "-1", "-2"], ["B", "DUP-1", "", "", "", "1", "1"]]), "plantilla.xlsx").expect(200);
+      const valid = await agent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", await workbookBuffer([headers, ["A", "DUP-1", "", "", "", "-1", "-2"], ["B", "DUP-1", "", "", "", "1", "1"]]), "plantilla.xlsx").expect(200);
       assert.ok(valid.body.data.errors.some((item) => item.field === "precio"));
-      assert.ok(valid.body.data.errors.some((item) => item.message.includes("duplicado")));
+      assert.ok(valid.body.data.errors.some((item) => item.field === "existencias"));
+      assert.ok(valid.body.data.errors.some((item) => item.field === "sku" && item.message === "El SKU debe ser único y conservarse como texto."));
     });
 
     await t.test("confirmación hace rollback completo", async () => {
@@ -89,14 +91,14 @@ test("importación masiva de productos valida Excel y confirma atómicamente", {
       await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'viewer','active')", [owner.business_id, viewer.id]);
       const viewerAgent = await login(app, "import_viewer", password);
       const csrf = (await viewerAgent.get("/api/csrf-token")).body.data.csrfToken;
-      await viewerAgent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", workbookBuffer([headers, validRow]), "plantilla.xlsx").expect(403);
+      await viewerAgent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", await workbookBuffer([headers, validRow]), "plantilla.xlsx").expect(403);
     });
 
     await t.test("usuario autenticado sin negocio activo recibe 409", async () => {
       const noBusiness = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["import_no_business", "import-no-business@example.test", hash])).rows[0];
       const noBusinessAgent = await login(app, "import_no_business", password);
       const csrf = (await noBusinessAgent.get("/api/csrf-token")).body.data.csrfToken;
-      await noBusinessAgent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", workbookBuffer([headers, validRow]), "plantilla.xlsx").expect(409);
+      await noBusinessAgent.post("/api/products/import/preview").set("x-csrf-token", csrf).attach("file", await workbookBuffer([headers, validRow]), "plantilla.xlsx").expect(409);
       assert.ok(noBusiness.id);
     });
   } finally {

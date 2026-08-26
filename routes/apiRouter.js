@@ -65,6 +65,7 @@ import {
 } from "../controllers/apiProductsController.js";
 import { getProductDetails } from "../controllers/apiProductDetailsController.js";
 import { confirmProductImport, downloadProductImportTemplate, previewProductImport } from "../controllers/apiProductImportController.js";
+import { rateLimit } from "express-rate-limit";
 import { handleProductImportUploadError, productImportUpload } from "../middleware/productImportUpload.js";
 import {
   createProductMovement,
@@ -459,6 +460,7 @@ apiRouter.post(
   requireApiAuth,
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager"),
+  rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: "draft-8", legacyHeaders: false }),
   productImportUpload,
   handleProductImportUploadError,
   previewProductImport

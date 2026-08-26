@@ -79,15 +79,21 @@ test("API de costos del negocio y costo de productos", { skip: !hasTestDatabaseU
       "INSERT INTO users(username, email, password_hash, platform_role) VALUES($1, $2, $3, 'user') RETURNING id",
       ["cost_foreign", "cost-foreign@example.test", passwordHash]
     )).rows[0];
-    const foreignBusiness = (await client.query(
+    await client.query("BEGIN");
+    let foreignBusiness;
+    try {
+    foreignBusiness = (await client.query(
       "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
       ["Negocio costos ajeno", "negocio-costos-ajeno", foreignUser.id]
     )).rows[0];
     await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [foreignBusiness.id, foreignUser.id]);
+    await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [foreignBusiness.id]);
     await client.query(
       "INSERT INTO business_costs(business_id, name, amount, created_by) VALUES($1, $2, $3, $4)",
       [foreignBusiness.id, "Costo ajeno", 20, foreignUser.id]
     );
+    await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
 
     const { default: app } = await import("../app.js");
     const { default: importedPool } = await import("../db/pool.js");

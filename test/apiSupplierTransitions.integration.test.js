@@ -96,7 +96,11 @@ test("transiciones de proveedores mediante API", { skip: !hasTestDatabaseUrl }, 
       `,
       [owner.business_id, "Proveedor para transición", "Proveedor SA", "PST010101AA1", "proveedor@test.example", "5550000000", "Avenida 1", "Información conservada"]
     )).rows[0];
-    const foreignBusiness = (await client.query(
+    await client.query("BEGIN");
+    let foreignBusiness;
+    let foreignSupplier;
+    try {
+    foreignBusiness = (await client.query(
       "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
       ["Negocio ajeno transición", "negocio-ajeno-supplier-transition", foreignUser.rows[0].id]
     )).rows[0];
@@ -104,10 +108,13 @@ test("transiciones de proveedores mediante API", { skip: !hasTestDatabaseUrl }, 
       "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
       [foreignBusiness.id, foreignUser.rows[0].id]
     );
-    const foreignSupplier = (await client.query(
+    await client.query("INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)", [foreignBusiness.id]);
+    foreignSupplier = (await client.query(
       "INSERT INTO suppliers(business_id, name) VALUES($1, $2) RETURNING id",
       [foreignBusiness.id, "Proveedor ajeno transición"]
     )).rows[0];
+    await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
 
     const { default: app } = await import("../app.js");
     const { default: importedPool } = await import("../db/pool.js");

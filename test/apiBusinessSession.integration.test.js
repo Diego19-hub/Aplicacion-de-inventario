@@ -80,32 +80,87 @@ test(
         ["api_business_owner", "api-business-owner@example.test", passwordHash, owner.id]
       );
 
-      const additionalBusiness = await client.query(
+      const secondBusinessOwner = (await client.query(
         `
-          INSERT INTO businesses (name, slug, created_by, status)
-          VALUES ($1, $2, $3, 'active')
+          INSERT INTO users (username, email, password_hash, platform_role)
+          VALUES ($1, $2, $3, 'user')
           RETURNING id
         `,
-        ["Segundo negocio API", "segundo-negocio-api", owner.id]
-      );
-      const secondBusinessId = additionalBusiness.rows[0].id;
-      await client.query(
-        `
-          INSERT INTO business_members (business_id, user_id, role, status)
-          VALUES ($1, $2, 'manager', 'active')
-        `,
-        [secondBusinessId, owner.id]
-      );
+        ["api_second_business_owner", "api-second-business-owner@example.test", passwordHash]
+      )).rows[0];
+      await client.query("BEGIN");
+      let secondBusinessId;
+      try {
+        const additionalBusiness = await client.query(
+          `
+            INSERT INTO businesses (name, slug, created_by, status)
+            VALUES ($1, $2, $3, 'active')
+            RETURNING id
+          `,
+          ["Segundo negocio API", "segundo-negocio-api", secondBusinessOwner.id]
+        );
+        secondBusinessId = additionalBusiness.rows[0].id;
+        await client.query(
+          `
+            INSERT INTO business_members (business_id, user_id, role, status)
+            VALUES
+              ($1, $2, 'owner', 'active'),
+              ($1, $3, 'manager', 'active')
+          `,
+          [secondBusinessId, secondBusinessOwner.id, owner.id]
+        );
+        await client.query(
+          `
+            INSERT INTO categories (business_id, name, description, is_default)
+            VALUES ($1, 'General', 'Categoría predeterminada', true)
+          `,
+          [secondBusinessId]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
 
-      const inactiveBusiness = await client.query(
+      await client.query("BEGIN");
+      let suspendedBusinessId;
+      try {
+        const inactiveBusiness = await client.query(
+          `
+            INSERT INTO businesses (name, slug, created_by, status)
+            VALUES ($1, $2, $3, 'suspended')
+            RETURNING id
+          `,
+          ["Negocio suspendido API", "negocio-suspendido-api", owner.id]
+        );
+        suspendedBusinessId = inactiveBusiness.rows[0].id;
+        await client.query(
+          `
+            INSERT INTO business_members (business_id, user_id, role, status)
+            VALUES ($1, $2, 'owner', 'active')
+          `,
+          [suspendedBusinessId, owner.id]
+        );
+        await client.query(
+          `
+            INSERT INTO categories (business_id, name, description, is_default)
+            VALUES ($1, 'General', 'Categoría predeterminada', true)
+          `,
+          [suspendedBusinessId]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+      const suspendedViewer = await client.query(
         `
-          INSERT INTO businesses (name, slug, created_by, status)
-          VALUES ($1, $2, $3, 'suspended')
+          INSERT INTO users (username, email, password_hash, platform_role)
+          VALUES ($1, $2, $3, 'user')
           RETURNING id
         `,
-        ["Negocio suspendido API", "negocio-suspendido-api", owner.id]
+        ["api_suspended_viewer", "api-suspended-viewer@example.test", passwordHash]
       );
-      const suspendedBusinessId = inactiveBusiness.rows[0].id;
       const foreignUser = await client.query(
         `
           INSERT INTO users (username, email, password_hash, platform_role)
@@ -114,23 +169,44 @@ test(
         `,
         ["api_foreign_owner", "api-foreign-owner@example.test", passwordHash]
       );
-      const foreignBusiness = await client.query(
-        `
-          INSERT INTO businesses (name, slug, created_by, status)
-          VALUES ($1, $2, $3, 'active')
-          RETURNING id
-        `,
-        ["Negocio ajeno API", "negocio-ajeno-api", foreignUser.rows[0].id]
-      );
-      const foreignBusinessId = foreignBusiness.rows[0].id;
+      await client.query("BEGIN");
+      let foreignBusinessId;
+      try {
+        const foreignBusiness = await client.query(
+          `
+            INSERT INTO businesses (name, slug, created_by, status)
+            VALUES ($1, $2, $3, 'active')
+            RETURNING id
+          `,
+          ["Negocio ajeno API", "negocio-ajeno-api", foreignUser.rows[0].id]
+        );
+        foreignBusinessId = foreignBusiness.rows[0].id;
+        await client.query(
+          `
+            INSERT INTO business_members (business_id, user_id, role, status)
+            VALUES ($1, $2, 'owner', 'active')
+          `,
+          [foreignBusinessId, foreignUser.rows[0].id]
+        );
+        await client.query(
+          `
+            INSERT INTO categories (business_id, name, description, is_default)
+            VALUES ($1, 'General', 'Categoría predeterminada', true)
+          `,
+          [foreignBusinessId]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
       await client.query(
         `
-          INSERT INTO business_members (business_id, user_id, role, status)
-          VALUES
-            ($1, $2, 'owner', 'active'),
-            ($3, $4, 'viewer', 'suspended')
+            INSERT INTO business_members (business_id, user_id, role, status)
+            VALUES
+            ($1, $2, 'viewer', 'suspended')
         `,
-        [foreignBusinessId, foreignUser.rows[0].id, suspendedBusinessId, owner.id]
+        [suspendedBusinessId, suspendedViewer.rows[0].id]
       );
 
       const { default: app } = await import("../app.js");
