@@ -12,6 +12,7 @@ import { InfoTip } from "../components/InfoTip.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { getStoredViewMode, ViewModeToggle } from "../components/ViewModeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const PAYMENT_LABELS = { cash: "Efectivo", card: "Tarjeta", transfer: "Transferencia" };
@@ -38,6 +39,7 @@ export function SalesPage() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState(() => getStoredViewMode("sales_view_mode"));
   const query = searchParams.toString();
   const currency = session.activeBusiness?.currency || "MXN";
   const moneyFormatter = new Intl.NumberFormat("es-MX", { style: "currency", currency });
@@ -117,12 +119,13 @@ export function SalesPage() {
         </div>
       </form>
     </Card>
+    <ViewModeToggle value={viewMode} storageKey="sales_view_mode" onChange={setViewMode} />
 
     {isLoading && <section className="dashboard-state"><Spinner label="Cargando ventas" /></section>}
     {!isLoading && error && <Alert><div className="dashboard-error"><span>{error}</span><Button variant="secondary" onClick={loadSales}>Reintentar</Button></div></Alert>}
     {!isLoading && data && sales.length === 0 && <EmptyState title="No hay ventas" description="No se encontraron ventas con los filtros seleccionados." />}
     {!isLoading && data && sales.length > 0 && <>
-      <Card className="sales-table-card">
+      {viewMode === "list" ? <Card className="sales-table-card">
         <div className="sales-results-heading"><strong>{pagination.totalItems} resultado(s)</strong><span>Historial de ventas <InfoTip title="Historial de ventas" content="Muestra operaciones de venta y cobros. Los movimientos de inventario muestran entradas, salidas y ajustes de existencias." /></span></div>
         <div className="sales-table-wrap">
           <table className="sales-table">
@@ -141,7 +144,7 @@ export function SalesPage() {
             </tr>)}</tbody>
           </table>
         </div>
-      </Card>
+      </Card> : <section className="category-api-grid" aria-label="Ventas en tarjetas">{sales.map((sale) => <Card key={sale.id} className="category-api-card"><div><h2>Venta #{sale.id}</h2><p className="muted"><time dateTime={sale.createdAt}>{formatDate(sale.createdAt)}</time></p></div><dl><div><dt>Usuario</dt><dd>{sale.username || "—"}</dd></div><div><dt>Ubicación</dt><dd>{sale.location?.name || "—"}</dd></div><div><dt>Método</dt><dd>{PAYMENT_LABELS[sale.paymentMethod] || sale.paymentMethod}</dd></div><div><dt>Artículos</dt><dd>{sale.itemCount ?? 0}</dd></div><div><dt>Total</dt><dd>{moneyFormatter.format(Number(sale.total) || 0)}</dd></div><div><dt>Estado</dt><dd><span className={`sales-status sales-status--${sale.status}`}>{STATUS_LABELS[sale.status] || sale.status}</span></dd></div></dl><Link className="button button--secondary button--compact" to={`/app/sales/${sale.id}`}><Eye aria-hidden="true" />Ver detalle</Link></Card>)}</section>}
       {pagination.totalPages > 1 && <nav className="product-pagination" aria-label="Paginación de ventas">
         <Button variant="secondary" disabled={pagination.page === 1} onClick={() => goToPage(pagination.page - 1)}>Anterior</Button>
         {pageNumbers(pagination.page, pagination.totalPages).map((page) => <Button key={page} variant={page === pagination.page ? "primary" : "secondary"} onClick={() => goToPage(page)} aria-current={page === pagination.page ? "page" : undefined}>{page}</Button>)}

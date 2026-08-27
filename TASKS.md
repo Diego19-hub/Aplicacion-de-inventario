@@ -89,6 +89,8 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 
 ## Fase 10 — Migración gradual a React
 
+- [~] Integrar módulo de Clientes y Cobranza. Criterio: clientes, cargos, pagos, saldos, estados de cuenta, tickets y resumen aislados por `business_id`, con permisos específicos por rol.
+
 - [ ] Diseñar el contrato de la API JSON. Criterio: autenticación, negocio activo, errores y recursos documentados antes de crear páginas.
 - [ ] Crear `client/` con React, Vite y React Router. Criterio: estructura inicial y desarrollo local integrado con Express.
 - [ ] Migrar autenticación y selector de negocio. Criterio: login, logout, sesión y selección funcionan con cookies y CSRF.

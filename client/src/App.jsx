@@ -60,6 +60,13 @@ import { CashPage } from "./pages/CashPage.jsx";
 import { CashHistoryPage } from "./pages/CashHistoryPage.jsx";
 import { BusinessCostsPage } from "./pages/BusinessCostsPage.jsx";
 import { BreakEvenPage } from "./pages/BreakEvenPage.jsx";
+import { CollectionsPage } from "./pages/CollectionsPage.jsx";
+import { CustomersPage } from "./pages/CustomersPage.jsx";
+import { CustomerDetailPage } from "./pages/CustomerDetailPage.jsx";
+import { CustomerPaymentPage } from "./pages/CustomerPaymentPage.jsx";
+import { CustomerReceiptPage } from "./pages/CustomerReceiptPage.jsx";
+import { NewCustomerPage } from "./pages/NewCustomerPage.jsx";
+import { NewCustomerChargePage } from "./pages/NewCustomerChargePage.jsx";
 import { ConnectionErrorPage, ForbiddenPage, NotFoundPage } from "./pages/ErrorPages.jsx";
 
 function loginPath(returnTo) {
@@ -178,6 +185,14 @@ export default function App() {
           </SessionGuard>
         }
       />
+      <Route path="/app/collections/*" element={<SessionGuard><AppShell><CollectionsPage /></AppShell></SessionGuard>} />
+      <Route path="/app/collections/customers" element={<SessionGuard><AppShell><CustomersPage /></AppShell></SessionGuard>} />
+      <Route path="/app/collections/customers/new" element={<SessionGuard><AppShell><NewCustomerPage /></AppShell></SessionGuard>} />
+      <Route path="/app/collections/charges/new" element={<SessionGuard><AppShell><NewCustomerChargePage /></AppShell></SessionGuard>} />
+      <Route path="/app/collections/customers/:customerId" element={<SessionGuard><AppShell><CustomerDetailPage /></AppShell></SessionGuard>} />
+      <Route path="/app/collections/customers/:customerId/payments/new" element={<SessionGuard><AppShell><CustomerPaymentPage /></AppShell></SessionGuard>} />
+      <Route path="/app/collections/payments/new" element={<SessionGuard><AppShell><CustomerPaymentPage /></AppShell></SessionGuard>} />
+      <Route path="/app/collections/payments/:paymentId/receipt" element={<SessionGuard><AppShell><CustomerReceiptPage /></AppShell></SessionGuard>} />
       <Route
         path="/app/break-even"
         element={

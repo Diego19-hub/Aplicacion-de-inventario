@@ -153,6 +153,8 @@ import {
   businessCostStatusValidation,
   businessCostValidation
 } from "../middleware/businessCostValidation.js";
+import { customerValidation, customerStatusValidation, chargeValidation, chargeStatusValidation, paymentValidation, cancellationValidation } from "../middleware/customerCollectionsValidation.js";
+import { listCustomers, createCustomer, getCustomer, updateCustomer, setCustomerStatus, listCharges, createCharge, getCharge, updateCharge, updateChargeStatus, listPayments, getPayment, createPayment, cancelPayment, accountStatement, balance, collectionsSummary, collectionAlerts, receipt } from "../controllers/apiCustomerCollectionsController.js";
 
 const apiRouter = Router();
 
@@ -183,6 +185,25 @@ apiRouter.get("/business-costs", requireApiAuth, requireApiActiveBusiness, requi
 apiRouter.post("/business-costs", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostValidation, createBusinessCostController);
 apiRouter.put("/business-costs/:costId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostValidation, updateBusinessCostController);
 apiRouter.patch("/business-costs/:costId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostStatusValidation, updateBusinessCostStatusController);
+apiRouter.get("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCustomers);
+apiRouter.post("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), customerValidation, createCustomer);
+apiRouter.get("/customers/:customerId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getCustomer);
+apiRouter.put("/customers/:customerId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), customerValidation, updateCustomer);
+apiRouter.patch("/customers/:customerId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), customerStatusValidation, setCustomerStatus);
+apiRouter.get("/customer-charges", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCharges);
+apiRouter.post("/customer-charges", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), chargeValidation, createCharge);
+apiRouter.get("/customer-charges/:chargeId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getCharge);
+apiRouter.put("/customer-charges/:chargeId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), chargeValidation, updateCharge);
+apiRouter.patch("/customer-charges/:chargeId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), chargeStatusValidation, updateChargeStatus);
+apiRouter.post("/customer-payments", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), paymentValidation, createPayment);
+apiRouter.get("/customer-payments", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listPayments);
+apiRouter.get("/customer-payments/:paymentId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getPayment);
+apiRouter.post("/customer-payments/:paymentId/cancel", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner"), cancellationValidation, cancelPayment);
+apiRouter.get("/customers/:customerId/account-statement", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), accountStatement);
+apiRouter.get("/customers/:customerId/balance", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), balance);
+apiRouter.get("/customer-payments/:paymentId/receipt", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), receipt);
+apiRouter.get("/collections/summary", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), collectionsSummary);
+apiRouter.get("/collections/alerts", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), collectionAlerts);
 apiRouter.get("/cash/registers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCashRegisters);
 apiRouter.post("/cash/registers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cashRegisterValidation, createCashRegisterController);
 apiRouter.get("/cash/sessions/current", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getCurrentCashSessionController);
@@ -569,6 +590,16 @@ apiRouter.use((error, req, res, next) => {
         code: "RATE_LIMITED",
         message: "Demasiados intentos. Espera 15 minutos antes de volver a intentarlo."
       }
+    });
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.error("[API ERROR]", {
+      method: req.method,
+      path: req.originalUrl,
+      code: error.code,
+      message: error.message,
+      stack: error.stack
     });
   }
 

@@ -182,5 +182,6 @@ No hay configuración de Vercel ni Supabase versionada. Antes de producción deb
 3. Incorporar negocios, membresías y roles por negocio.
 4. Añadir SKU, movimientos, sucursales, reportes y alertas.
 5. Endurecer pruebas y operación del frontend React + API Express.
+6. Completar y probar el módulo de Clientes y Cobranza.
 
 Consulta [TASKS.md](TASKS.md) para el backlog y [AGENTS.md](AGENTS.md) para reglas de trabajo.

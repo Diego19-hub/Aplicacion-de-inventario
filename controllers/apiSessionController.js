@@ -7,6 +7,11 @@ export function sessionPermissions(membership, platformRole) {
     canManageInventory: ["owner", "manager"].includes(role),
     canDeleteInventory: role === "owner",
     canManageMembers: role === "owner",
+    canManageCustomers: ["owner", "manager"].includes(role),
+    canManageCustomerCharges: ["owner", "manager"].includes(role),
+    canRegisterCustomerPayments: ["owner", "manager"].includes(role),
+    canCancelCustomerPayments: role === "owner",
+    canViewCustomerCollections: ["owner", "manager", "viewer"].includes(role),
     isSuperAdmin: platformRole === "super_admin"
   };
 }

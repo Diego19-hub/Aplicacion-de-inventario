@@ -16,8 +16,6 @@ export function errorHandler(error, req, res, next) {
 
   const statusCode = error.statusCode || 500;
 
-  console.error(error);
-
   const codeByStatus = {
     400: "VALIDATION_ERROR",
     401: "AUTH_REQUIRED",
@@ -26,6 +24,16 @@ export function errorHandler(error, req, res, next) {
     409: "CONFLICT",
     429: "RATE_LIMITED"
   };
+
+  if (statusCode === 500 && process.env.NODE_ENV !== "production") {
+    console.error("[API ERROR]", {
+      method: req.method,
+      path: req.originalUrl,
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
+  }
 
   return res.status(statusCode).json({
     error: {

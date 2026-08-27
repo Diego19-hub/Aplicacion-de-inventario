@@ -11,6 +11,7 @@ import { Input } from "../components/Input.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { getStoredViewMode, ViewModeToggle } from "../components/ViewModeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const roleLabels = {
@@ -102,6 +103,7 @@ export function MembersPage() {
   const [isRevokingInvitation, setIsRevokingInvitation] = useState(false);
   const [memberAction, setMemberAction] = useState(null);
   const [isUpdatingMember, setIsUpdatingMember] = useState(false);
+  const [viewMode, setViewMode] = useState(() => getStoredViewMode("members_view_mode"));
 
   const loadMembers = useCallback(async () => {
     if (!session.permissions.canManageMembers) {
@@ -218,8 +220,9 @@ export function MembersPage() {
 
       <section className="category-products">
         <header className="section-heading"><div><p className="eyebrow">Miembros</p><h2>Equipo del negocio</h2></div></header>
+        <ViewModeToggle value={viewMode} storageKey="members_view_mode" onChange={setViewMode} />
         {memberAction && <Alert><div className="error-summary" role="alert"><p>Confirmas {memberAction.action === "role" ? `cambiar el rol a ${roleLabels[memberAction.role]}` : `${memberAction.action === "suspend" ? "suspender" : memberAction.action === "reactivate" ? "reactivar" : "remover"}`} a {memberAction.member.user.username}. {memberAction.action === "remove" && "Perderá el acceso al negocio."}</p><div className="product-form__actions"><Button variant="secondary" onClick={() => setMemberAction(null)} disabled={isUpdatingMember}>Cancelar</Button><Button variant={memberAction.action === "remove" ? "danger" : "primary"} onClick={confirmMemberAction} disabled={isUpdatingMember}>{isUpdatingMember ? "Actualizando…" : "Confirmar"}</Button></div></div></Alert>}
-        {data.members.length === 0 ? <EmptyState title="Sin miembros" description="No hay membresías registradas para este negocio." /> : <section className="category-api-grid" aria-label="Miembros del negocio">{data.members.map((member) => <MemberCard key={member.id} member={member} canManage={session.permissions.canManageMembers} onAction={(member, action, role) => setMemberAction({ member, action, role })} />)}</section>}
+        {data.members.length === 0 ? <EmptyState title="Sin miembros" description="No hay membresías registradas para este negocio." /> : <section className={`category-api-grid ${viewMode === "list" ? "resource-list" : ""}`} aria-label="Miembros del negocio">{data.members.map((member) => <MemberCard key={member.id} member={member} canManage={session.permissions.canManageMembers} onAction={(member, action, role) => setMemberAction({ member, action, role })} />)}</section>}
       </section>
 
       <section className="category-products">

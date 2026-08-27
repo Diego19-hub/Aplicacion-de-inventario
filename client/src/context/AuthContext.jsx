@@ -14,6 +14,11 @@ const anonymousSession = {
     canManageInventory: false,
     canDeleteInventory: false,
     canManageMembers: false,
+    canManageCustomers: false,
+    canManageCustomerCharges: false,
+    canRegisterCustomerPayments: false,
+    canCancelCustomerPayments: false,
+    canViewCustomerCollections: false,
     isSuperAdmin: false
   }
 };

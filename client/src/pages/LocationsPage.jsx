@@ -11,6 +11,7 @@ import { Input } from "../components/Input.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { getStoredViewMode, ViewModeToggle } from "../components/ViewModeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 function pageNumbers(page, totalPages) {
@@ -34,6 +35,7 @@ export function LocationsPage() {
   const [status, setStatus] = useState(params.get("status") ?? "active");
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewMode, setViewMode] = useState(() => getStoredViewMode("locations_view_mode"));
 
   const loadLocations = useCallback(async () => {
     setIsLoading(true);
@@ -89,7 +91,8 @@ export function LocationsPage() {
         <div className="product-filter-actions"><Button type="submit"><Search aria-hidden="true" />Buscar</Button><Button variant="secondary" onClick={clear}>Limpiar filtros</Button></div>
       </form>
     </Card>
-    {locations.length === 0 ? <EmptyState title={hasFilters ? "Sin coincidencias" : "Sin ubicaciones activas"} description={hasFilters ? "Prueba con otros filtros." : "Las ubicaciones del negocio aparecerán aquí."} action={hasFilters ? <Button variant="secondary" onClick={clear}>Limpiar filtros</Button> : null} /> : <section className="category-api-grid" aria-label="Listado de ubicaciones">{locations.map((location) => <Card key={location.id} className="category-api-card"><div className="location-card__heading"><div><h2>{location.name}</h2><p className="muted">Código: {location.code}</p></div>{location.isDefault && <span className="status-badge">Principal</span>}</div><dl><div><dt>Tipo</dt><dd>{locationTypeLabel(location.type)}</dd></div><div><dt>Estado</dt><dd>{locationStatusLabel(location.status)}</dd></div><div><dt>Stock almacenado</dt><dd>{location.totalStock} unidades</dd></div><div><dt>Productos con stock</dt><dd>{location.positiveProductCount}</dd></div></dl><Link className="text-link" to={`/app/locations/${location.id}`}>Ver detalle</Link></Card>)}</section>}
+    <ViewModeToggle value={viewMode} storageKey="locations_view_mode" onChange={setViewMode} />
+    {locations.length === 0 ? <EmptyState title={hasFilters ? "Sin coincidencias" : "Sin ubicaciones activas"} description={hasFilters ? "Prueba con otros filtros." : "Las ubicaciones del negocio aparecerán aquí."} action={hasFilters ? <Button variant="secondary" onClick={clear}>Limpiar filtros</Button> : null} /> : <section className={`category-api-grid ${viewMode === "list" ? "resource-list" : ""}`} aria-label="Listado de ubicaciones">{locations.map((location) => <Card key={location.id} className="category-api-card"><div className="location-card__heading"><div><h2>{location.name}</h2><p className="muted">Código: {location.code}</p></div>{location.isDefault && <span className="status-badge">Principal</span>}</div><dl><div><dt>Tipo</dt><dd>{locationTypeLabel(location.type)}</dd></div><div><dt>Estado</dt><dd>{locationStatusLabel(location.status)}</dd></div><div><dt>Stock almacenado</dt><dd>{location.totalStock} unidades</dd></div><div><dt>Productos con stock</dt><dd>{location.positiveProductCount}</dd></div></dl><Link className="text-link" to={`/app/locations/${location.id}`}>Ver detalle</Link></Card>)}</section>}
     {pagination.totalPages > 1 && <nav className="product-pagination" aria-label="Paginación de ubicaciones">{pageNumbers(pagination.page, pagination.totalPages).map((page, index, pages) => <span key={page}>{index > 0 && page - pages[index - 1] > 1 && <span aria-hidden="true">…</span>}<Button variant={page === pagination.page ? "primary" : "secondary"} aria-current={page === pagination.page ? "page" : undefined} onClick={() => updateFilters({ q: filters.q, status: filters.status, page })}>{page}</Button></span>)}</nav>}
   </>;
 }
