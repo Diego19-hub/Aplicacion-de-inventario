@@ -533,6 +533,26 @@ body { overflow-x: hidden; }
 .field-help { color: var(--color-muted); font-size: .82rem; margin: calc(var(--space-2) * -1) 0 var(--space-2); }
 .stock-alert-card--overstock { border-color: #d7b45b; background: #fffaf0; }
 .stock-status--overstock { color: #a16b00 !important; }
+.executive-period-card { align-items: end; display: flex; flex-wrap: wrap; gap: var(--space-5); justify-content: space-between; margin-bottom: var(--space-5); }
+.executive-period-card h2, .executive-period-card p { margin: 0; }
+.executive-period-controls { align-items: end; display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.executive-period-controls label { color: var(--color-muted); display: grid; font-size: .82rem; font-weight: 700; gap: .35rem; }
+.executive-period-controls select, .executive-period-controls input { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); min-height: 2.5rem; padding: .55rem .7rem; }
+.executive-metric-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+.executive-metric { display: grid; gap: .45rem; min-width: 0; }
+.executive-metric > svg { color: var(--color-primary); height: 1.25rem; width: 1.25rem; }
+.executive-metric > span { color: var(--color-muted); font-size: .88rem; font-weight: 700; }
+.executive-metric > strong { font-size: 1.55rem; }
+.executive-metric > small { color: var(--color-muted); line-height: 1.4; }
+.executive-sections { margin-top: var(--space-5); }
+.executive-list, .executive-alert-list { display: grid; gap: .25rem; list-style: none; margin: var(--space-3) 0 0; padding: 0; }
+.executive-list li, .executive-alert { align-items: center; border-top: 1px solid var(--color-border); display: flex; gap: var(--space-3); justify-content: space-between; padding: .7rem 0; }
+.executive-list li > div, .executive-list li > a, .executive-alert a { display: grid; gap: .2rem; min-width: 0; text-decoration: none; }
+.executive-list li span, .executive-alert span { color: var(--color-muted); font-size: .8rem; overflow-wrap: anywhere; }
+.executive-alert { border-left: .3rem solid; padding-left: .7rem; }
+.executive-alert--out_of_stock { background: #fee2e2; border-color: #991b1b; color: #7f1d1d; }
+.executive-alert--low_stock { background: #fff0f0; border-color: #dc2626; color: #991b1b; }
+.executive-alert--overstock { background: #fff8df; border-color: #d97706; color: #9a3412; }
 .stock-alert-card { overflow: hidden; position: relative; }
 .stock-alert-card::before { background: currentColor; content: ""; inset: 0 auto 0 0; position: absolute; width: .38rem; }
 .stock-alert-card--out_of_stock { background: #991b1b; border-color: #7f1d1d; color: #fff; }
@@ -549,3 +569,185 @@ body { overflow-x: hidden; }
 .stock-alert-legend__item--urgent { background: #fee2e2; color: #991b1b; }
 .stock-alert-legend__item--review { background: #fef3c7; color: #9a3412; }
 .stock-alert-legend__item--normal { background: #dcfce7; color: #166534; }
+
+/* Layout global: aprovecha el espacio disponible sin alterar la lógica de las pantallas. */
+.main-content {
+  max-width: 1500px;
+  padding: 2rem 0;
+  width: min(calc(100% - 4rem), 1500px);
+}
+
+.main-content,
+.main-content > *,
+.dashboard-grid,
+.dashboard-sections,
+.executive-sections,
+.category-api-grid,
+.product-grid,
+.recipes-grid,
+.collections-grid,
+.reports-summary,
+.reports-filters,
+.transactions-filters,
+.transaction-form__meta,
+.business-costs-totals,
+.business-costs-page,
+.recipes-page,
+.transactions-page,
+.reports-page,
+.collections-page {
+  min-width: 0;
+}
+
+.dashboard-sections,
+.executive-sections,
+.category-api-grid,
+.product-grid,
+.recipes-grid {
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
+}
+
+.dashboard-sections > .card,
+.executive-sections > .card,
+.category-api-grid > .card,
+.product-grid > .card,
+.recipes-grid > .card,
+.collections-grid > .card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+
+.card {
+  height: auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.card > :last-child {
+  margin-top: auto;
+}
+
+.dashboard-sections > .dashboard-card--wide {
+  grid-column: span 2;
+}
+
+.reports-summary,
+.business-costs-totals {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reports-filters {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.transactions-filters {
+  grid-template-columns: minmax(18rem, 2fr) repeat(5, minmax(8rem, 1fr));
+}
+
+.table-wrap,
+.sales-table-wrap,
+.report-table-wrap,
+.transactions-table-wrap,
+.business-costs-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  min-width: 0;
+  width: 100%;
+}
+
+th,
+td {
+  min-width: 0;
+}
+
+.product-table td:first-child,
+.product-table th:first-child,
+.transactions-table td:nth-child(4),
+.transactions-table th:nth-child(4),
+.reports-table td:first-child,
+.reports-table th:first-child {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (max-width: 1100px) {
+  .main-content {
+    width: calc(100% - 3rem);
+  }
+
+  .dashboard-sections,
+  .executive-sections,
+  .category-api-grid,
+  .product-grid,
+  .recipes-grid,
+  .reports-summary,
+  .business-costs-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reports-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transactions-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .main-content {
+    padding: 1.25rem 1rem;
+    width: 100%;
+  }
+
+  .dashboard-sections,
+  .executive-sections,
+  .category-api-grid,
+  .product-grid,
+  .recipes-grid,
+  .collections-grid,
+  .reports-summary,
+  .reports-filters,
+  .business-costs-totals,
+  .transactions-filters,
+  .transaction-form__meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-sections > .dashboard-card--wide {
+    grid-column: auto;
+  }
+
+  .card {
+    padding: var(--space-4);
+  }
+
+  .empty-state {
+    padding: var(--space-5);
+  }
+
+  .page-header__actions,
+  .executive-period-controls {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .page-header__actions > *,
+  .executive-period-controls > * {
+    min-height: 2.75rem;
+  }
+
+  .table-wrap,
+  .sales-table-wrap,
+  .report-table-wrap,
+  .transactions-table-wrap,
+  .business-costs-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+}
