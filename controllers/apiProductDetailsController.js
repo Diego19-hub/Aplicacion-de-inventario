@@ -4,10 +4,11 @@ import {
   getApiProductRecentMovements
 } from "../db/apiProductQueries.js";
 
-function alertStatus(stock, minimumStock) {
+function alertStatus(stock, minimumStock, maximumStock) {
   if (minimumStock === null) return "not_configured";
   if (stock === 0) return "out_of_stock";
   if (stock <= Number(minimumStock)) return "low_stock";
+  if (maximumStock !== null && stock > Number(maximumStock)) return "overstock";
   return "ok";
 }
 
@@ -68,7 +69,8 @@ export async function getProductDetails(req, res, next) {
           },
           stock: Number(balance.stock),
           minimumStock: balance.minimum_stock === null ? null : Number(balance.minimum_stock),
-          alertStatus: alertStatus(Number(balance.stock), balance.minimum_stock)
+          maximumStock: balance.maximum_stock === null ? null : Number(balance.maximum_stock),
+          alertStatus: alertStatus(Number(balance.stock), balance.minimum_stock, balance.maximum_stock)
         })),
         recentMovements: recentMovements.map((movement) => ({
           id: movement.id,

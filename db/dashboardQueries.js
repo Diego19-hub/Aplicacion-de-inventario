@@ -19,7 +19,7 @@ export async function getDashboardSummary(businessId) {
           WHERE t.business_id = $1
             AND threshold_items.status = 'active'
             AND threshold_locations.status = 'active'
-            AND COALESCE(b.stock, 0) <= t.minimum_stock
+            AND (COALESCE(b.stock, 0) <= t.minimum_stock OR (t.maximum_stock IS NOT NULL AND COALESCE(b.stock, 0) > t.maximum_stock))
         ) AS low_stock_alerts,
         (
           SELECT COUNT(*)::INTEGER

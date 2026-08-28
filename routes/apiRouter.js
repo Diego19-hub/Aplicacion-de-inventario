@@ -111,7 +111,7 @@ import { apiCategoryValidation } from "../middleware/categoryValidation.js";
 import { apiLocationValidation } from "../middleware/locationValidation.js";
 import { apiSupplierValidation } from "../middleware/supplierValidation.js";
 import { onboardingBusinessValidation } from "../middleware/adminValidation.js";
-import { listStockAlerts } from "../controllers/apiAlertsController.js";
+import { listStockAlerts, reviewStockAlert } from "../controllers/apiAlertsController.js";
 import { getThresholds, removeThreshold, saveThreshold } from "../controllers/apiThresholdsController.js";
 import { apiThresholdValidation } from "../middleware/alertValidation.js";
 import { inventoryCsvApi, inventoryReportApi, movementCsvApi, movementReportApi } from "../controllers/apiReportsController.js";
@@ -129,6 +129,10 @@ import { getBreakEven } from "../controllers/apiBreakEvenController.js";
 import { breakEvenValidation } from "../middleware/breakEvenValidation.js";
 import { createRecipeController, getRecipeController, listRecipesController, produceRecipeController, recipeOptions, updateRecipeController, updateRecipeStatusController } from "../controllers/apiRecipeController.js";
 import { recipeProductionValidation, recipeStatusValidation, recipeValidation } from "../middleware/recipeValidation.js";
+import { getTransactionController, listTransactionsController, transactionOptions } from "../controllers/apiTransactionsController.js";
+import { inventoryCenterApi, inventoryCenterCsvApi, inventoryCenterExcelApi } from "../controllers/apiInventoryCenterController.js";
+import { createAdjustment, createEntry } from "../controllers/apiInventoryTransactionsController.js";
+import { inventoryAdjustmentValidation, inventoryEntryValidation } from "../middleware/inventoryTransactionValidation.js";
 import {
   closeCashSessionController,
   createCashMovementController,
@@ -194,6 +198,14 @@ apiRouter.get("/recipes/:recipeId", requireApiAuth, requireApiActiveBusiness, re
 apiRouter.put("/recipes/:recipeId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeValidation, updateRecipeController);
 apiRouter.patch("/recipes/:recipeId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeStatusValidation, updateRecipeStatusController);
 apiRouter.post("/recipes/:recipeId/produce", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeProductionValidation, produceRecipeController);
+apiRouter.get("/transactions", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listTransactionsController);
+apiRouter.get("/transactions/options", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), transactionOptions);
+apiRouter.get("/transactions/:transactionId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getTransactionController);
+apiRouter.get("/reports/inventory-center", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), inventoryCenterApi);
+apiRouter.get("/reports/inventory-center.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryCenterCsvApi);
+apiRouter.get("/reports/inventory-center.xlsx", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryCenterExcelApi);
+apiRouter.post("/transactions/entries", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryEntryValidation, createEntry);
+apiRouter.post("/transactions/adjustments", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryAdjustmentValidation, createAdjustment);
 apiRouter.get("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCustomers);
 apiRouter.post("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), customerValidation, createCustomer);
 apiRouter.get("/customers/:customerId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getCustomer);
@@ -243,6 +255,7 @@ apiRouter.post("/admin/businesses/:businessId/archive", requireApiAuth, requireA
 });
 apiRouter.get("/admin/businesses/:businessId", requireApiAuth, requireApiSuperAdmin, adminBusinessDetail);
 apiRouter.get("/alerts/stock", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listStockAlerts);
+apiRouter.patch("/alerts/stock/:thresholdId/review", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), reviewStockAlert);
 apiRouter.get("/reports/inventory", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), inventoryReportApi);
 apiRouter.get("/reports/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementReportApi);
 apiRouter.get("/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementReportApi);

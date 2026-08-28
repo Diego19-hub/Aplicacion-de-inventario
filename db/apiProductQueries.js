@@ -146,7 +146,7 @@ export async function getApiProductBalances(businessId, productId) {
         l.id AS location_id, l.name AS location_name, l.code AS location_code,
         l.status AS location_status, l.is_default,
         COALESCE(b.stock, 0)::INTEGER AS stock,
-        t.minimum_stock
+        t.minimum_stock, t.maximum_stock
       FROM business_locations l
       LEFT JOIN inventory_balances b
         ON (b.business_id, b.location_id, b.item_id) = (l.business_id, l.id, $2)

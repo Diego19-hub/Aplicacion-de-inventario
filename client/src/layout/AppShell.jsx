@@ -77,6 +77,7 @@ export function AppShell({ children }) {
           {session.permissions.canViewCustomerCollections && <Link to="/app/collections" className={`nav-link ${location.pathname.startsWith("/app/collections") ? "nav-link--active" : ""}`}><ReceiptText aria-hidden="true" />Cobranza</Link>}
           {canViewCosts && <Link to="/app/costs" className={`nav-link ${location.pathname.startsWith("/app/costs") ? "nav-link--active" : ""}`}><WalletCards aria-hidden="true" />Costos</Link>}
           {canViewCosts && <Link to="/app/break-even" className={`nav-link ${location.pathname.startsWith("/app/break-even") ? "nav-link--active" : ""}`}><Scale aria-hidden="true" />Punto de equilibrio</Link>}
+          <Link to="/app/transactions" className={`nav-link ${location.pathname.startsWith("/app/transactions") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Transacciones</Link>
           <Link to="/app/movements" className={`nav-link ${location.pathname.startsWith("/app/movements") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Movimientos</Link>
           <Link to="/app/alerts" className={`nav-link ${location.pathname.startsWith("/app/alerts") ? "nav-link--active" : ""}`}><BellRing aria-hidden="true" />Alertas</Link>
           <Link to="/app/reports" className={`nav-link ${location.pathname.startsWith("/app/reports") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Reportes</Link>

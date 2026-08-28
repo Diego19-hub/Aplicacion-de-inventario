@@ -57,6 +57,7 @@ export function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState("1m");
   const [isTrendLoading, setIsTrendLoading] = useState(false);
+  const [stockAlerts, setStockAlerts] = useState([]);
   const trendAbortRef = useRef(null);
 
   const loadDashboard = useCallback(async (selectedPeriod = period, signal) => {
@@ -77,6 +78,7 @@ export function DashboardPage() {
     loadDashboard(period, controller.signal);
     return () => controller.abort();
   }, []);
+  useEffect(() => { apiRequest("/alerts/stock?limit=5").then((result) => setStockAlerts(result.alerts || [])).catch(() => setStockAlerts([])); }, []);
 
   async function changePeriod(event) {
     const selectedPeriod = event.target.value;
@@ -108,6 +110,7 @@ export function DashboardPage() {
         <section className="metric-grid" aria-label="Resumen del inventario">
           {metricCards(dashboard.summary, activeBusiness.currency).map(({ label, value, icon: Icon }) => <Card key={label} className="metric-card"><Icon aria-hidden="true" className="card-icon" /><p>{label}</p><strong>{value}</strong></Card>)}
         </section>
+        <section className="dashboard-sections"><Card><header className="section-heading"><div><p className="eyebrow">Reabastecimiento</p><h2>Alertas de inventario</h2></div></header><p className="muted">Agotados: <strong>{stockAlerts.filter((alert) => alert.status === "out_of_stock").length}</strong> · Stock bajo: <strong>{stockAlerts.filter((alert) => alert.status === "low_stock").length}</strong> · Excedentes: <strong>{stockAlerts.filter((alert) => alert.status === "overstock").length}</strong></p>{stockAlerts.length === 0 ? <p className="muted">No hay alertas de stock activas.</p> : <ul className="low-stock-list">{stockAlerts.slice(0, 5).map((alert) => <li key={alert.thresholdId}><Link to={`/app/products/${alert.product.id}`}><strong>{alert.product.name}</strong><span>{alert.location.name} · {alert.message}</span></Link><strong className={`stock-status stock-status--${alert.status}`}>{alert.status === "out_of_stock" ? "Agotado" : alert.status === "overstock" ? "Excedente" : "Stock bajo"}</strong></li>)}</ul>}<Link className="text-link" to="/app/alerts">Ver todas las alertas</Link></Card></section>
         <section className="dashboard-sections">
           <Card className="dashboard-card--wide"><header className="section-heading movement-trend-header"><div><p className="eyebrow">Evolución del inventario</p><h2>Movimientos</h2></div><label className="trend-period">Periodo:<select value={period} onChange={changePeriod} disabled={isTrendLoading}><option value="1m">Último mes</option><option value="3m">Últimos 3 meses</option><option value="6m">Últimos 6 meses</option><option value="12m">Último año</option></select></label></header>{isTrendLoading && <div className="trend-loading"><Spinner label="Actualizando gráfica" /></div>}{!isTrendLoading && (dashboard.movementTrend ?? []).every((row) => !(row.entries || row.exits || row.adjustments || row.netChange)) ? <EmptyState title="Sin movimientos en este periodo" description="Los movimientos aparecerán aquí cuando se registren." /> : <MovementTrendChart data={dashboard.movementTrend ?? []} totals={dashboard.totals} />}</Card>
           <Card><header className="section-heading"><div><p className="eyebrow">Distribución</p><h2>Stock por categoría</h2></div></header>{dashboard.stockByCategory.length === 0 ? <EmptyState title="Sin categorías con stock" description="El stock por categoría aparecerá aquí." /> : <ul className="category-stock-list">{dashboard.stockByCategory.map((category) => <li key={category.id}><div><strong>{category.name}</strong><span>{category.totalStock} unidades</span></div><div className="category-stock-bar"><span style={{ width: `${Math.min(100, (category.totalStock / Math.max(dashboard.summary.totalUnits, 1)) * 100)}%` }} /></div></li>)}</ul>}</Card>
