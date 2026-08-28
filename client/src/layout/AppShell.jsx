@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Banknote, BellRing, Boxes, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, Tags, Truck, UsersRound, WalletCards } from "lucide-react";
+import { ArrowRightLeft, Banknote, BellRing, Boxes, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, Tags, Truck, UsersRound, Utensils, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -66,6 +66,7 @@ export function AppShell({ children }) {
         <nav className="sidebar__nav" onClick={closeMobileMenu}>
           <Link to="/app" className={`nav-link ${location.pathname === "/app" ? "nav-link--active" : ""}`}><LayoutDashboard aria-hidden="true" />Dashboard</Link>
           <Link to="/app/products" className={`nav-link ${location.pathname === "/app/products" ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Productos</Link>
+          {session.permissions.canManageInventory && <Link to="/app/recipes" className={`nav-link ${location.pathname.startsWith("/app/recipes") ? "nav-link--active" : ""}`}><Utensils aria-hidden="true" />Recetas</Link>}
           <Link to="/app/categories" className={`nav-link ${location.pathname.startsWith("/app/categories") ? "nav-link--active" : ""}`}><Tags aria-hidden="true" />Categorías</Link>
           <Link to="/app/locations" className={`nav-link ${location.pathname.startsWith("/app/locations") ? "nav-link--active" : ""}`}><MapPin aria-hidden="true" />Ubicaciones</Link>
           <Link to="/app/suppliers" className={`nav-link ${location.pathname.startsWith("/app/suppliers") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Proveedores</Link>

@@ -127,6 +127,8 @@ import { createSale, getPosFormOptionsController, getPosProductsController, getS
 import { apiSaleValidation } from "../middleware/saleValidation.js";
 import { getBreakEven } from "../controllers/apiBreakEvenController.js";
 import { breakEvenValidation } from "../middleware/breakEvenValidation.js";
+import { createRecipeController, getRecipeController, listRecipesController, produceRecipeController, recipeOptions, updateRecipeController, updateRecipeStatusController } from "../controllers/apiRecipeController.js";
+import { recipeProductionValidation, recipeStatusValidation, recipeValidation } from "../middleware/recipeValidation.js";
 import {
   closeCashSessionController,
   createCashMovementController,
@@ -185,6 +187,13 @@ apiRouter.get("/business-costs", requireApiAuth, requireApiActiveBusiness, requi
 apiRouter.post("/business-costs", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostValidation, createBusinessCostController);
 apiRouter.put("/business-costs/:costId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostValidation, updateBusinessCostController);
 apiRouter.patch("/business-costs/:costId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostStatusValidation, updateBusinessCostStatusController);
+apiRouter.get("/recipes", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listRecipesController);
+apiRouter.get("/recipes/options", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), recipeOptions);
+apiRouter.post("/recipes", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeValidation, createRecipeController);
+apiRouter.get("/recipes/:recipeId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getRecipeController);
+apiRouter.put("/recipes/:recipeId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeValidation, updateRecipeController);
+apiRouter.patch("/recipes/:recipeId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeStatusValidation, updateRecipeStatusController);
+apiRouter.post("/recipes/:recipeId/produce", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeProductionValidation, produceRecipeController);
 apiRouter.get("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCustomers);
 apiRouter.post("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), customerValidation, createCustomer);
 apiRouter.get("/customers/:customerId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getCustomer);

@@ -17,9 +17,10 @@ function monthBounds(month) {
 }
 
 export function calculateBreakEven({ month, costs, sales }) {
-  const fixedCosts = roundMoney(costs.reduce((sum, cost) => sum + Number(cost.applied_amount), 0));
+  const fixedCosts = roundMoney(costs.filter((cost) => (cost.cost_type ?? cost.costType ?? "fixed") === "fixed").reduce((sum, cost) => sum + Number(cost.applied_amount), 0));
   const revenue = roundMoney(sales.revenue);
-  const variableCosts = roundMoney(sales.variable_costs);
+  const configuredVariableCosts = roundMoney(costs.filter((cost) => (cost.cost_type ?? cost.costType) === "variable").reduce((sum, cost) => sum + Number(cost.applied_amount), 0));
+  const variableCosts = roundMoney(Number(sales.variable_costs) + configuredVariableCosts);
   const unitsSold = Number(sales.units_sold);
   const salesCount = Number(sales.sales_count);
   const missingCostLines = Number(sales.missing_cost_lines ?? 0);
@@ -67,14 +68,14 @@ export function calculateBreakEven({ month, costs, sales }) {
     calculationComplete: missingCostLines === 0,
     missingCostLines,
     missingCostSales,
-    fixedCostsUsed: costs.map((cost) => ({
+    fixedCostsUsed: costs.filter((cost) => (cost.cost_type ?? cost.costType ?? "fixed") === "fixed").map((cost) => ({
       id: Number(cost.id),
       name: cost.name,
       frequency: cost.frequency,
       amount: Number(cost.amount),
       appliedAmount: roundMoney(cost.applied_amount)
     })),
-    variableCostsUsed: { productCosts: variableCosts },
+    variableCostsUsed: { productCosts: roundMoney(sales.variable_costs), configuredCosts: configuredVariableCosts },
     warnings
   };
 }

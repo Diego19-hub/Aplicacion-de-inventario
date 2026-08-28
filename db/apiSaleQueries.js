@@ -1,6 +1,7 @@
 import pool from "./pool.js";
 
 const PAYMENT_METHODS = ["cash", "card", "transfer"];
+const UNIT_FACTORS = { piece: 1, kilogram: 1, gram: 0.001, liter: 1, milliliter: 0.001, package: 1, box: 1 };
 
 export class SaleDomainError extends Error {
   constructor(code, message, statusCode = 400, fields = []) {
@@ -313,11 +314,29 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
       }
     }
 
+    const recipeResult = await client.query(
+      `SELECT r.product_id, ri.item_id, ri.quantity, ri.unit, r.id AS recipe_id
+       FROM recipes r
+       INNER JOIN recipe_ingredients ri ON (ri.business_id, ri.recipe_id) = (r.business_id, r.id)
+       WHERE r.business_id = $1 AND r.status = 'active' AND r.product_id = ANY($2::INTEGER[])
+       ORDER BY r.product_id, ri.id`,
+      [businessId, sortedItemIds]
+    );
+    const recipeDeductions = new Map();
+    for (const ingredient of recipeResult.rows) {
+      const sold = items.find((item) => Number(item.itemId) === Number(ingredient.product_id));
+      const amount = Number(ingredient.quantity) * UNIT_FACTORS[ingredient.unit] * Number(sold.quantity);
+      const current = recipeDeductions.get(Number(ingredient.item_id)) ?? { amount: 0, recipeId: Number(ingredient.recipe_id) };
+      current.amount += amount;
+      recipeDeductions.set(Number(ingredient.item_id), current);
+    }
+    const allItemIds = [...new Set([...sortedItemIds, ...recipeDeductions.keys()])];
+
     await client.query(
       `INSERT INTO inventory_balances (business_id, location_id, item_id, stock)
        SELECT $1, $2, item_id, 0 FROM unnest($3::INTEGER[]) AS ids(item_id)
        ON CONFLICT (business_id, location_id, item_id) DO NOTHING`,
-      [businessId, locationId, sortedItemIds]
+      [businessId, locationId, allItemIds]
     );
     const balancesResult = await client.query(
       `SELECT item_id, stock
@@ -325,22 +344,28 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
        WHERE business_id = $1 AND location_id = $2 AND item_id = ANY($3::INTEGER[])
        ORDER BY item_id
        FOR UPDATE`,
-      [businessId, locationId, sortedItemIds]
+      [businessId, locationId, allItemIds]
     );
     const stockById = new Map(balancesResult.rows.map((balance) => [Number(balance.item_id), Number(balance.stock)]));
+
+    const totalExits = new Map(items.map((item) => [Number(item.itemId), Number(item.quantity)]));
+    for (const [itemId, deduction] of recipeDeductions) totalExits.set(itemId, (totalExits.get(itemId) ?? 0) + deduction.amount);
+    for (const [itemId, quantity] of totalExits) {
+      if (!Number.isInteger(quantity) || (stockById.get(itemId) ?? 0) < quantity) {
+        const product = productsById.get(itemId);
+        throw new SaleDomainError("POS_INSUFFICIENT_STOCK", `No hay existencias suficientes para ${product?.name ?? "un ingrediente de la receta"}.`, 409, [{ field: "items", message: "La venta requiere existencias suficientes para el producto y sus ingredientes." }]);
+      }
+    }
 
     const lines = [];
     let subtotalCents = 0n;
     for (const item of items) {
       const product = productsById.get(item.itemId);
       const previousStock = stockById.get(item.itemId) ?? 0;
-      if (previousStock < item.quantity) {
-        throw new SaleDomainError("POS_INSUFFICIENT_STOCK", `No hay existencias suficientes para ${product.name}.`, 409, [{ field: `items.${items.indexOf(item)}.quantity`, message: "No hay existencias suficientes." }]);
-      }
       const unitPriceCents = decimalToCents(product.price);
       const lineTotalCents = unitPriceCents * BigInt(item.quantity);
       subtotalCents += lineTotalCents;
-      lines.push({ product, quantity: item.quantity, previousStock, resultingStock: previousStock - item.quantity, unitPriceCents, lineTotalCents });
+      lines.push({ product, quantity: item.quantity, unitPriceCents, lineTotalCents });
     }
 
     const receivedCents = amountReceived === undefined || amountReceived === null || amountReceived === ""
@@ -361,7 +386,11 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
     );
     const sale = saleResult.rows[0];
 
+    const currentStocks = new Map(stockById);
     for (const line of lines) {
+      const previousStock = currentStocks.get(Number(line.product.id));
+      const resultingStock = previousStock - line.quantity;
+      currentStocks.set(Number(line.product.id), resultingStock);
       await client.query(
         `INSERT INTO sale_items (business_id, sale_id, item_id, quantity, unit_price, unit_cost, line_total)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -371,13 +400,13 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
         `INSERT INTO inventory_movements
           (business_id, location_id, item_id, movement_type, quantity_delta, previous_stock, resulting_stock, reason, reference, created_by)
          VALUES ($1, $2, $3, 'exit', $4, $5, $6, 'Venta en punto de venta', $7, $8)`,
-        [businessId, locationId, line.product.id, -line.quantity, line.previousStock, line.resultingStock, `SALE-${sale.id}`, userId]
+        [businessId, locationId, line.product.id, -line.quantity, previousStock, resultingStock, `SALE-${sale.id}`, userId]
       );
       await client.query(
         `UPDATE inventory_balances
          SET stock = $1
          WHERE business_id = $2 AND location_id = $3 AND item_id = $4`,
-        [line.resultingStock, businessId, locationId, line.product.id]
+        [resultingStock, businessId, locationId, line.product.id]
       );
       await client.query(
         `UPDATE items
@@ -385,6 +414,15 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
          WHERE business_id = $2 AND id = $3 AND status = 'active'`,
         [line.quantity, businessId, line.product.id]
       );
+    }
+
+    for (const [itemId, deduction] of recipeDeductions) {
+      const previousStock = currentStocks.get(itemId);
+      const resultingStock = previousStock - deduction.amount;
+      currentStocks.set(itemId, resultingStock);
+      await client.query(`INSERT INTO inventory_movements (business_id, location_id, item_id, movement_type, quantity_delta, previous_stock, resulting_stock, reason, reference, created_by) VALUES ($1,$2,$3,'exit',$4,$5,$6,'Ingredientes consumidos por venta',$7,$8)`, [businessId, locationId, itemId, -deduction.amount, previousStock, resultingStock, `SALE-${sale.id}`, userId]);
+      await client.query("UPDATE inventory_balances SET stock=$1 WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [resultingStock, businessId, locationId, itemId]);
+      await client.query("UPDATE items SET stock=stock-$1 WHERE business_id=$2 AND id=$3", [deduction.amount, businessId, itemId]);
     }
 
     if (cashSessionId !== null) {
@@ -408,7 +446,7 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
         quantity: line.quantity,
         unitPrice: Number(line.product.price),
         lineTotal: Number(centsToDecimal(line.lineTotalCents)),
-        resultingStock: line.resultingStock
+        resultingStock: currentStocks.get(Number(line.product.id))
       }))
     };
   } catch (error) {

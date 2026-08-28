@@ -3,8 +3,9 @@ import pool from "./pool.js";
 export async function getBreakEvenCosts({ businessId, monthStart, monthEnd }) {
   const result = await pool.query(
     `SELECT
-       id, name, amount, cost_type, frequency, created_at,
+       id, name, amount, cost_type, frequency, category, start_date, end_date, created_at,
        CASE
+         WHEN frequency = 'weekly' THEN amount * 52 / 12
          WHEN frequency = 'monthly' THEN amount
          WHEN frequency = 'yearly' THEN amount / 12
          WHEN frequency = 'one_time' THEN amount
@@ -12,12 +13,12 @@ export async function getBreakEvenCosts({ businessId, monthStart, monthEnd }) {
      FROM business_costs
      WHERE business_id = $1
        AND is_active = true
-       AND created_at < $3::timestamptz
+       AND start_date < $3::date
+       AND (end_date IS NULL OR end_date >= $2::date)
        AND (
-         frequency IN ('monthly', 'yearly')
+         frequency IN ('weekly', 'monthly', 'yearly')
          OR (frequency = 'one_time' AND created_at >= $2::timestamptz AND created_at < $3::timestamptz)
        )
-       AND cost_type = 'fixed'
      ORDER BY LOWER(name), id`,
     [businessId, monthStart, monthEnd]
   );

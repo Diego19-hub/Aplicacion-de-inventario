@@ -51,3 +51,17 @@ test("devuelve NULL para el punto de equilibrio sin ventas o con margen no posit
   assert.equal(negativeMargin.breakEvenUnits, null);
   assert.equal(negativeMargin.breakEvenRevenue, null);
 });
+
+test("separa gastos fijos y variables configurados", () => {
+  const result = calculateBreakEven({
+    month: "2026-08",
+    costs: [
+      { id: 1, name: "Salarios", amount: "12000", applied_amount: "12000", cost_type: "fixed", frequency: "monthly" },
+      { id: 2, name: "Gasolina", amount: "600", applied_amount: "600", cost_type: "variable", frequency: "monthly" }
+    ],
+    sales: { sales_count: 1, units_sold: "10", revenue: "5000", variable_costs: "1000", missing_cost_lines: 0, missing_cost_sales: 0 }
+  });
+  assert.equal(result.fixedCosts, 12000);
+  assert.equal(result.variableCosts, 1600);
+  assert.deepEqual(result.variableCostsUsed, { productCosts: 1000, configuredCosts: 600 });
+});

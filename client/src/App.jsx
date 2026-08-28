@@ -67,6 +67,7 @@ import { CustomerPaymentPage } from "./pages/CustomerPaymentPage.jsx";
 import { CustomerReceiptPage } from "./pages/CustomerReceiptPage.jsx";
 import { NewCustomerPage } from "./pages/NewCustomerPage.jsx";
 import { NewCustomerChargePage } from "./pages/NewCustomerChargePage.jsx";
+import { RecipesPage } from "./pages/RecipesPage.jsx";
 import { ConnectionErrorPage, ForbiddenPage, NotFoundPage } from "./pages/ErrorPages.jsx";
 
 function loginPath(returnTo) {
@@ -218,6 +219,9 @@ export default function App() {
         element={<SessionGuard><AppShell><ProductsPage /></AppShell></SessionGuard>}
       />
       <Route path="/app/products/import" element={<SessionGuard><AppShell><ProductImportPage /></AppShell></SessionGuard>} />
+      <Route path="/app/recipes" element={<SessionGuard><AppShell><RecipesPage /></AppShell></SessionGuard>} />
+      <Route path="/app/recipes/new" element={<SessionGuard><AppShell><RecipesPage /></AppShell></SessionGuard>} />
+      <Route path="/app/recipes/:recipeId" element={<SessionGuard><AppShell><RecipesPage /></AppShell></SessionGuard>} />
       <Route
         path="/app/categories"
         element={<SessionGuard><AppShell><CategoriesPage /></AppShell></SessionGuard>}

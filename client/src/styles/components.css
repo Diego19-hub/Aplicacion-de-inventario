@@ -306,6 +306,43 @@ body { overflow-x: hidden; }
 .cash-history-movement > div:last-child { text-align: right; }
 .cash-history-movement span, .cash-history-empty { color: var(--color-muted); font-size: .9rem; }
 .business-costs-page { display: grid; gap: var(--space-5); min-width: 0; }
+.recipes-page { display: grid; gap: var(--space-5); min-width: 0; }
+.recipes-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.recipe-card { display: grid; gap: var(--space-4); }
+.recipe-card h2, .recipe-card p { margin: 0; }
+.recipe-card dl, .recipe-card dl div { display: grid; gap: .2rem; margin: 0; }
+.recipe-card dl { grid-template-columns: repeat(2, 1fr); }
+.recipe-card dt { color: var(--color-muted); font-size: .8rem; }
+.recipe-card dd { font-weight: 700; margin: 0; }
+.recipe-form { display: grid; gap: var(--space-4); }
+.recipe-help-card { display: grid; gap: var(--space-4); line-height: 1.55; }
+.recipe-help-card p, .recipe-help-card ul { margin: 0; }
+.recipe-help-card ul { display: grid; gap: .4rem; padding-left: 1.25rem; }
+.recipe-help-card__heading { align-items: flex-start; display: flex; gap: var(--space-3); }
+.recipe-help-card__heading svg { color: var(--color-primary); flex: 0 0 auto; height: 1.5rem; margin-top: .15rem; width: 1.5rem; }
+.recipe-help-card__heading h2, .recipe-help-card__heading p { margin: 0; }
+.recipe-help-card__formula { background: var(--color-surface-muted, #f7f8fc); border-left: 3px solid var(--color-primary); padding: var(--space-3) var(--space-4); }
+.recipe-help-card__example { background: #eef8f2; border-radius: var(--radius-sm); padding: var(--space-3); }
+.recipe-help-card__note, .recipe-field-help { color: var(--color-muted); font-size: .88rem; }
+.recipe-warning { align-items: center; background: #fff4df; border: 1px solid var(--color-warning); border-radius: var(--radius-sm); color: #805b12; display: flex; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+.recipe-warning svg { flex: 0 0 auto; height: 1.1rem; width: 1.1rem; }
+.recipe-form__grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.recipe-ingredients-heading, .recipe-cost-summary > div { align-items: center; display: flex; gap: var(--space-3); justify-content: space-between; }
+.recipe-ingredients-heading h2, .recipe-cost-summary h2 { margin: 0; }
+.recipe-field-help { margin: .25rem 0 0; }
+.recipe-ingredients { display: grid; gap: var(--space-3); }
+.recipe-ingredient { align-items: end; border-top: 1px solid var(--color-border); display: grid; gap: var(--space-3); grid-template-columns: 2fr 1fr 1fr auto; padding-top: var(--space-3); }
+.recipe-cost-summary { display: grid; gap: var(--space-3); }
+.recipe-cost-summary p { color: var(--color-warning); margin: 0; }
+.business-costs-totals { display: grid; gap: var(--space-4); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.business-costs-totals .card { display: grid; gap: .35rem; }
+.business-costs-totals span { color: var(--color-muted); font-size: .85rem; }
+.business-costs-totals strong { font-size: 1.35rem; }
+.business-cost-filter { padding: var(--space-4); }
+.business-cost-filter .field { max-width: 24rem; }
+.business-cost-category { display: grid; gap: var(--space-4); min-width: 0; overflow: hidden; padding: 0; }
+.business-cost-category__heading { align-items: center; display: flex; gap: var(--space-4); justify-content: space-between; padding: var(--space-5); }
+.business-cost-category__heading h2, .business-cost-category__heading p { margin: 0; }
 .business-cost-form { display: grid; gap: var(--space-4); }
 .business-cost-form__fields { display: grid; gap: var(--space-4); grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .business-cost-form__fields .field:first-child, .business-cost-form__fields .field:nth-child(2) { grid-column: 1 / -1; }
@@ -387,12 +424,18 @@ body { overflow-x: hidden; }
 @media (max-width: 900px) { .break-even-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.break-even-result-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }.break-even-costs-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .break-even-period { align-items: stretch; flex-direction: column; }.break-even-period .field__control, .break-even-period .button { width: 100%; }.break-even-summary-grid, .break-even-result-grid { grid-template-columns: 1fr; }.break-even-result-heading { align-items: flex-start; flex-direction: column; }.break-even-result-grid > div { padding-top: var(--space-2); } }
 @media (max-width: 760px) {
+  .recipes-grid, .recipe-form__grid { grid-template-columns: 1fr; }
+  .recipe-ingredient { align-items: stretch; grid-template-columns: 1fr; }
+  .business-costs-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .business-cost-category__heading { align-items: flex-start; flex-direction: column; }
+  .business-cost-category__heading .button { width: 100%; }
   .business-cost-form__fields { grid-template-columns: 1fr; }
   .business-cost-form__fields .field:first-child, .business-cost-form__fields .field:nth-child(2), .business-cost-form__actions { grid-column: auto; }
   .business-cost-form__actions { flex-direction: column; }
   .business-cost-form__actions .button { width: 100%; }
   .business-costs-table th, .business-costs-table td { padding: var(--space-3); }
 }
+@media (max-width: 420px) { .business-costs-totals { grid-template-columns: 1fr; } }
 @media (max-width: 1100px) { .cash-history-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }.cash-history-filter-actions { grid-column: 1 / -1; } }
 @media (max-width: 760px) { .cash-history-filters { grid-template-columns: 1fr; }.cash-history-filter-actions { grid-column: auto; }.cash-history-filter-actions .button { flex: 1; }.cash-history-results { align-items: flex-start; flex-direction: column; }.cash-history-movement { align-items: flex-start; flex-direction: column; }.cash-history-movement > div:last-child { text-align: left; } }
 @media (min-width: 901px) {
