@@ -7,10 +7,8 @@ import { Alert } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
-import { Input } from "../components/Input.jsx";
 import { InfoTip } from "../components/InfoTip.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
-import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { getStoredViewMode, ViewModeToggle } from "../components/ViewModeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -35,7 +33,8 @@ export function SalesPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [form, setForm] = useState(INITIAL_FILTERS);
+  const [draftFilters, setDraftFilters] = useState(INITIAL_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState(INITIAL_FILTERS);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -59,27 +58,39 @@ export function SalesPage() {
   useEffect(() => { loadSales(); }, [loadSales]);
 
   useEffect(() => {
-    setForm(Object.fromEntries(Object.keys(INITIAL_FILTERS).map((key) => [key, searchParams.get(key) ?? ""])));
+    const nextFilters = Object.fromEntries(Object.keys(INITIAL_FILTERS).map((key) => [key, searchParams.get(key) ?? ""]));
+    setDraftFilters(nextFilters);
+    setAppliedFilters(nextFilters);
   }, [query, searchParams]);
 
   function updateFilter(event) {
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+    const { name, value } = event.target;
+    if (import.meta.env.DEV) console.log("[SALES FILTER CHANGE]", value);
+    setDraftFilters((current) => ({ ...current, [name]: value }));
   }
 
-  function applyFilters(event) {
-    event.preventDefault();
+  function applyFilters() {
+    if (import.meta.env.DEV) console.log("[SALES SUBMIT]");
     const next = new URLSearchParams();
-    Object.entries(form).forEach(([key, value]) => {
+    Object.entries(draftFilters).forEach(([key, value]) => {
       if (value.trim()) next.set(key, value.trim());
     });
     next.set("page", "1");
     next.set("limit", searchParams.get("limit") || "25");
-    setSearchParams(next);
+    setAppliedFilters(draftFilters);
+    setSearchParams(next, { replace: true, preventScrollReset: true });
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    applyFilters();
   }
 
   function clearFilters() {
-    setForm(INITIAL_FILTERS);
-    setSearchParams({ page: "1", limit: searchParams.get("limit") || "25" });
+    setDraftFilters(INITIAL_FILTERS);
+    setAppliedFilters(INITIAL_FILTERS);
+    setSearchParams({ page: "1", limit: searchParams.get("limit") || "25" }, { replace: true, preventScrollReset: true });
   }
 
   function goToPage(page) {
@@ -103,19 +114,36 @@ export function SalesPage() {
     />
 
     <Card className="sales-filter-card">
-      <form className="sales-filters" onSubmit={applyFilters}>
-        <Input id="sales-search" name="q" label={<span>Buscar venta o usuario <InfoTip title="Filtros" content="Usa la búsqueda, método, estado o fechas para encontrar ventas más rápido." /></span>} type="search" placeholder="Número de venta o usuario" value={form.q} onChange={updateFilter} />
-        <Select id="sales-payment" name="paymentMethod" label={<span>Método de pago <InfoTip title="Método de pago" content="Indica cómo se cobró la venta: efectivo, tarjeta o transferencia." /></span>} value={form.paymentMethod} onChange={updateFilter}>
-          <option value="">Todos</option><option value="cash">Efectivo</option><option value="card">Tarjeta</option><option value="transfer">Transferencia</option>
-        </Select>
-        <Select id="sales-status" name="status" label="Estado" value={form.status} onChange={updateFilter}>
-          <option value="">Todos</option><option value="completed">Completada</option><option value="cancelled">Cancelada</option>
-        </Select>
-        <Input id="sales-date-from" name="dateFrom" label="Fecha inicial" type="date" value={form.dateFrom} onChange={updateFilter} />
-        <Input id="sales-date-to" name="dateTo" label="Fecha final" type="date" value={form.dateTo} onChange={updateFilter} />
+      <form className="sales-filters" onSubmit={handleSubmit}>
+        <div className="sales-filter-fields">
+          <label className="sales-filter-field" htmlFor="sales-search">
+            <span>Buscar venta o usuario <InfoTip title="Filtros" content="Usa la búsqueda, método, estado o fechas para encontrar ventas más rápido." /></span>
+            <input id="sales-search" name="q" type="text" placeholder="Buscar venta o usuario" value={draftFilters.q ?? ""} onChange={updateFilter} />
+          </label>
+          <label className="sales-filter-field" htmlFor="sales-payment">
+            <span>Método de pago <InfoTip title="Método de pago" content="Indica cómo se cobró la venta: efectivo, tarjeta o transferencia." /></span>
+            <select id="sales-payment" name="paymentMethod" value={draftFilters.paymentMethod ?? ""} onChange={updateFilter}>
+              <option value="">Todos</option><option value="cash">Efectivo</option><option value="card">Tarjeta</option><option value="transfer">Transferencia</option>
+            </select>
+          </label>
+          <label className="sales-filter-field" htmlFor="sales-status">
+            <span>Estado</span>
+            <select id="sales-status" name="status" value={draftFilters.status ?? ""} onChange={updateFilter}>
+              <option value="">Todos</option><option value="completed">Completada</option><option value="cancelled">Cancelada</option>
+            </select>
+          </label>
+          <label className="sales-filter-field" htmlFor="sales-date-from">
+            <span>Fecha inicial</span>
+            <input id="sales-date-from" name="dateFrom" type="date" value={draftFilters.dateFrom ?? ""} onChange={updateFilter} />
+          </label>
+          <label className="sales-filter-field" htmlFor="sales-date-to">
+            <span>Fecha final</span>
+            <input id="sales-date-to" name="dateTo" type="date" value={draftFilters.dateTo ?? ""} onChange={updateFilter} />
+          </label>
+        </div>
         <div className="sales-filter-actions">
-          <Button type="submit"><Search aria-hidden="true" />Aplicar</Button>
-          <Button type="button" variant="secondary" onClick={clearFilters}>Limpiar</Button>
+          <button type="submit" className="button button--primary sales-apply-button"><Search aria-hidden="true" /><span>Aplicar</span></button>
+          <button type="button" className="button button--secondary sales-clear-button" onClick={clearFilters}>Limpiar</button>
         </div>
       </form>
     </Card>

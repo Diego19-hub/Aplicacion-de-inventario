@@ -135,6 +135,8 @@ import { createAdjustment, createEntry } from "../controllers/apiInventoryTransa
 import { cancelPurchaseController, createPurchaseController, getPurchaseController, listPurchasesController, purchaseOptions, receivePurchaseController, updatePurchaseController } from "../controllers/apiPurchaseController.js";
 import { inventoryAdjustmentValidation, inventoryEntryValidation } from "../middleware/inventoryTransactionValidation.js";
 import { purchaseValidation, receiveValidation } from "../middleware/purchaseValidation.js";
+import { listReturnsController, getReturnController, createReturnController, cancelReturnController } from "../controllers/apiInventoryReturnsController.js";
+import { returnValidation } from "../middleware/inventoryReturnValidation.js";
 import {
   closeCashSessionController,
   createCashMovementController,
@@ -215,6 +217,10 @@ apiRouter.get("/purchases/:purchaseId", requireApiAuth, requireApiActiveBusiness
 apiRouter.put("/purchases/:purchaseId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), purchaseValidation, updatePurchaseController);
 apiRouter.post("/purchases/:purchaseId/receive", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), receiveValidation, receivePurchaseController);
 apiRouter.post("/purchases/:purchaseId/cancel", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cancelPurchaseController);
+apiRouter.get("/returns", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listReturnsController);
+apiRouter.post("/returns", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), returnValidation, createReturnController);
+apiRouter.get("/returns/:returnId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getReturnController);
+apiRouter.post("/returns/:returnId/cancel", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cancelReturnController);
 apiRouter.get("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCustomers);
 apiRouter.post("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), customerValidation, createCustomer);
 apiRouter.get("/customers/:customerId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getCustomer);

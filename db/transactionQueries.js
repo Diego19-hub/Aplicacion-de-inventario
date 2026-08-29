@@ -1,6 +1,9 @@
 import pool from "./pool.js";
 
 const typeSql = `CASE
+  WHEN m.reference LIKE 'RETURN-%' THEN 'return'
+  WHEN m.reference LIKE 'DAMAGE-%' THEN 'damage'
+  WHEN m.reference LIKE 'LOSS-%' THEN 'loss'
   WHEN m.reference LIKE 'SALE-%' THEN 'sale'
   WHEN m.reference LIKE 'RECIPE-%' THEN 'production'
   WHEN m.movement_type IN ('transfer_out','transfer_in') THEN 'transfer'

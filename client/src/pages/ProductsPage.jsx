@@ -95,9 +95,9 @@ export function ProductsPage() {
     />
     <Card className="product-filter-card">
       <form className="product-filters" onSubmit={handleSubmit}>
-        <Input id="product-search" label="Buscar productos" type="search" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Input id="product-search" label="Buscar productos" type="search" placeholder="Nombre, SKU o código de barras" value={query} onChange={(event) => setQuery(event.target.value)} />
         <Select id="product-category" label="Categoría" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">Todas las categorías</option>{data?.categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
-        <div className="product-filter-actions"><Button type="submit"><Search aria-hidden="true" />Buscar</Button><Button variant="secondary" onClick={clearFilters}>Limpiar filtros</Button></div>
+        <div className="filter-actions product-filter-actions"><Button type="submit" className="search-button"><Search aria-hidden="true" /><span>Buscar</span></Button><Button variant="secondary" className="filter-clear-button" onClick={clearFilters}>Limpiar filtros</Button></div>
       </form>
     </Card>
     <ViewModeToggle value={viewMode} storageKey="products_view_mode" onChange={setViewMode} />

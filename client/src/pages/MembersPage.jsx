@@ -39,22 +39,22 @@ function formatDate(value) {
 
 function MemberCard({ member, canManage, onAction }) {
   return (
-    <Card className="category-api-card">
+    <Card className="category-api-card member-card">
       <div>
         <h2>{member.user.username} {member.isCurrentUser && <span className="muted">(Tú)</span>}</h2>
         <a className="text-link" href={`mailto:${member.user.email}`}><Mail aria-hidden="true" />{member.user.email}</a>
       </div>
       <dl>
-        <div><dt>Rol</dt><dd>{roleLabels[member.role] || member.role}</dd></div>
-        <div><dt>Estado</dt><dd>{memberStatusLabels[member.status] || member.status}</dd></div>
-        <div><dt>Incorporación</dt><dd><time dateTime={member.joinedAt}>{formatDate(member.joinedAt)}</time></dd></div>
+        <div><dt>Rol</dt><dd><span className={`member-role member-role--${member.role}`}>{roleLabels[member.role] || member.role}</span></dd></div>
+        <div><dt>Estado</dt><dd><span className={`member-status member-status--${member.status}`}>{memberStatusLabels[member.status] || member.status}</span></dd></div>
+        <div><dt>Incorporación</dt><dd className="member-date"><time dateTime={member.joinedAt}>{formatDate(member.joinedAt)}</time></dd></div>
       </dl>
       {canManage && member.role !== "owner" && (
-        <div className="product-form__actions">
-          <Button variant="secondary" onClick={() => onAction(member, "role", member.role === "manager" ? "viewer" : "manager")}>Cambiar a {member.role === "manager" ? "Consulta" : "Manager"}</Button>
-          {member.status === "active" && <Button variant="secondary" onClick={() => onAction(member, "suspend")}>Suspender</Button>}
-          {["suspended", "removed"].includes(member.status) && <Button variant="secondary" onClick={() => onAction(member, "reactivate")}>Reactivar</Button>}
-          {["active", "suspended"].includes(member.status) && <Button variant="danger" onClick={() => onAction(member, "remove")}>Remover</Button>}
+        <div className="product-form__actions member-actions">
+          <Button variant="secondary" className="member-action--role" onClick={() => onAction(member, "role", member.role === "manager" ? "viewer" : "manager")}>Cambiar a {member.role === "manager" ? "Consulta" : "Manager"}</Button>
+          {member.status === "active" && <Button variant="secondary" className="member-action--suspend" onClick={() => onAction(member, "suspend")}>Suspender</Button>}
+          {["suspended", "removed"].includes(member.status) && <Button variant="secondary" className="member-action--reactivate" onClick={() => onAction(member, "reactivate")}>Reactivar</Button>}
+          {["active", "suspended"].includes(member.status) && <Button variant="danger" className="member-action--danger" onClick={() => onAction(member, "remove")}>Remover</Button>}
         </div>
       )}
     </Card>
@@ -63,15 +63,15 @@ function MemberCard({ member, canManage, onAction }) {
 
 function InvitationCard({ invitation, isRevoking, onStartRevoke, onCancelRevoke, onConfirmRevoke }) {
   return (
-    <Card className="category-api-card">
+    <Card className="category-api-card member-card member-card--invitation">
       <div>
         <h2>{invitation.email}</h2>
         <p className="muted">Invitada por {invitation.invitedBy.username}</p>
       </div>
       <dl>
-        <div><dt>Rol ofrecido</dt><dd>{roleLabels[invitation.offeredRole] || invitation.offeredRole}</dd></div>
-        <div><dt>Estado</dt><dd>{invitationStatusLabels[invitation.status] || invitation.status}</dd></div>
-        <div><dt>Vencimiento</dt><dd><time dateTime={invitation.expiresAt}>{formatDate(invitation.expiresAt)}</time></dd></div>
+        <div><dt>Rol ofrecido</dt><dd><span className={`member-role member-role--${invitation.offeredRole}`}>{roleLabels[invitation.offeredRole] || invitation.offeredRole}</span></dd></div>
+        <div><dt>Estado</dt><dd><span className={`member-status member-status--${invitation.status}`}>{invitationStatusLabels[invitation.status] || invitation.status}</span></dd></div>
+        <div><dt>Vencimiento</dt><dd className="member-date"><time dateTime={invitation.expiresAt}>{formatDate(invitation.expiresAt)}</time></dd></div>
         {invitation.isExpired && <div><dt>Disponibilidad</dt><dd>Invitación pendiente vencida</dd></div>}
       </dl>
       {invitation.status === "pending" && !isRevoking && <Button variant="danger" onClick={() => onStartRevoke(invitation.id)}>Revocar</Button>}

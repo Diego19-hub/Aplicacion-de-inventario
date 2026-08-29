@@ -74,6 +74,7 @@ export function AppShell({ children }) {
           <Link to="/app/suppliers" className={`nav-link ${location.pathname.startsWith("/app/suppliers") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Proveedores</Link>
           <Link to="/app/transfers" className={`nav-link ${location.pathname.startsWith("/app/transfers") ? "nav-link--active" : ""}`}><ArrowRightLeft aria-hidden="true" />Transferencias</Link>
           <Link to="/app/purchases" className={`nav-link ${location.pathname.startsWith("/app/purchases") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Compras</Link>
+          <Link to="/app/returns" className={`nav-link ${location.pathname.startsWith("/app/returns") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Devoluciones</Link>
           {session.permissions.canManageInventory && <Link to="/app/point-of-sale" className={`nav-link ${location.pathname.startsWith("/app/point-of-sale") ? "nav-link--active" : ""}`}><ShoppingCart aria-hidden="true" />Punto de venta</Link>}
           {canManageCash && <Link to="/app/cash" className={`nav-link ${location.pathname.startsWith("/app/cash") ? "nav-link--active" : ""}`}><Banknote aria-hidden="true" />Caja</Link>}
           {canViewSales && <Link to="/app/sales" className={`nav-link ${location.pathname.startsWith("/app/sales") ? "nav-link--active" : ""}`}><ReceiptText aria-hidden="true" />Ventas</Link>}
