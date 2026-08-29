@@ -148,7 +148,7 @@ export async function createProduct(req, res, next) {
   }
 
   try {
-    const product = await createItem(matchedData(req), req.business.id);
+    const product = await createItem(matchedData(req), req.business.id, req.session.user.id);
 
     if (!product) {
       return res.status(400).json({
@@ -273,7 +273,7 @@ export async function updateProduct(req, res, next) {
     const product = await updateItem(productId, req.business.id, {
       ...data,
       description: data.description ?? ""
-    });
+    }, req.session.user.id);
 
     if (!product) {
       return res.status(404).json({

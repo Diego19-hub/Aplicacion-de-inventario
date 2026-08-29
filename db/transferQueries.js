@@ -1,4 +1,5 @@
 import pool from "./pool.js";
+import { auditService } from "../services/auditService.js";
 
 export async function getApiTransferFormOptions(businessId) {
   const [products, locations, balances] = await Promise.all([
@@ -60,6 +61,7 @@ export async function createInventoryTransfer({ businessId,itemId,userId,fromLoc
   await client.query("INSERT INTO inventory_movements(business_id,item_id,location_id,transfer_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES($1,$2,$3,$4,'transfer_out',$5,$6,$7,$8,$9,$10),($1,$2,$11,$4,'transfer_in',$12,$13,$14,$8,$9,$10)",[businessId,itemId,fromLocationId,transfer.id,-quantity,fromStock,out,reason,reference||null,userId,toLocationId,quantity,toStock,inn]);
   await client.query("UPDATE inventory_balances SET stock=CASE WHEN location_id=$3 THEN $4::integer WHEN location_id=$5 THEN $6::integer END WHERE business_id=$1 AND item_id=$2 AND location_id IN($3,$5)",[businessId,itemId,fromLocationId,out,toLocationId,inn]);
   const total=(await client.query("SELECT COALESCE(sum(stock),0)::int total FROM inventory_balances WHERE business_id=$1 AND item_id=$2",[businessId,itemId])).rows[0].total; if(total!==item.stock)throw new Error('La transferencia alteró el stock total.');
+  await auditService.record({ client, businessId, userId, module: "transfers", action: "create", reference: reference || `TRANSFER-${transfer.id}`, description: "Transferencia registrada", newValues: { itemId, fromLocationId, toLocationId, quantity, reason } });
   await client.query('COMMIT');
   return {
     ...transfer,

@@ -1,4 +1,5 @@
 import pool from "./pool.js";
+import { auditService } from "../services/auditService.js";
 
 function reference(prefix, supplied) { return supplied?.trim() || `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; }
 
@@ -33,6 +34,7 @@ async function applyInventoryLines({ businessId, userId, date, reference, suppli
       await client.query("UPDATE items SET stock=stock+$1, cost_price=CASE WHEN $2::BOOLEAN THEN $3 ELSE cost_price END WHERE business_id=$4 AND id=$5 AND status='active'", [delta, kind === "entry" && line.unitCost !== undefined, line.unitCost ?? null, businessId, line.itemId]);
       stock.set(Number(line.itemId), resulting);
     }
+    await auditService.record({ client, businessId, userId, module: "inventory", action: kind === "entry" ? "create" : "edit", reference, description: kind === "entry" ? "Entrada de inventario registrada" : "Ajuste de inventario registrado", newValues: { locationId, lines, supplier, notes } });
     await client.query("COMMIT");
     return { reference, locationId: Number(locationId), lines: lines.length };
   } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }

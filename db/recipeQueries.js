@@ -1,4 +1,5 @@
 import pool from "./pool.js";
+import { auditService } from "../services/auditService.js";
 
 export const RECIPE_UNITS = ["piece", "kilogram", "gram", "liter", "milliliter", "package", "box"];
 
@@ -72,12 +73,13 @@ export async function createRecipe({ businessId, userId, data }) {
     await verifyRecipeItems(client, businessId, data.productId, data.ingredients);
     const recipe = (await client.query(`INSERT INTO recipes (business_id,name,product_id,yield_quantity,yield_unit,instructions,waste_percentage,manual_cost,manual_cost_notes,is_estimated,labor_cost,logistics_cost,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`, [businessId, data.name, data.productId, data.yieldQuantity, data.yieldUnit, data.instructions || null, data.wastePercentage, data.manualCost || null, data.manualCostNotes || null, Boolean(data.isEstimated), data.laborCost || 0, data.logisticsCost || 0, userId])).rows[0];
     for (const ingredient of data.ingredients) await client.query("INSERT INTO recipe_ingredients (business_id,recipe_id,item_id,quantity,unit) VALUES ($1,$2,$3,$4,$5)", [businessId, recipe.id, ingredient.itemId, ingredient.quantity, ingredient.unit]);
+    await auditService.record({ client, businessId, userId, module: "recipes", action: "create", reference: `RECIPE-${recipe.id}`, description: "Receta creada", newValues: { recipeId: recipe.id, data } });
     await client.query("COMMIT");
     return getRecipe(businessId, recipe.id);
   } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
 }
 
-export async function updateRecipe({ businessId, recipeId, data }) {
+export async function updateRecipe({ businessId, userId, recipeId, data }) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -87,14 +89,22 @@ export async function updateRecipe({ businessId, recipeId, data }) {
     await client.query(`UPDATE recipes SET name=$1, product_id=$2, yield_quantity=$3, yield_unit=$4, instructions=$5, waste_percentage=$6, manual_cost=$7, manual_cost_notes=$8, is_estimated=$9, labor_cost=$10, logistics_cost=$11 WHERE business_id=$12 AND id=$13`, [data.name, data.productId, data.yieldQuantity, data.yieldUnit, data.instructions || null, data.wastePercentage, data.manualCost || null, data.manualCostNotes || null, Boolean(data.isEstimated), data.laborCost || 0, data.logisticsCost || 0, businessId, recipeId]);
     await client.query("DELETE FROM recipe_ingredients WHERE business_id=$1 AND recipe_id=$2", [businessId, recipeId]);
     for (const ingredient of data.ingredients) await client.query("INSERT INTO recipe_ingredients (business_id,recipe_id,item_id,quantity,unit) VALUES ($1,$2,$3,$4,$5)", [businessId, recipeId, ingredient.itemId, ingredient.quantity, ingredient.unit]);
+    await auditService.record({ client, businessId, userId, module: "recipes", action: "edit", reference: `RECIPE-${recipeId}`, description: "Receta editada", newValues: { recipeId, data } });
     await client.query("COMMIT");
     return getRecipe(businessId, recipeId);
   } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
 }
 
-export async function updateRecipeStatus({ businessId, recipeId, status }) {
-  const result = await pool.query("UPDATE recipes SET status=$1 WHERE business_id=$2 AND id=$3 RETURNING *", [status, businessId, recipeId]);
-  return result.rows[0] ?? null;
+export async function updateRecipeStatus({ businessId, userId, recipeId, status }) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query("UPDATE recipes SET status=$1 WHERE business_id=$2 AND id=$3 RETURNING *", [status, businessId, recipeId]);
+    if (!result.rows[0]) { await client.query("ROLLBACK"); return null; }
+    await auditService.record({ client, businessId, userId, module: "recipes", action: "change_status", reference: `RECIPE-${recipeId}`, description: "Estado de receta actualizado", newValues: { status } });
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
 }
 
 export async function produceRecipe({ businessId, recipeId, userId, locationId, quantity }) {
@@ -115,6 +125,7 @@ export async function produceRecipe({ businessId, recipeId, userId, locationId, 
     const produced = Number(detail.recipe.yield_quantity) * Number(quantity); const finalPrevious = stocks.get(Number(detail.recipe.product_id)) ?? 0; const finalResulting = finalPrevious + produced;
     await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES ($1,$2,$3,'entry',$4,$5,$6,'Producción de receta',$7,$8)", [businessId, locationId, detail.recipe.product_id, produced, finalPrevious, finalResulting, `RECIPE-${recipeId}`, userId]);
     await client.query("UPDATE inventory_balances SET stock=$1 WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [finalResulting, businessId, locationId, detail.recipe.product_id]); await client.query("UPDATE items SET stock=stock+$1 WHERE business_id=$2 AND id=$3", [produced, businessId, detail.recipe.product_id]);
+    await auditService.record({ client, businessId, userId, module: "recipes", action: "create", reference: `RECIPE-${recipeId}`, description: "Lote producido", newValues: { recipeId, locationId, quantity, produced } });
     await client.query("COMMIT"); return { recipeId: Number(recipeId), produced, productStock: finalResulting };
   } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
 }

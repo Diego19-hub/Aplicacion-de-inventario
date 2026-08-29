@@ -1,4 +1,5 @@
 import pool from "./pool.js";
+import { auditService } from "../services/auditService.js";
 import { categorySkuPrefix } from "../utils/sku.js";
 
 export async function getInventorySummary(businessId) {
@@ -222,7 +223,8 @@ export async function getItemById(id, businessId) {
 
 export async function createItem(
   { sku, barcode, name, description, brand, price, costPrice, categoryId },
-  businessId
+  businessId,
+  createdBy = null
 ) {
   const client = await pool.connect();
   try {
@@ -268,6 +270,7 @@ export async function createItem(
       RETURNING id, sku, barcode, name, description, brand, price, cost_price, stock, category_id`,
       [resolvedSku, barcode || null, name, description, brand, price, costPrice ?? null, 0, category.id, businessId]
     );
+    await auditService.record({ client, businessId, userId: createdBy, module: "products", action: "create", reference: `PRODUCT-${result.rows[0].id}`, description: "Producto creado", newValues: { ...result.rows[0], category_name: category.name } });
     await client.query("COMMIT");
     return { ...result.rows[0], category_name: category.name };
   } catch (error) {
@@ -281,10 +284,14 @@ export async function createItem(
 export async function updateItem(
   id,
   businessId,
-  { sku, barcode, name, description, brand, price, costPrice, categoryId }
+  { sku, barcode, name, description, brand, price, costPrice, categoryId },
+  userId = null
 ) {
+  const client = await pool.connect();
   const hasCostPrice = costPrice !== undefined;
-  const result = await pool.query(
+  try {
+  await client.query("BEGIN");
+  const result = await client.query(
     `
       WITH resolved_category AS (
         SELECT id
@@ -314,11 +321,18 @@ export async function updateItem(
     [sku, barcode || null, name, description, brand, price, costPrice ?? null, categoryId ?? null, id, businessId, hasCostPrice]
   );
 
+  if (!result.rows[0]) { await client.query("ROLLBACK"); return undefined; }
+  await auditService.record({ client, businessId, userId, module: "products", action: "edit", reference: `PRODUCT-${id}`, description: "Producto editado", newValues: { id, sku, barcode, name, description, brand, price, costPrice, categoryId } });
+  await client.query("COMMIT");
   return result.rows[0];
+  } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
 }
 
 export async function archiveItem(id, businessId, archivedBy, archiveReason) {
-  const result = await pool.query(
+  const client = await pool.connect();
+  try {
+  await client.query("BEGIN");
+  const result = await client.query(
     `
       UPDATE items
       SET
@@ -334,7 +348,11 @@ export async function archiveItem(id, businessId, archivedBy, archiveReason) {
     [id, businessId, archivedBy, archiveReason]
   );
 
+  if (!result.rows[0]) { await client.query("ROLLBACK"); return undefined; }
+  await auditService.record({ client, businessId, userId: archivedBy, module: "products", action: "change_status", reference: `PRODUCT-${id}`, description: "Producto archivado", newValues: { id, status: "archived", reason: archiveReason } });
+  await client.query("COMMIT");
   return result.rows[0];
+  } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
 }
 
 export async function getArchivedItems(businessId) {
@@ -382,8 +400,11 @@ export async function getArchivedItemById(id, businessId) {
   return result.rows[0];
 }
 
-export async function restoreItem(id, businessId) {
-  const result = await pool.query(
+export async function restoreItem(id, businessId, restoredBy = null) {
+  const client = await pool.connect();
+  try {
+  await client.query("BEGIN");
+  const result = await client.query(
     `
       UPDATE items
       SET
@@ -398,5 +419,9 @@ export async function restoreItem(id, businessId) {
     `,
     [id, businessId]
   );
+  if (!result.rows[0]) { await client.query("ROLLBACK"); return undefined; }
+  await auditService.record({ client, businessId, userId: restoredBy, module: "products", action: "change_status", reference: `PRODUCT-${id}`, description: "Producto restaurado", newValues: { id, status: "active" } });
+  await client.query("COMMIT");
   return result.rows[0];
+  } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
 }

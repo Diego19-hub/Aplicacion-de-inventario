@@ -1,4 +1,5 @@
 import pool from "./pool.js";
+import { auditService } from "../services/auditService.js";
 
 export async function getApiBusinessMembers(businessId) {
   const result = await pool.query(
@@ -129,6 +130,7 @@ export async function createApiBusinessInvitation({ businessId, email, offeredRo
       `,
       [businessId, email, offeredRole, tokenHash, invitedBy]
     );
+    await auditService.record({ client, businessId, userId: invitedBy, module: "members", action: "create", reference: `INVITATION-${result.rows[0].id}`, description: "Invitación de miembro creada", newValues: { invitationId: result.rows[0].id, role: offeredRole } });
     await client.query("COMMIT");
     return { invitation: result.rows[0] };
   } catch (error) {
@@ -189,7 +191,7 @@ export async function findApiInvitationByHash(tokenHash) {
   return result.rows[0] ?? null;
 }
 
-export async function updateApiBusinessMember({ businessId, membershipId, action, role = null }) {
+export async function updateApiBusinessMember({ businessId, membershipId, actorUserId, action, role = null }) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -203,6 +205,7 @@ export async function updateApiBusinessMember({ businessId, membershipId, action
     );
     const member = found.rows[0];
     if (!member) { await client.query("ROLLBACK"); return { error: "not_found" }; }
+    const previousMember = { role: member.role, status: member.status };
     if (member.role === "owner") { await client.query("ROLLBACK"); return { error: "owner_protected" }; }
 
     if (action === "role") {
@@ -225,6 +228,7 @@ export async function updateApiBusinessMember({ businessId, membershipId, action
       await client.query("UPDATE business_members SET status = $1 WHERE id = $2 AND business_id = $3", [rule.next, membershipId, businessId]);
       member.status = rule.next;
     }
+    await auditService.record({ client, businessId, userId: actorUserId, module: "members", action: action === "role" ? "change_permissions" : "change_status", reference: `MEMBER-${membershipId}`, description: action === "role" ? "Permisos del miembro actualizados" : "Estado del miembro actualizado", previousValues: previousMember, newValues: { role: member.role, status: member.status } });
     await client.query("COMMIT");
     return { member };
   } catch (error) {

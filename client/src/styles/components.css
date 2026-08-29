@@ -1422,6 +1422,19 @@ td {
   width: 130px !important;
 }
 
+.audit-page { display: grid; gap: var(--space-5); min-width: 0; }
+.audit-filters { align-items: end; display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); min-width: 0; }
+.audit-filters label { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.audit-filters label > span { color: var(--color-muted); font-size: .875rem; font-weight: 700; }
+.audit-filters input, .audit-filters select { box-sizing: border-box; max-width: 100%; min-width: 0; min-height: 2.75rem; width: 100%; }
+.audit-filters .filter-actions { min-width: max-content; }
+.audit-table-wrap { max-width: 100%; overflow-x: auto; }
+.audit-table { border-collapse: collapse; min-width: 60rem; width: 100%; }
+.audit-table th, .audit-table td { border-top: 1px solid var(--color-border); padding: var(--space-3) var(--space-4); text-align: left; white-space: nowrap; }
+.audit-table thead th { background: #f8f9fd; color: var(--color-muted); font-size: .78rem; text-transform: uppercase; }
+.audit-table tbody td:last-child { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .audit-filters { grid-template-columns: 1fr; } .audit-filters .filter-actions { min-width: 0; width: 100%; } .audit-filters .filter-actions .button { width: 100%; } }
+
 @media (max-width: 900px) {
   .sales-filter-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -1,4 +1,5 @@
 import pool from "./pool.js";
+import { auditService } from "../services/auditService.js";
 
 const PAYMENT_METHODS = ["cash", "card", "transfer"];
 const UNIT_FACTORS = { piece: 1, kilogram: 1, gram: 0.001, liter: 1, milliliter: 0.001, package: 1, box: 1 };
@@ -434,6 +435,7 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
       );
     }
 
+    await auditService.record({ client, businessId, userId, module: "sales", action: "create", reference: `SALE-${sale.id}`, description: "Venta registrada", newValues: { saleId: sale.id, locationId, paymentMethod, items } });
     await client.query("COMMIT");
     transactionStarted = false;
     return {

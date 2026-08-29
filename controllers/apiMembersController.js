@@ -41,7 +41,7 @@ async function mutateMember(req, res, next, action) {
   if (!errors.isEmpty()) return validationError(res, errors.array());
   const { role } = matchedData(req);
   try {
-    const result = await updateApiBusinessMember({ businessId: req.business.id, membershipId: Number(req.params.membershipId), action, role });
+    const result = await updateApiBusinessMember({ businessId: req.business.id, membershipId: Number(req.params.membershipId), actorUserId: req.session.user.id, action, role });
     if (result.error) {
       const [status, code, message] = errorResponses[result.error];
       return res.status(status).json({ error: { code, message } });

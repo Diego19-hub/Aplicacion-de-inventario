@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Banknote, BellRing, Boxes, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, Tags, Truck, UsersRound, Utensils, WalletCards } from "lucide-react";
+import { ArrowRightLeft, Banknote, BellRing, Boxes, ClipboardList, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, Tags, Truck, UsersRound, Utensils, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -85,6 +85,7 @@ export function AppShell({ children }) {
           <Link to="/app/movements" className={`nav-link ${location.pathname.startsWith("/app/movements") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Movimientos</Link>
           <Link to="/app/alerts" className={`nav-link ${location.pathname.startsWith("/app/alerts") ? "nav-link--active" : ""}`}><BellRing aria-hidden="true" />Alertas</Link>
           <Link to="/app/reports" className={`nav-link ${location.pathname.startsWith("/app/reports") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Reportes</Link>
+          <Link to="/app/audit-log" className={`nav-link ${location.pathname.startsWith("/app/audit-log") ? "nav-link--active" : ""}`}><ClipboardList aria-hidden="true" />Bitácora</Link>
           {session.permissions.canManageMembers && <Link to="/app/members" className={`nav-link ${location.pathname.startsWith("/app/members") ? "nav-link--active" : ""}`}><UsersRound aria-hidden="true" />Equipo</Link>}
           {session.user.platformRole === "super_admin" && <Link to="/app/admin" className={`nav-link ${location.pathname.startsWith("/app/admin") ? "nav-link--active" : ""}`}><UsersRound aria-hidden="true" />Administración</Link>}
           <Link to="/app/settings" className={`nav-link ${location.pathname.startsWith("/app/settings") ? "nav-link--active" : ""}`}><Settings aria-hidden="true" />Configuración</Link>

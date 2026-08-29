@@ -92,7 +92,7 @@ export async function restoreArchivedProduct(req, res, next) {
   const id = productId(req.params.productId);
   if (!id) return jsonValidation(res, "productId", "El producto debe ser un entero positivo.");
   try {
-    const product = await restoreItem(id, req.business.id);
+    const product = await restoreItem(id, req.business.id, req.session.user.id);
     if (!product) return notFound(res);
     return res.status(200).json({ data: { product: { id: product.id, status: "active" } } });
   } catch (error) { return next(error); }

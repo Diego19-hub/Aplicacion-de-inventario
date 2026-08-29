@@ -73,6 +73,7 @@ import { NewInventoryTransactionPage } from "./pages/NewInventoryTransactionPage
 import { PurchasesPage } from "./pages/PurchasesPage.jsx";
 import { EditPurchasePage } from "./pages/EditPurchasePage.jsx";
 import { ReturnsPage } from "./pages/ReturnsPage.jsx";
+import { AuditLogPage } from "./pages/AuditLogPage.jsx";
 import { ConnectionErrorPage, ForbiddenPage, NotFoundPage } from "./pages/ErrorPages.jsx";
 
 function loginPath(returnTo) {
@@ -238,6 +239,7 @@ export default function App() {
       <Route path="/app/returns" element={<SessionGuard><AppShell><ReturnsPage /></AppShell></SessionGuard>} />
       <Route path="/app/returns/new" element={<SessionGuard><AppShell><ReturnsPage formOnly /></AppShell></SessionGuard>} />
       <Route path="/app/returns/:returnId" element={<SessionGuard><AppShell><ReturnsPage /></AppShell></SessionGuard>} />
+      <Route path="/app/audit-log" element={<SessionGuard><AppShell><AuditLogPage /></AppShell></SessionGuard>} />
       <Route
         path="/app/categories"
         element={<SessionGuard><AppShell><CategoriesPage /></AppShell></SessionGuard>}
