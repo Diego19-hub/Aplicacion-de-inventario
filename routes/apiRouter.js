@@ -166,6 +166,7 @@ import {
 import { customerValidation, customerStatusValidation, chargeValidation, chargeStatusValidation, paymentValidation, cancellationValidation } from "../middleware/customerCollectionsValidation.js";
 import { listCustomers, createCustomer, getCustomer, updateCustomer, setCustomerStatus, listCharges, createCharge, getCharge, updateCharge, updateChargeStatus, listPayments, getPayment, createPayment, cancelPayment, accountStatement, balance, collectionsSummary, collectionAlerts, receipt } from "../controllers/apiCustomerCollectionsController.js";
 import { getAuditLog } from "../controllers/apiAuditController.js";
+import { listNotificationsController, markAllNotificationsReadController, markNotificationReadController, notificationsSummary } from "../controllers/apiNotificationsController.js";
 
 const apiRouter = Router();
 
@@ -177,6 +178,10 @@ apiRouter.use((req, res, next) => {
 apiRouter.get("/csrf-token", getCsrfToken);
 apiRouter.get("/session", getSession);
 apiRouter.get("/audit-log", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getAuditLog);
+apiRouter.get("/notifications/summary", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), notificationsSummary);
+apiRouter.get("/notifications", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listNotificationsController);
+apiRouter.patch("/notifications/read-all", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), markAllNotificationsReadController);
+apiRouter.patch("/notifications/:notificationId/read", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), markNotificationReadController);
 apiRouter.get("/auth/google", startGoogleAuth);
 apiRouter.get("/auth/google/callback", googleCallback);
 apiRouter.get("/invitations/:token", invitationLimiter, getPublicInvitation);

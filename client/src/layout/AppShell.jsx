@@ -5,9 +5,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/Button.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
+import { apiRequest } from "../api/client.js";
 
 export function AppShell({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState({ unreadCount: 0, notifications: [] });
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { logout, session } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -16,6 +19,27 @@ export function AppShell({ children }) {
   const canManageCash = ["owner", "manager"].includes(session.membership?.role);
   const canViewCosts = ["owner", "manager", "viewer"].includes(session.membership?.role);
   const helpModule = location.pathname === "/app" ? "dashboard" : location.pathname === "/app/costs" ? "costs" : location.pathname === "/app/collections" ? "collections" : location.pathname === "/app/purchases" || location.pathname === "/app/purchases/new" ? "purchases" : location.pathname === "/app/alerts" ? "alerts" : location.pathname === "/app/reports" ? "reports" : location.pathname === "/app/reports/inventory" ? "inventory" : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadNotifications() {
+      try {
+        const response = await apiRequest("/notifications/summary");
+        if (!cancelled) setNotifications(response.data || response);
+      } catch (error) {
+        if (error.name !== "AbortError") return;
+      }
+    }
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, 60000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [session.activeBusiness?.id]);
+
+  async function markNotificationRead(notification) {
+    if (notification.is_read) return;
+    await apiRequest(`/notifications/${notification.id}/read`, { method: "PATCH", csrf: true });
+    setNotifications((current) => ({ ...current, unreadCount: Math.max(0, current.unreadCount - 1), notifications: current.notifications.map((item) => item.id === notification.id ? { ...item, is_read: true } : item) }));
+  }
 
   function closeMobileMenu() {
     setIsMobileMenuOpen(false);
@@ -96,7 +120,7 @@ export function AppShell({ children }) {
         <header className="topbar">
           <Button variant="ghost" className="mobile-menu-button" onClick={() => setIsMobileMenuOpen((open) => !open)} aria-expanded={isMobileMenuOpen} aria-label="Mostrar navegación"><Menu aria-hidden="true" /></Button>
           <div><span className="topbar__label">{session.activeBusiness ? "Negocio activo" : "Área actual"}</span><strong>{activeBusinessName}</strong></div>
-          <Link to="/select-business" className="text-link">Cambiar negocio</Link>
+          <div className="topbar__actions"><div className="notification-bell"><button type="button" className="notification-bell__button" aria-label={`Notificaciones${notifications.unreadCount ? `, ${notifications.unreadCount} no leídas` : ""}`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}><BellRing aria-hidden="true" />{notifications.unreadCount > 0 && <span className="notification-bell__count">{notifications.unreadCount > 99 ? "99+" : notifications.unreadCount}</span>}</button>{notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notificaciones recientes"><strong>Notificaciones</strong>{notifications.notifications.length ? notifications.notifications.map((notification) => <Link key={notification.id} to={notification.link || "/app/notifications"} className={`notification-popover__item ${notification.is_read ? "notification-popover__item--read" : ""}`} onClick={() => { markNotificationRead(notification).catch(() => undefined); setNotificationsOpen(false); }}><span>{notification.title}</span><small>{notification.message}</small></Link>) : <span className="notification-popover__empty">No hay notificaciones nuevas.</span>}<Link className="text-link" to="/app/notifications" onClick={() => setNotificationsOpen(false)}>Ver todas</Link></div>}</div><Link to="/select-business" className="text-link">Cambiar negocio</Link></div>
         </header>
         <main className="main-content">{helpModule && <HelpInfoPanel moduleKey={helpModule} businessId={session.activeBusiness?.id} />}{children}</main>
       </div>

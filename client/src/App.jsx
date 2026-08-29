@@ -74,6 +74,7 @@ import { PurchasesPage } from "./pages/PurchasesPage.jsx";
 import { EditPurchasePage } from "./pages/EditPurchasePage.jsx";
 import { ReturnsPage } from "./pages/ReturnsPage.jsx";
 import { AuditLogPage } from "./pages/AuditLogPage.jsx";
+import { NotificationsPage } from "./pages/NotificationsPage.jsx";
 import { ConnectionErrorPage, ForbiddenPage, NotFoundPage } from "./pages/ErrorPages.jsx";
 
 function loginPath(returnTo) {
@@ -174,6 +175,7 @@ export default function App() {
         element={<SessionGuard><AppShell><DashboardPage /></AppShell></SessionGuard>}
       />
       <Route path="/app/alerts" element={<SessionGuard><AppShell><AlertsPage /></AppShell></SessionGuard>} />
+      <Route path="/app/notifications" element={<SessionGuard><AppShell><NotificationsPage /></AppShell></SessionGuard>} />
       <Route path="/app/reports" element={<SessionGuard><AppShell><ReportsPage /></AppShell></SessionGuard>} />
       <Route path="/app/reports/inventory" element={<SessionGuard><AppShell><InventoryReportPage /></AppShell></SessionGuard>} />
       <Route path="/app/reports/movements" element={<SessionGuard><AppShell><MovementReportPage title="Reporte de movimientos" description="Historial de inventario por ubicación." /></AppShell></SessionGuard>} />

@@ -1,4 +1,5 @@
 import { getStockAlertOptions, getStockAlerts, markStockAlertReviewed } from "../db/alertQueries.js";
+import { notificationService } from "../services/notificationService.js";
 
 const pageSize = 20;
 const positiveId = (value) => typeof value === "string" && /^[1-9]\d*$/.test(value) ? Number(value) : null;
@@ -24,6 +25,7 @@ function serializeAlert(row) {
 
 export async function listStockAlerts(req, res, next) {
   try {
+    await notificationService.syncStockAlertNotifications({ businessId: req.business.id });
     const options = await getStockAlertOptions(req.business.id);
     const categoryId = positiveId(req.query.category);
     const locationId = positiveId(req.query.location);

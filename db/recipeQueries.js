@@ -1,5 +1,6 @@
 import pool from "./pool.js";
 import { auditService } from "../services/auditService.js";
+import { notificationService } from "../services/notificationService.js";
 
 export const RECIPE_UNITS = ["piece", "kilogram", "gram", "liter", "milliliter", "package", "box"];
 
@@ -125,6 +126,7 @@ export async function produceRecipe({ businessId, recipeId, userId, locationId, 
     const produced = Number(detail.recipe.yield_quantity) * Number(quantity); const finalPrevious = stocks.get(Number(detail.recipe.product_id)) ?? 0; const finalResulting = finalPrevious + produced;
     await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES ($1,$2,$3,'entry',$4,$5,$6,'Producción de receta',$7,$8)", [businessId, locationId, detail.recipe.product_id, produced, finalPrevious, finalResulting, `RECIPE-${recipeId}`, userId]);
     await client.query("UPDATE inventory_balances SET stock=$1 WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [finalResulting, businessId, locationId, detail.recipe.product_id]); await client.query("UPDATE items SET stock=stock+$1 WHERE business_id=$2 AND id=$3", [produced, businessId, detail.recipe.product_id]);
+    await notificationService.syncStockAlertNotifications({ client, businessId });
     await auditService.record({ client, businessId, userId, module: "recipes", action: "create", reference: `RECIPE-${recipeId}`, description: "Lote producido", newValues: { recipeId, locationId, quantity, produced } });
     await client.query("COMMIT"); return { recipeId: Number(recipeId), produced, productStock: finalResulting };
   } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
