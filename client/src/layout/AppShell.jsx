@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Button } from "../components/Button.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
 
 export function AppShell({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -14,6 +15,7 @@ export function AppShell({ children }) {
   const canViewSales = ["owner", "manager", "viewer"].includes(session.membership?.role);
   const canManageCash = ["owner", "manager"].includes(session.membership?.role);
   const canViewCosts = ["owner", "manager", "viewer"].includes(session.membership?.role);
+  const helpModule = location.pathname === "/app" ? "dashboard" : location.pathname === "/app/costs" ? "costs" : location.pathname === "/app/collections" ? "collections" : location.pathname === "/app/purchases" || location.pathname === "/app/purchases/new" ? "purchases" : location.pathname === "/app/alerts" ? "alerts" : location.pathname === "/app/reports" ? "reports" : location.pathname === "/app/reports/inventory" ? "inventory" : null;
 
   function closeMobileMenu() {
     setIsMobileMenuOpen(false);
@@ -71,6 +73,7 @@ export function AppShell({ children }) {
           <Link to="/app/locations" className={`nav-link ${location.pathname.startsWith("/app/locations") ? "nav-link--active" : ""}`}><MapPin aria-hidden="true" />Ubicaciones</Link>
           <Link to="/app/suppliers" className={`nav-link ${location.pathname.startsWith("/app/suppliers") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Proveedores</Link>
           <Link to="/app/transfers" className={`nav-link ${location.pathname.startsWith("/app/transfers") ? "nav-link--active" : ""}`}><ArrowRightLeft aria-hidden="true" />Transferencias</Link>
+          <Link to="/app/purchases" className={`nav-link ${location.pathname.startsWith("/app/purchases") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Compras</Link>
           {session.permissions.canManageInventory && <Link to="/app/point-of-sale" className={`nav-link ${location.pathname.startsWith("/app/point-of-sale") ? "nav-link--active" : ""}`}><ShoppingCart aria-hidden="true" />Punto de venta</Link>}
           {canManageCash && <Link to="/app/cash" className={`nav-link ${location.pathname.startsWith("/app/cash") ? "nav-link--active" : ""}`}><Banknote aria-hidden="true" />Caja</Link>}
           {canViewSales && <Link to="/app/sales" className={`nav-link ${location.pathname.startsWith("/app/sales") ? "nav-link--active" : ""}`}><ReceiptText aria-hidden="true" />Ventas</Link>}
@@ -93,7 +96,7 @@ export function AppShell({ children }) {
           <div><span className="topbar__label">{session.activeBusiness ? "Negocio activo" : "Área actual"}</span><strong>{activeBusinessName}</strong></div>
           <Link to="/select-business" className="text-link">Cambiar negocio</Link>
         </header>
-        <main className="main-content">{children}</main>
+        <main className="main-content">{helpModule && <HelpInfoPanel moduleKey={helpModule} businessId={session.activeBusiness?.id} />}{children}</main>
       </div>
     </div>
   );

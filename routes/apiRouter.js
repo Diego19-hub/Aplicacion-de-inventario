@@ -132,7 +132,9 @@ import { recipeProductionValidation, recipeStatusValidation, recipeValidation } 
 import { getTransactionController, listTransactionsController, transactionOptions } from "../controllers/apiTransactionsController.js";
 import { inventoryCenterApi, inventoryCenterCsvApi, inventoryCenterExcelApi } from "../controllers/apiInventoryCenterController.js";
 import { createAdjustment, createEntry } from "../controllers/apiInventoryTransactionsController.js";
+import { cancelPurchaseController, createPurchaseController, getPurchaseController, listPurchasesController, purchaseOptions, receivePurchaseController, updatePurchaseController } from "../controllers/apiPurchaseController.js";
 import { inventoryAdjustmentValidation, inventoryEntryValidation } from "../middleware/inventoryTransactionValidation.js";
+import { purchaseValidation, receiveValidation } from "../middleware/purchaseValidation.js";
 import {
   closeCashSessionController,
   createCashMovementController,
@@ -206,6 +208,13 @@ apiRouter.get("/reports/inventory-center.csv", requireApiAuth, requireApiActiveB
 apiRouter.get("/reports/inventory-center.xlsx", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryCenterExcelApi);
 apiRouter.post("/transactions/entries", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryEntryValidation, createEntry);
 apiRouter.post("/transactions/adjustments", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryAdjustmentValidation, createAdjustment);
+apiRouter.get("/purchases/options", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), purchaseOptions);
+apiRouter.get("/purchases", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listPurchasesController);
+apiRouter.post("/purchases", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), purchaseValidation, createPurchaseController);
+apiRouter.get("/purchases/:purchaseId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getPurchaseController);
+apiRouter.put("/purchases/:purchaseId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), purchaseValidation, updatePurchaseController);
+apiRouter.post("/purchases/:purchaseId/receive", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), receiveValidation, receivePurchaseController);
+apiRouter.post("/purchases/:purchaseId/cancel", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cancelPurchaseController);
 apiRouter.get("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCustomers);
 apiRouter.post("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), customerValidation, createCustomer);
 apiRouter.get("/customers/:customerId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getCustomer);

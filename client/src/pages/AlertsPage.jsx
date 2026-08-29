@@ -10,6 +10,7 @@ import { Input } from "../components/Input.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
 
 const labels = { out_of_stock: "Agotado", low_stock: "Stock bajo", overstock: "Stock excedente" };
 const priorityLabels = { urgent: "Urgente", high: "Alta", medium: "Media" };
@@ -47,7 +48,7 @@ export function AlertsPage() {
   const review = async (alert) => { try { await apiRequest(`/alerts/stock/${alert.thresholdId}/review`, { method: "PATCH", csrf: true }); await load(); } catch (requestError) { setError(requestError); } };
   const goto = (page) => { const next = new URLSearchParams(searchParams); next.set("page", page); setSearchParams(next); };
   return <>
-    <PageHeader title="Alertas de existencias" description="Se generan cuando una ubicación con umbral configurado alcanza o baja de su mínimo." />
+    <PageHeader title="Alertas de existencias" description="Se generan cuando una ubicación con umbral configurado alcanza o baja de su mínimo." /><HelpInfoPanel moduleKey="alerts" />
     {loading && <section className="dashboard-state"><Spinner label="Cargando alertas" /></section>}
     {!loading && error && <Alert><Button variant="secondary" onClick={load}>Reintentar</Button> {error.message || "No fue posible cargar las alertas."}</Alert>}
     {!loading && data && <>

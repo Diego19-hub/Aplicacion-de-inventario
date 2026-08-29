@@ -13,6 +13,7 @@ import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { resetHelpInfoPanels } from "../components/HelpInfoPanel.jsx";
 
 function roleLabel(role) {
   return { owner: "Owner", manager: "Manager", viewer: "Viewer" }[role] ?? role ?? "Sin rol";
@@ -33,7 +34,7 @@ export function SettingsPage() {
   }
 
   return <>
-    <PageHeader title="Configuración" description="Administra la información visible de tu cuenta y del negocio activo." />
+    <PageHeader title="Configuración" description="Administra la información visible de tu cuenta y del negocio activo." /><Card className="settings-card settings-help-reset"><p className="eyebrow">Ayudas</p><h2>Explicaciones de módulos</h2><p className="muted">Puedes ocultar explicaciones por pantalla y recuperarlas cuando quieras.</p><Button variant="secondary" onClick={resetHelpInfoPanels}>Volver a mostrar todas las explicaciones</Button></Card>
 
     <section className="settings-grid" aria-label="Configuración de la cuenta">
       <Card className="settings-card">

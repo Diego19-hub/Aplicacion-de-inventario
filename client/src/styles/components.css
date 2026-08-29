@@ -511,6 +511,34 @@ body { overflow-x: hidden; }
   .business-cost-form__actions .button { width: 100%; }
   .business-costs-table th, .business-costs-table td { padding: var(--space-3); }
 }
+
+.purchases-page { display: grid; gap: var(--space-5); min-width: 0; }
+.purchases-filters, .purchase-form__meta { display: grid; gap: var(--space-4); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.purchase-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.purchase-card { background: var(--surface, #fff); border: 1px solid var(--border, #e5e7eb); border-radius: var(--radius-lg, 1rem); color: inherit; display: flex; flex-direction: column; gap: .65rem; min-width: 0; padding: var(--space-5); text-decoration: none; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.purchase-card:hover, .purchase-card:focus-visible { border-color: var(--primary, #2563eb); box-shadow: 0 8px 24px rgb(15 23 42 / 10%); transform: translateY(-1px); }
+.purchase-card > div { align-items: center; display: flex; gap: .6rem; }
+.purchase-card svg { color: var(--primary, #2563eb); }
+.purchase-lines { display: grid; gap: var(--space-4); }
+.purchase-line { align-items: end; display: grid; gap: var(--space-3); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.purchase-lines-heading, .purchase-detail-actions { align-items: center; display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: space-between; margin-top: var(--space-5); }
+.purchase-lines-heading h2 { margin: 0; }
+.purchase-table { min-width: 680px; }
+.purchase-table td small { display: block; opacity: .7; }
+.status-badge--draft { background: #f1f5f9; color: #475569; }
+.status-badge--pending { background: #dbeafe; color: #1d4ed8; }
+.status-badge--partially_received { background: #fef3c7; color: #92400e; }
+.status-badge--received { background: #dcfce7; color: #166534; }
+.status-badge--cancelled { background: #fee2e2; color: #991b1b; }
+
+@media (max-width: 900px) {
+  .purchases-filters, .purchase-form__meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .purchases-filters, .purchase-form__meta, .purchase-line { grid-template-columns: minmax(0, 1fr); }
+  .purchase-lines-heading, .purchase-detail-actions { align-items: stretch; flex-direction: column; }
+  .purchase-lines-heading > *, .purchase-detail-actions > * { width: 100%; }
+}
 @media (max-width: 420px) { .business-costs-totals { grid-template-columns: 1fr; } }
 @media (max-width: 1100px) { .cash-history-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }.cash-history-filter-actions { grid-column: 1 / -1; } }
 @media (max-width: 760px) { .cash-history-filters { grid-template-columns: 1fr; }.cash-history-filter-actions { grid-column: auto; }.cash-history-filter-actions .button { flex: 1; }.cash-history-results { align-items: flex-start; flex-direction: column; }.cash-history-movement { align-items: flex-start; flex-direction: column; }.cash-history-movement > div:last-child { text-align: left; } }
@@ -569,6 +597,16 @@ body { overflow-x: hidden; }
 .stock-alert-legend__item--urgent { background: #fee2e2; color: #991b1b; }
 .stock-alert-legend__item--review { background: #fef3c7; color: #9a3412; }
 .stock-alert-legend__item--normal { background: #dcfce7; color: #166534; }
+
+.help-info-panel { background: color-mix(in srgb, var(--surface, #fff) 92%, var(--color-primary, #2563eb)); border: 1px solid color-mix(in srgb, var(--color-primary, #2563eb) 18%, transparent); display: grid; gap: var(--space-3); margin-bottom: var(--space-5); padding: var(--space-4) var(--space-5); }
+.help-info-panel__header { align-items: center; display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: space-between; }
+.help-info-panel__title { align-items: center; display: flex; gap: .65rem; min-width: 0; }
+.help-info-panel__title svg { color: var(--color-primary); flex: 0 0 auto; height: 1.25rem; width: 1.25rem; }
+.help-info-panel h2, .help-info-panel p { margin: 0; }
+.help-info-panel__content { display: grid; gap: var(--space-3); line-height: 1.55; }
+.help-info-panel__never { background: none; border: 0; color: var(--color-primary); cursor: pointer; justify-self: start; padding: 0; text-decoration: underline; }
+.help-info-panel__restore { margin-bottom: var(--space-5); }
+@media (max-width: 600px) { .help-info-panel { padding: var(--space-4); } .help-info-panel__header { align-items: stretch; flex-direction: column; } .help-info-panel__header .button { width: 100%; } }
 
 /* Layout global: aprovecha el espacio disponible sin alterar la lógica de las pantallas. */
 .main-content {

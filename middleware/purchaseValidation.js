@@ -1,0 +1,6 @@
+import { body } from "express-validator";
+
+const date = (field) => body(field).optional({ values: "undefined" }).isISO8601({ strict: true, strictSeparator: true }).withMessage("La fecha no es válida.");
+const lines = [body("items").isArray({ min: 1, max: 100 }).withMessage("Agrega al menos un producto."), body("items.*.itemId").isInt({ min: 1 }).toInt().withMessage("Selecciona un producto válido."), body("items.*.quantity").isInt({ min: 1 }).toInt().withMessage("La cantidad debe ser mayor que cero."), body("items.*.unitCost").custom((value) => Number.isFinite(Number(value)) && Number(value) >= 0).toFloat().withMessage("El costo unitario no puede ser negativo.")];
+export const purchaseValidation = [body("supplierId").isInt({ min: 1 }).toInt().withMessage("Selecciona un proveedor válido."), body("locationId").isInt({ min: 1 }).toInt().withMessage("Selecciona una ubicación válida."), date("issuedAt"), date("expectedAt"), body("notes").optional().isString().trim().isLength({ max: 1000 }).withMessage("Las notas son demasiado largas."), lines];
+export const receiveValidation = [body("items").isArray({ min: 1, max: 100 }).withMessage("Indica productos a recibir."), body("items.*.itemId").isInt({ min: 1 }).toInt(), body("items.*.quantity").isInt({ min: 1 }).toInt().withMessage("La cantidad recibida debe ser mayor que cero.")];
