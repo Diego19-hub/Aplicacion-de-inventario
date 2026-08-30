@@ -4,6 +4,7 @@ import { Alert } from "./Alert.jsx";
 import { Button } from "./Button.jsx";
 import { Input } from "./Input.jsx";
 import { Select } from "./Select.jsx";
+import { BarcodeScanner } from "./BarcodeScanner.jsx";
 
 export function ProductForm({
   mode,
@@ -35,7 +36,7 @@ export function ProductForm({
       {form.price !== "" && form.costPrice !== "" && Number(form.costPrice) >= 0 && <p className="product-form__margin">Margen estimado: <strong>{new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(Number(form.price) - Number(form.costPrice))}</strong> por unidad</p>}
       <Select id="product-category" label="Categoría (opcional)" value={form.categoryId} onChange={(event) => onChange("categoryId", event.target.value)} error={errors.categoryId} hint="Si no eliges una categoría, se usará Sin categoría."><option value="">Sin categoría</option>{selectableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</Select>
       <Input id="product-sku" label={isEditing ? "SKU *" : "SKU (opcional)"} value={form.sku} onChange={(event) => onChange("sku", event.target.value)} maxLength="64" pattern="[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*" placeholder={isEditing ? "SKU del producto" : "Se generará automáticamente"} hint={isEditing ? "Puedes actualizar el SKU usando letras, números y guiones simples." : "Déjalo vacío para generar un SKU automático según la categoría."} required={isEditing} error={errors.sku} />
-      <Input id="product-barcode" label="Código de barras (opcional)" value={form.barcode ?? ""} onChange={(event) => onChange("barcode", event.target.value)} inputMode="numeric" maxLength="14" hint="Entre 8 y 14 dígitos; se conservan los ceros iniciales." error={errors.barcode} />
+      <Input id="product-barcode" label="Código de barras (opcional)" value={form.barcode ?? ""} onChange={(event) => onChange("barcode", event.target.value)} inputMode="numeric" maxLength="14" hint="Opcional. Se utiliza para buscar y escanear el producto. Entre 8 y 14 dígitos; se conservan los ceros iniciales." error={errors.barcode} /><BarcodeScanner label="Código de barras" onDetected={(code) => onChange("barcode", code)} />
     </div>
     <div className="product-form__actions"><Link className="button button--secondary" to={cancelTo}>Cancelar</Link><Button type="submit" disabled={isSubmitting}>{isSubmitting ? submittingLabel : submitLabel}</Button></div>
   </form>;

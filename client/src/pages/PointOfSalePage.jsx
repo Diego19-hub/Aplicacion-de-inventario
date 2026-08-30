@@ -12,6 +12,8 @@ import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { BarcodeScanner } from "../components/BarcodeScanner.jsx";
+import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
 import { Link } from "react-router-dom";
 
 function formatMoney(value, currency = "MXN") {
@@ -195,7 +197,7 @@ export function PointOfSalePage() {
   if (!options) return <Alert><div className="dashboard-error"><span>{error || "No fue posible cargar el punto de venta."}</span><Button variant="secondary" onClick={() => loadOptions()}>Reintentar</Button></div></Alert>;
 
   return (
-    <section className="pos-page">
+    <section className="pos-page"><HelpInfoPanel moduleKey="inventory" />
       <PageHeader title="Punto de venta" description="Registra ventas y descuenta existencias de la ubicación seleccionada." />
       {error && <Alert><div className="dashboard-error"><span>{error}{errorCode === "CASH_SESSION_REQUIRED" && <InfoTip title="Sesión de caja requerida" content="Las ventas en efectivo necesitan una caja abierta en la misma ubicación." />}</span>{errorCode === "CASH_SESSION_REQUIRED" && <Link className="button button--secondary" to="/app/cash">Abrir caja</Link>}</div></Alert>}
       {completedSale ? (
@@ -218,6 +220,7 @@ export function PointOfSalePage() {
                 <Input id="pos-search" label="Buscar producto" type="search" placeholder="Nombre, SKU o código de barras" value={query} onChange={(event) => setQuery(event.target.value)} />
                 <Button type="submit" aria-label="Buscar productos"><Search aria-hidden="true" />Buscar</Button>
               </form>
+              <BarcodeScanner label="Escanear producto" onDetected={(code) => setQuery(code)} />
             </Card>
             <Card>
               <div className="pos-section-heading"><div><p className="eyebrow">Catálogo activo</p><h2>Productos <InfoTip title="Existencia disponible" content="Es la cantidad que puedes vender en la ubicación seleccionada." /></h2></div>{isLoadingProducts && <Spinner label="Buscando" />}</div>

@@ -41,7 +41,7 @@ export async function getTransactionOptions(businessId) {
   const [locations, users, products] = await Promise.all([
     pool.query("SELECT id,name,code FROM business_locations WHERE business_id=$1 ORDER BY LOWER(name),id", [businessId]),
     pool.query("SELECT DISTINCT u.id,u.username FROM users u INNER JOIN inventory_movements m ON m.created_by=u.id AND m.business_id=$1 ORDER BY u.username", [businessId]),
-    pool.query("SELECT id,name,sku FROM items WHERE business_id=$1 AND status='active' ORDER BY LOWER(name),id", [businessId])
+    pool.query("SELECT id,name,sku,barcode,stock FROM items WHERE business_id=$1 AND status='active' ORDER BY LOWER(name),id", [businessId])
   ]);
   return { locations: locations.rows, users: users.rows, products: products.rows };
 }
