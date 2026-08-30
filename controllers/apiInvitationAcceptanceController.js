@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
 import { findApiInvitationByHash } from "../db/apiMemberQueries.js";
-import { getActiveBusinessMembership } from "../db/businessQueries.js";
+import { getActiveBusinessesForUser, getActiveBusinessMembership } from "../db/businessQueries.js";
 import { acceptBusinessInvitationDetailed } from "../db/memberQueries.js";
 import { hashInvitationToken } from "../utils/invitationToken.js";
 import {
@@ -81,9 +81,10 @@ export async function acceptPublicInvitation(req, res, next) {
   if (!hash) return invitationNotFound(res);
 
   try {
+    const authenticatedUserId = req.session.user.id;
     const result = await acceptBusinessInvitationDetailed({
       tokenHash: hash,
-      userId: req.session.user.id,
+      userId: authenticatedUserId,
       email: normalizedSessionEmail(req)
     });
 
@@ -105,16 +106,38 @@ export async function acceptPublicInvitation(req, res, next) {
     }
     if (result.error) return invitationNotFound(res);
 
-    const activeMembership = await getActiveBusinessMembership(req.session.user.id, result.accepted.business_id);
+    const invitationBusinessId = Number(result.accepted.business_id);
+    const activeMembership = await getActiveBusinessMembership(authenticatedUserId, invitationBusinessId);
     if (!activeMembership) return invitationNotFound(res);
 
-    req.session.activeBusinessId = activeMembership.id;
+    const businesses = await getActiveBusinessesForUser(authenticatedUserId);
+    const redirectPath = businesses.length === 1 ? "/app" : "/select-business";
+
+    // activeBusinessId stores the business id (not the membership id); /session
+    // resolves the membership and permissions from this value on every reload.
+    req.session.activeBusinessId = invitationBusinessId;
     await saveSession(req);
     const membership = serializeMembership(activeMembership);
+
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[INVITATION ACCEPTED]", {
+        invitationId: result.accepted.id ?? null,
+        invitedEmail: result.accepted.email_normalized,
+        authenticatedUserId,
+        invitationBusinessId,
+        membershipId: activeMembership.membership_id,
+        membershipCreated: Boolean(result.membership?.id),
+        activeBusinessId: req.session.activeBusinessId,
+        businessesFound: businesses.map((business) => business.id),
+        redirectPath
+      });
+    }
 
     return res.status(200).json({
       data: {
         business: serializeActiveBusiness(activeMembership),
+        businessId: invitationBusinessId,
+        redirectPath,
         membership: { id: activeMembership.membership_id, ...membership },
         permissions: sessionPermissions(membership, req.session.user.platformRole)
       }

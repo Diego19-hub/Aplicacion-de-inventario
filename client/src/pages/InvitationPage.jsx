@@ -58,8 +58,8 @@ export function InvitationPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await acceptInvitation(token);
-      navigate("/app", { replace: true });
+      const result = await acceptInvitation(token);
+      navigate(result?.redirectPath || "/app", { replace: true });
     } catch (requestError) {
       setError(requestError);
       await loadInvitation({ preserveError: true });

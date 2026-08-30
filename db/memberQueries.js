@@ -148,7 +148,7 @@ async function acceptInvitationTransaction({ tokenHash, userId, email, expirePen
     if (!membershipResult.rows[0]) { await client.query("ROLLBACK"); return { error: "not_found" }; }
     const accepted = await client.query(
       `UPDATE business_invitations SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status = 'pending' RETURNING business_id`, [invitation.id]
+       WHERE id = $1 AND status = 'pending' RETURNING id, business_id, email_normalized`, [invitation.id]
     );
     if (!accepted.rows[0]) { await client.query("ROLLBACK"); return { error: "not_found" }; }
     await client.query("COMMIT");

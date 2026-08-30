@@ -166,6 +166,8 @@ test("consulta y aceptación API de invitaciones", { skip: !hasTestDatabaseUrl }
       const session = await agent.get("/api/session").expect(200);
       assert.equal(session.body.data.activeBusiness.id, owner.business_id);
       assert.deepEqual(session.body.data.membership, { role: "manager", status: "active" });
+      const businesses = await agent.get("/api/businesses").expect(200);
+      assert.ok(businesses.body.data.some((business) => business.id === owner.business_id));
       await agent.post(`/api/invitations/${tokens.valid}/accept`).set("x-csrf-token", await csrfToken(agent)).expect(404);
     });
 
