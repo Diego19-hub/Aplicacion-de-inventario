@@ -147,6 +147,11 @@ test("consulta y aceptación API de invitaciones", { skip: !hasTestDatabaseUrl }
       const lookup = await agent.get(`/api/invitations/${tokens.valid}`).expect(200);
       assert.equal(lookup.body.data.session.emailMatches, true);
       const accepted = await agent.post(`/api/invitations/${tokens.valid}/accept`).set("x-csrf-token", await csrfToken(agent)).expect(200);
+      assert.equal(accepted.body.data.accepted, true);
+      assert.equal(accepted.body.data.userId, acceptedUser.id);
+      assert.equal(accepted.body.data.businessId, owner.business_id);
+      assert.ok(accepted.body.data.membershipId);
+      assert.equal(accepted.body.data.redirectPath, "/app");
       assert.equal(accepted.body.data.membership.role, "manager");
       assert.equal(accepted.body.data.membership.status, "active");
       assert.equal(accepted.body.data.permissions.canManageInventory, true);

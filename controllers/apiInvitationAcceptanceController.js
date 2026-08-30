@@ -119,25 +119,33 @@ export async function acceptPublicInvitation(req, res, next) {
     await saveSession(req);
     const membership = serializeMembership(activeMembership);
 
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV !== "test") {
       console.info("[INVITATION ACCEPTED]", {
         invitationId: result.accepted.id ?? null,
         invitedEmail: result.accepted.email_normalized,
         authenticatedUserId,
+        authenticatedEmail: normalizedSessionEmail(req),
         invitationBusinessId,
         membershipId: activeMembership.membership_id,
+        insertedMembershipUserId: authenticatedUserId,
+        insertedMembershipBusinessId: invitationBusinessId,
+        membershipStatus: activeMembership.membership_status,
         membershipCreated: Boolean(result.membership?.id),
         activeBusinessId: req.session.activeBusinessId,
         businessesFound: businesses.map((business) => business.id),
+        sessionUserId: req.session.user.id,
         redirectPath
       });
     }
 
     return res.status(200).json({
       data: {
+        accepted: true,
+        userId: authenticatedUserId,
         business: serializeActiveBusiness(activeMembership),
         businessId: invitationBusinessId,
         redirectPath,
+        membershipId: activeMembership.membership_id,
         membership: { id: activeMembership.membership_id, ...membership },
         permissions: sessionPermissions(membership, req.session.user.platformRole)
       }
