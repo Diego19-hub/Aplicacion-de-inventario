@@ -1,5 +1,7 @@
 import { body } from "express-validator";
 
+import { normalizeEmail } from "../utils/email.js";
+
 function normalizeSlug(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
@@ -59,7 +61,7 @@ export const createBusinessValidation = [
     .trim()
     .isEmail()
     .withMessage("Introduce el correo del propietario registrado.")
-    .normalizeEmail()
+    .customSanitizer(normalizeEmail)
 ];
 
 export const editBusinessValidation = commonBusinessValidation;

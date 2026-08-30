@@ -90,7 +90,7 @@ export async function createApiBusinessInvitation({ businessId, email, offeredRo
         INNER JOIN users u ON u.id = bm.user_id
         WHERE bm.business_id = $1
           AND bm.status = 'active'
-          AND u.email = $2
+          AND LOWER(BTRIM(u.email)) = $2
         LIMIT 1
       `,
       [businessId, email]

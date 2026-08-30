@@ -4,6 +4,7 @@ import { findApiInvitationByHash } from "../db/apiMemberQueries.js";
 import { getActiveBusinessesForUser, getActiveBusinessMembership } from "../db/businessQueries.js";
 import { acceptBusinessInvitationDetailed } from "../db/memberQueries.js";
 import { hashInvitationToken } from "../utils/invitationToken.js";
+import { normalizeEmail } from "../utils/email.js";
 import {
   serializeActiveBusiness,
   serializeMembership,
@@ -25,7 +26,7 @@ function invitationNotFound(res) {
 }
 
 function normalizedSessionEmail(req) {
-  return String(req.session.user?.email ?? "").trim().toLowerCase();
+  return normalizeEmail(String(req.session.user?.email ?? ""));
 }
 
 function saveSession(req) {
@@ -67,7 +68,7 @@ export async function getPublicInvitation(req, res, next) {
         },
         session: {
           authenticated: Boolean(req.session.user),
-          emailMatches: Boolean(req.session.user) && email === invitation.email_normalized
+          emailMatches: Boolean(req.session.user) && email === normalizeEmail(invitation.email_normalized)
         }
       }
     });

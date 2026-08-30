@@ -10,6 +10,8 @@ import {
   randomState
 } from "openid-client";
 
+import { normalizeEmail } from "../utils/email.js";
+
 const GOOGLE_ISSUER = "https://accounts.google.com";
 let configurationPromise;
 
@@ -77,5 +79,5 @@ export async function exchangeGoogleCode(callbackUrl, checks) {
     error.code = "GOOGLE_INVALID_AUDIENCE";
     throw error;
   }
-  return { subject: claims.sub, email: claims.email.trim().toLowerCase() };
+  return { subject: claims.sub, email: normalizeEmail(claims.email) };
 }

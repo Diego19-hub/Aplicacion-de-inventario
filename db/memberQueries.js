@@ -1,4 +1,5 @@
 import pool from "./pool.js";
+import { normalizeEmail } from "../utils/email.js";
 
 export async function expirePendingInvitations(businessId = null) {
   const filter = businessId ? "AND business_id = $1" : "";
@@ -127,7 +128,7 @@ async function acceptInvitationTransaction({ tokenHash, userId, email, expirePen
       await client.query("ROLLBACK");
       return { error: "expired" };
     }
-    if (invitation.email_normalized !== email) {
+    if (normalizeEmail(invitation.email_normalized) !== normalizeEmail(email)) {
       await client.query("ROLLBACK");
       return { error: "email_mismatch" };
     }

@@ -1,7 +1,9 @@
 import { body, param } from "express-validator";
 
+import { normalizeEmail } from "../utils/email.js";
+
 export const invitationValidation = [
-  body("email").trim().isEmail().withMessage("Introduce un correo electrónico válido.").normalizeEmail(),
+  body("email").trim().isEmail().withMessage("Introduce un correo electrónico válido.").customSanitizer(normalizeEmail),
   body("role").isIn(["manager", "viewer"]).withMessage("Selecciona un rol válido.")
 ];
 
@@ -34,7 +36,7 @@ export const apiInvitationValidation = [
     .trim()
     .isEmail()
     .withMessage("Introduce un correo electrónico válido.")
-    .normalizeEmail(),
+    .customSanitizer(normalizeEmail),
   body("offeredRole")
     .isIn(["manager", "viewer"])
     .withMessage("Selecciona un rol válido."),

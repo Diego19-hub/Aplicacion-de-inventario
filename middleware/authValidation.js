@@ -1,5 +1,7 @@
 import { body } from "express-validator";
 
+import { normalizeEmail } from "../utils/email.js";
+
 export const registerValidation = [
   body("username")
     .trim()
@@ -18,7 +20,7 @@ export const registerValidation = [
     .withMessage("El correo es obligatorio.")
     .isEmail()
     .withMessage("Introduce un correo electrónico válido.")
-    .normalizeEmail(),
+    .customSanitizer(normalizeEmail),
 
   body("password")
     .notEmpty()
@@ -69,7 +71,7 @@ export const apiRegisterValidation = [
     .withMessage("El correo es obligatorio.")
     .isEmail()
     .withMessage("Introduce un correo electrónico válido.")
-    .normalizeEmail(),
+    .customSanitizer(normalizeEmail),
   body("password")
     .notEmpty()
     .withMessage("La contraseña es obligatoria.")
