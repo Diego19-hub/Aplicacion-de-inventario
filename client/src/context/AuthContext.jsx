@@ -107,7 +107,16 @@ export function AuthProvider({ children }) {
       method: "POST",
       csrf: true
     });
-    await reloadSession();
+    const refreshedSession = await reloadSession();
+    const acceptedBusinessId = Number(result?.businessId);
+    if (Number.isInteger(acceptedBusinessId) && acceptedBusinessId > 0 && Number(refreshedSession.activeBusiness?.id) !== acceptedBusinessId) {
+      await apiRequest("/session/active-business", {
+        method: "PUT",
+        body: { businessId: acceptedBusinessId },
+        csrf: true
+      });
+      await reloadSession();
+    }
     return result;
   }, [reloadSession]);
 
