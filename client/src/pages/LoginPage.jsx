@@ -27,6 +27,7 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const returnTo = isSafeReturnTo(searchParams.get("returnTo")) ? searchParams.get("returnTo") : null;
   const registerPath = returnTo ? `/register?${new URLSearchParams({ returnTo }).toString()}` : "/register";
+  const googleLoginPath = `/api/auth/google${returnTo ? `?${new URLSearchParams({ returnTo }).toString()}` : ""}`;
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
@@ -71,7 +72,7 @@ export function LoginPage() {
           <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Spinner label="Ingresando" /> : "Iniciar sesión"}</Button>
         </form>
         <div className="auth-divider"><span>o continúa con</span></div>
-        <a className="button button--google" href="/api/auth/google"><GoogleLogo />Continuar con Google</a>
+        <a className="button button--google" href={googleLoginPath}><GoogleLogo />Continuar con Google</a>
         <p className="muted">¿Aún no tienes cuenta? <Link className="text-link" to={registerPath}>Crea una cuenta</Link></p>
       </Card>
     </main>

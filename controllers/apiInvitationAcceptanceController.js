@@ -122,10 +122,12 @@ export async function acceptPublicInvitation(req, res, next) {
     if (process.env.NODE_ENV !== "test") {
       console.info("[INVITATION ACCEPTED]", {
         invitationId: result.accepted.id ?? null,
-        invitedEmail: result.accepted.email_normalized,
+        invitationEmail: result.accepted.email_normalized,
         authenticatedUserId,
         authenticatedEmail: normalizedSessionEmail(req),
+        tokenPreserved: true,
         invitationBusinessId,
+        businessId: invitationBusinessId,
         membershipId: activeMembership.membership_id,
         insertedMembershipUserId: authenticatedUserId,
         insertedMembershipBusinessId: invitationBusinessId,

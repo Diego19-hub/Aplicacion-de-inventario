@@ -12,7 +12,10 @@ const hasTestDatabaseUrl = Boolean(process.env.TEST_DATABASE_URL);
 const originalEnvironment = {
   NODE_ENV: process.env.NODE_ENV,
   SESSION_SECRET: process.env.SESSION_SECRET,
-  DATABASE_URL: process.env.DATABASE_URL
+  DATABASE_URL: process.env.DATABASE_URL,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL
 };
 
 function restoreEnvironment() {
@@ -57,6 +60,9 @@ test("consulta y aceptación API de invitaciones", { skip: !hasTestDatabaseUrl }
   try {
     process.env.NODE_ENV = "test";
     process.env.SESSION_SECRET = "invitation-acceptance-test-secret";
+    process.env.GOOGLE_CLIENT_ID = "";
+    process.env.GOOGLE_CLIENT_SECRET = "";
+    process.env.GOOGLE_CALLBACK_URL = "";
     await createTestDatabase();
     databaseCreated = true;
     process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -142,9 +148,23 @@ test("consulta y aceptación API de invitaciones", { skip: !hasTestDatabaseUrl }
       assert.equal(status.rows[0].status, "pending");
     });
 
+    await t.test("Google OAuth conserva la ruta de invitación al iniciar autenticación", async () => {
+      const returnTo = `/invitations/${tokens.valid}`;
+      const response = await request(app).get(`/api/auth/google?${new URLSearchParams({ returnTo }).toString()}`).expect(302);
+      const location = new URL(response.headers.location, "http://localhost");
+      assert.equal(location.pathname, "/login");
+      assert.equal(location.searchParams.get("returnTo"), returnTo);
+      assert.equal(location.searchParams.get("oauthError"), "GOOGLE_NOT_CONFIGURED");
+    });
+
     await t.test("el correo correcto acepta una vez y selecciona el negocio", async () => {
-      const agent = await login(app, "invite_match", password);
+      const agent = request.agent(app);
+      const anonymousLookup = await agent.get(`/api/invitations/${tokens.valid}`).expect(200);
+      assert.equal(anonymousLookup.body.data.session.authenticated, false);
+      const loginToken = await csrfToken(agent);
+      await agent.post("/api/auth/login").set("x-csrf-token", loginToken).send({ identifier: "invite_match", password }).expect(200);
       const lookup = await agent.get(`/api/invitations/${tokens.valid}`).expect(200);
+      assert.equal(lookup.body.data.session.authenticated, true);
       assert.equal(lookup.body.data.session.emailMatches, true);
       const accepted = await agent.post(`/api/invitations/${tokens.valid}/accept`).set("x-csrf-token", await csrfToken(agent)).expect(200);
       assert.equal(accepted.body.data.accepted, true);
