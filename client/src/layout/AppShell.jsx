@@ -1,5 +1,5 @@
-import { ArrowRightLeft, Banknote, BellRing, Boxes, ChevronDown, ClipboardList, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, Tags, Truck, UsersRound, Utensils, WalletCards } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowRightLeft, Banknote, BellRing, Boxes, ChevronDown, ClipboardList, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, SlidersHorizontal, Tags, Truck, UsersRound, Utensils, WalletCards } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Button } from "../components/Button.jsx";
@@ -8,7 +8,10 @@ import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
 import { apiRequest } from "../api/client.js";
 
 const sidebarGroups = [
-  { id: "home", label: "Inicio", icon: LayoutDashboard, items: [{ label: "Dashboard", to: "/app", icon: LayoutDashboard }] },
+  { id: "home", label: "Inicio", icon: LayoutDashboard, items: [
+    { label: "Dashboard", to: "/app", icon: LayoutDashboard },
+    { label: "Notificaciones", to: "/app/notifications", icon: BellRing }
+  ] },
   { id: "inventory", label: "Inventario", icon: PackageSearch, items: [
     { label: "Productos", to: "/app/products", icon: PackageSearch },
     { label: "Categorías", to: "/app/categories", icon: Tags },
@@ -25,14 +28,15 @@ const sidebarGroups = [
     { label: "Compras", to: "/app/purchases", icon: Truck },
     { label: "Devoluciones", to: "/app/returns", icon: PackageSearch }
   ] },
-  { id: "movements", label: "Movimientos", icon: ArrowRightLeft, items: [
-    { label: "Entradas y ajustes", to: "/app/transactions", icon: PackageSearch },
-    { label: "Transferencias", to: "/app/transfers", icon: ArrowRightLeft },
-    { label: "Transacciones", to: "/app/transactions", icon: ClipboardList },
-    { label: "Movimientos", to: "/app/movements", icon: PackageSearch }
+  { id: "operate", label: "Operar inventario", icon: ArrowRightLeft, items: [
+    { label: "Nueva entrada", to: "/app/transactions/entries/new", icon: PackageSearch, roles: ["owner", "manager"] },
+    { label: "Nueva salida", to: "/app/transactions/exits/new", icon: ArrowRightLeft, roles: ["owner", "manager"] },
+    { label: "Nuevo ajuste", to: "/app/transactions/adjustments/new", icon: SlidersHorizontal, roles: ["owner", "manager"] },
+    { label: "Transferir inventario", to: "/app/transfers", icon: ArrowRightLeft },
+    { label: "Producción", to: "/app/recipes", icon: Utensils, permission: "canManageInventory" }
   ] },
-  { id: "production", label: "Producción", icon: Utensils, items: [
-    { label: "Recetas", to: "/app/recipes", icon: Utensils, permission: "canManageInventory" }
+  { id: "history", label: "Historial", icon: ClipboardList, items: [
+    { label: "Transacciones", to: "/app/transactions", icon: ClipboardList }
   ] },
   { id: "analysis", label: "Análisis", icon: Scale, items: [
     { label: "Reportes", to: "/app/reports", icon: PackageSearch },
@@ -63,11 +67,12 @@ export function AppShell({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState({ unreadCount: 0, notifications: [] });
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationBellRef = useRef(null);
   const { logout, session } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const activeBusinessName = session.activeBusiness?.name ?? "Administración global";
-  const helpModule = location.pathname === "/app" ? "dashboard" : location.pathname === "/app/costs" ? "costs" : location.pathname === "/app/collections" ? "collections" : location.pathname === "/app/purchases" || location.pathname === "/app/purchases/new" ? "purchases" : location.pathname === "/app/alerts" ? "alerts" : location.pathname === "/app/reports" ? "reports" : location.pathname === "/app/reports/inventory" ? "inventory" : null;
+  const helpModule = location.pathname === "/app" ? "dashboard" : location.pathname === "/app/costs" ? "costs" : location.pathname === "/app/collections" ? "collections" : location.pathname === "/app/purchases" || location.pathname === "/app/purchases/new" ? "purchases" : location.pathname === "/app/alerts" ? "alerts" : location.pathname === "/app/reports" ? "reports" : location.pathname === "/app/reports/inventory" ? "inventory" : location.pathname.startsWith("/app/transactions") ? "transactions" : null;
   const visibleGroups = useMemo(() => sidebarGroups.map((group) => ({ ...group, items: group.items.filter((item) => isNavItemVisible(item, session)) })).filter((group) => group.items.length > 0), [session]);
   const activeGroup = visibleGroups.find((group) => groupContainsPath(group, location.pathname))?.id ?? "home";
   const storageKey = `sidebar_open_sections:${session.user?.id ?? "anonymous"}:${session.activeBusiness?.id ?? "global"}`;
@@ -147,6 +152,29 @@ export function AppShell({ children }) {
     };
   }, [isMobileMenuOpen]);
 
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!notificationsOpen) return undefined;
+
+    function closeOnOutsidePointer(event) {
+      if (!notificationBellRef.current?.contains(event.target)) setNotificationsOpen(false);
+    }
+
+    function closeOnEscape(event) {
+      if (event.key === "Escape") setNotificationsOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [notificationsOpen]);
+
   async function handleLogout() {
     await logout();
     navigate("/login", { replace: true });
@@ -162,7 +190,11 @@ export function AppShell({ children }) {
           onPointerDown={closeMobileMenu}
         />
       )}
-      <aside className={`sidebar ${isMobileMenuOpen ? "sidebar--open" : ""}`} aria-label="Navegación principal">
+      <aside
+        id="sidebar-navigation"
+        className={`sidebar ${isMobileMenuOpen ? "sidebar--open" : ""}`}
+        aria-label="Navegación principal"
+      >
         <Link to="/app" className="brand"><Boxes aria-hidden="true" /><span>Inventario</span></Link>
         <nav className="sidebar__nav">
           {visibleGroups.map((group) => {
@@ -172,7 +204,7 @@ export function AppShell({ children }) {
               <button type="button" className={`nav-group__button ${group.id === activeGroup ? "nav-group__button--active" : ""}`} aria-expanded={expanded} onClick={() => toggleGroup(group.id)}>
                 <GroupIcon aria-hidden="true" /><span>{group.label}</span><ChevronDown className="nav-group__chevron" aria-hidden="true" />
               </button>
-              {expanded && <div className="nav-group__items">{group.items.map((item) => { const ItemIcon = item.icon; const active = item.to === "/app" ? location.pathname === "/app" : location.pathname.startsWith(item.to); return <Link key={`${group.id}-${item.to}-${item.label}`} to={item.to} className={`nav-link ${active ? "nav-link--active" : ""}`} onClick={closeMobileMenu}><ItemIcon aria-hidden="true" /><span>{item.label}</span></Link>; })}</div>}
+              {expanded && <div className="nav-group__items">{group.items.map((item) => { const ItemIcon = item.icon; const active = item.to === "/app" ? location.pathname === "/app" : location.pathname.startsWith(item.to); return <Link key={`${group.id}-${item.to}-${item.label}`} to={item.to} className={`nav-link ${active ? "nav-link--active" : ""}`} aria-current={active ? "page" : undefined} onClick={closeMobileMenu}><ItemIcon aria-hidden="true" /><span>{item.label}</span></Link>; })}</div>}
             </section>;
           })}
         </nav>
@@ -180,9 +212,16 @@ export function AppShell({ children }) {
       </aside>
       <div className="app-shell__content">
         <header className="topbar">
-          <Button variant="ghost" className="mobile-menu-button" onClick={() => setIsMobileMenuOpen((open) => !open)} aria-expanded={isMobileMenuOpen} aria-label="Mostrar navegación"><Menu aria-hidden="true" /></Button>
+          <Button
+            variant="ghost"
+            className="mobile-menu-button"
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            aria-controls="sidebar-navigation"
+            aria-expanded={isMobileMenuOpen}
+            aria-label={isMobileMenuOpen ? "Cerrar navegación" : "Mostrar navegación"}
+          ><Menu aria-hidden="true" /></Button>
           <div><span className="topbar__label">{session.activeBusiness ? "Negocio activo" : "Área actual"}</span><strong>{activeBusinessName}</strong></div>
-          <div className="topbar__actions"><div className="notification-bell"><button type="button" className="notification-bell__button" aria-label={`Notificaciones${notifications.unreadCount ? `, ${notifications.unreadCount} no leídas` : ""}`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}><BellRing aria-hidden="true" />{notifications.unreadCount > 0 && <span className="notification-bell__count">{notifications.unreadCount > 99 ? "99+" : notifications.unreadCount}</span>}</button>{notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notificaciones recientes"><strong>Notificaciones</strong>{notifications.notifications.length ? notifications.notifications.map((notification) => <Link key={notification.id} to={notification.link || "/app/notifications"} className={`notification-popover__item ${notification.is_read ? "notification-popover__item--read" : ""}`} onClick={() => { markNotificationRead(notification).catch(() => undefined); setNotificationsOpen(false); }}><span>{notification.title}</span><small>{notification.message}</small></Link>) : <span className="notification-popover__empty">No hay notificaciones nuevas.</span>}<Link className="text-link" to="/app/notifications" onClick={() => setNotificationsOpen(false)}>Ver todas</Link></div>}</div><Link to="/select-business" className="text-link">Cambiar negocio</Link></div>
+          <div className="topbar__actions"><div className="notification-bell" ref={notificationBellRef}><button type="button" className="notification-bell__button" aria-controls="notification-popover" aria-label={`Notificaciones${notifications.unreadCount ? `, ${notifications.unreadCount} no leídas` : ""}`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}><BellRing aria-hidden="true" />{notifications.unreadCount > 0 && <span className="notification-bell__count">{notifications.unreadCount > 99 ? "99+" : notifications.unreadCount}</span>}</button>{notificationsOpen && <div id="notification-popover" className="notification-popover" role="dialog" aria-label="Notificaciones recientes"><strong>Notificaciones</strong>{notifications.notifications.length ? notifications.notifications.map((notification) => <Link key={notification.id} to={notification.link || "/app/notifications"} className={`notification-popover__item ${notification.is_read ? "notification-popover__item--read" : ""}`} onClick={() => { markNotificationRead(notification).catch(() => undefined); setNotificationsOpen(false); }}><span>{notification.title}</span><small>{notification.message}</small></Link>) : <span className="notification-popover__empty">No hay notificaciones nuevas.</span>}<Link className="text-link" to="/app/notifications" onClick={() => setNotificationsOpen(false)}>Ver todas</Link></div>}</div><Link to="/select-business" className="text-link">Cambiar negocio</Link></div>
         </header>
         <main className="main-content">{helpModule && <HelpInfoPanel moduleKey={helpModule} businessId={session.activeBusiness?.id} />}{children}</main>
       </div>
