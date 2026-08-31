@@ -1,11 +1,63 @@
-import { ArrowRightLeft, Banknote, BellRing, Boxes, ClipboardList, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, Tags, Truck, UsersRound, Utensils, WalletCards } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowRightLeft, Banknote, BellRing, Boxes, ChevronDown, ClipboardList, LayoutDashboard, LogOut, MapPin, Menu, PackageSearch, ReceiptText, Scale, Settings, ShoppingCart, Tags, Truck, UsersRound, Utensils, WalletCards } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Button } from "../components/Button.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
 import { apiRequest } from "../api/client.js";
+
+const sidebarGroups = [
+  { id: "home", label: "Inicio", icon: LayoutDashboard, items: [{ label: "Dashboard", to: "/app", icon: LayoutDashboard }] },
+  { id: "inventory", label: "Inventario", icon: PackageSearch, items: [
+    { label: "Productos", to: "/app/products", icon: PackageSearch },
+    { label: "Categorías", to: "/app/categories", icon: Tags },
+    { label: "Ubicaciones", to: "/app/locations", icon: MapPin },
+    { label: "Proveedores", to: "/app/suppliers", icon: Truck }
+  ] },
+  { id: "operations", label: "Operaciones", icon: ShoppingCart, items: [
+    { label: "Punto de venta", to: "/app/point-of-sale", icon: ShoppingCart, permission: "canManageInventory" },
+    { label: "Caja", to: "/app/cash", icon: Banknote, roles: ["owner", "manager"] },
+    { label: "Ventas", to: "/app/sales", icon: ReceiptText, roles: ["owner", "manager", "viewer"] },
+    { label: "Cobranza", to: "/app/collections", icon: ReceiptText, permission: "canViewCustomerCollections" }
+  ] },
+  { id: "supply", label: "Abastecimiento", icon: Truck, items: [
+    { label: "Compras", to: "/app/purchases", icon: Truck },
+    { label: "Devoluciones", to: "/app/returns", icon: PackageSearch }
+  ] },
+  { id: "movements", label: "Movimientos", icon: ArrowRightLeft, items: [
+    { label: "Entradas y ajustes", to: "/app/transactions", icon: PackageSearch },
+    { label: "Transferencias", to: "/app/transfers", icon: ArrowRightLeft },
+    { label: "Transacciones", to: "/app/transactions", icon: ClipboardList },
+    { label: "Movimientos", to: "/app/movements", icon: PackageSearch }
+  ] },
+  { id: "production", label: "Producción", icon: Utensils, items: [
+    { label: "Recetas", to: "/app/recipes", icon: Utensils, permission: "canManageInventory" }
+  ] },
+  { id: "analysis", label: "Análisis", icon: Scale, items: [
+    { label: "Reportes", to: "/app/reports", icon: PackageSearch },
+    { label: "Costos", to: "/app/costs", icon: WalletCards, roles: ["owner", "manager", "viewer"] },
+    { label: "Punto de equilibrio", to: "/app/break-even", icon: Scale, roles: ["owner", "manager", "viewer"] },
+    { label: "Alertas", to: "/app/alerts", icon: BellRing }
+  ] },
+  { id: "admin", label: "Administración", icon: Settings, items: [
+    { label: "Equipo", to: "/app/members", icon: UsersRound, permission: "canManageMembers" },
+    { label: "Bitácora", to: "/app/audit-log", icon: ClipboardList },
+    { label: "Administración", to: "/app/admin", icon: UsersRound, superAdmin: true },
+    { label: "Configuración", to: "/app/settings", icon: Settings }
+  ] }
+];
+
+function isNavItemVisible(item, session) {
+  if (item.permission && !session.permissions[item.permission]) return false;
+  if (item.roles && !item.roles.includes(session.membership?.role)) return false;
+  if (item.superAdmin && session.user.platformRole !== "super_admin") return false;
+  return true;
+}
+
+function groupContainsPath(group, pathname) {
+  return group.items.some((item) => item.to === "/app" ? pathname === "/app" : pathname.startsWith(item.to));
+}
 
 export function AppShell({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -15,10 +67,33 @@ export function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const activeBusinessName = session.activeBusiness?.name ?? "Administración global";
-  const canViewSales = ["owner", "manager", "viewer"].includes(session.membership?.role);
-  const canManageCash = ["owner", "manager"].includes(session.membership?.role);
-  const canViewCosts = ["owner", "manager", "viewer"].includes(session.membership?.role);
   const helpModule = location.pathname === "/app" ? "dashboard" : location.pathname === "/app/costs" ? "costs" : location.pathname === "/app/collections" ? "collections" : location.pathname === "/app/purchases" || location.pathname === "/app/purchases/new" ? "purchases" : location.pathname === "/app/alerts" ? "alerts" : location.pathname === "/app/reports" ? "reports" : location.pathname === "/app/reports/inventory" ? "inventory" : null;
+  const visibleGroups = useMemo(() => sidebarGroups.map((group) => ({ ...group, items: group.items.filter((item) => isNavItemVisible(item, session)) })).filter((group) => group.items.length > 0), [session]);
+  const activeGroup = visibleGroups.find((group) => groupContainsPath(group, location.pathname))?.id ?? "home";
+  const storageKey = `sidebar_open_sections:${session.user?.id ?? "anonymous"}:${session.activeBusiness?.id ?? "global"}`;
+  const [openGroups, setOpenGroups] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+      return Array.isArray(saved) && saved.length ? saved : [activeGroup];
+    } catch {
+      return [activeGroup];
+    }
+  });
+
+  useEffect(() => {
+    setOpenGroups((current) => current.includes(activeGroup) ? current : [...current, activeGroup]);
+  }, [activeGroup]);
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(openGroups));
+  }, [openGroups, storageKey]);
+
+  function toggleGroup(groupId) {
+    setOpenGroups((current) => {
+      if (current.includes(groupId)) return current.filter((id) => id !== groupId);
+      return window.matchMedia("(min-width: 901px)").matches ? [groupId] : [...current, groupId];
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -87,32 +162,19 @@ export function AppShell({ children }) {
           onPointerDown={closeMobileMenu}
         />
       )}
-      <aside className={`sidebar ${isMobileMenuOpen ? "sidebar--open" : ""}`} aria-label="Navegación principal" onClick={closeMobileMenu}>
+      <aside className={`sidebar ${isMobileMenuOpen ? "sidebar--open" : ""}`} aria-label="Navegación principal">
         <Link to="/app" className="brand"><Boxes aria-hidden="true" /><span>Inventario</span></Link>
-        <nav className="sidebar__nav" onClick={closeMobileMenu}>
-          <Link to="/app" className={`nav-link ${location.pathname === "/app" ? "nav-link--active" : ""}`}><LayoutDashboard aria-hidden="true" />Dashboard</Link>
-          <Link to="/app/products" className={`nav-link ${location.pathname === "/app/products" ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Productos</Link>
-          {session.permissions.canManageInventory && <Link to="/app/recipes" className={`nav-link ${location.pathname.startsWith("/app/recipes") ? "nav-link--active" : ""}`}><Utensils aria-hidden="true" />Recetas</Link>}
-          <Link to="/app/categories" className={`nav-link ${location.pathname.startsWith("/app/categories") ? "nav-link--active" : ""}`}><Tags aria-hidden="true" />Categorías</Link>
-          <Link to="/app/locations" className={`nav-link ${location.pathname.startsWith("/app/locations") ? "nav-link--active" : ""}`}><MapPin aria-hidden="true" />Ubicaciones</Link>
-          <Link to="/app/suppliers" className={`nav-link ${location.pathname.startsWith("/app/suppliers") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Proveedores</Link>
-          <Link to="/app/transfers" className={`nav-link ${location.pathname.startsWith("/app/transfers") ? "nav-link--active" : ""}`}><ArrowRightLeft aria-hidden="true" />Transferencias</Link>
-          <Link to="/app/purchases" className={`nav-link ${location.pathname.startsWith("/app/purchases") ? "nav-link--active" : ""}`}><Truck aria-hidden="true" />Compras</Link>
-          <Link to="/app/returns" className={`nav-link ${location.pathname.startsWith("/app/returns") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Devoluciones</Link>
-          {session.permissions.canManageInventory && <Link to="/app/point-of-sale" className={`nav-link ${location.pathname.startsWith("/app/point-of-sale") ? "nav-link--active" : ""}`}><ShoppingCart aria-hidden="true" />Punto de venta</Link>}
-          {canManageCash && <Link to="/app/cash" className={`nav-link ${location.pathname.startsWith("/app/cash") ? "nav-link--active" : ""}`}><Banknote aria-hidden="true" />Caja</Link>}
-          {canViewSales && <Link to="/app/sales" className={`nav-link ${location.pathname.startsWith("/app/sales") ? "nav-link--active" : ""}`}><ReceiptText aria-hidden="true" />Ventas</Link>}
-          {session.permissions.canViewCustomerCollections && <Link to="/app/collections" className={`nav-link ${location.pathname.startsWith("/app/collections") ? "nav-link--active" : ""}`}><ReceiptText aria-hidden="true" />Cobranza</Link>}
-          {canViewCosts && <Link to="/app/costs" className={`nav-link ${location.pathname.startsWith("/app/costs") ? "nav-link--active" : ""}`}><WalletCards aria-hidden="true" />Costos</Link>}
-          {canViewCosts && <Link to="/app/break-even" className={`nav-link ${location.pathname.startsWith("/app/break-even") ? "nav-link--active" : ""}`}><Scale aria-hidden="true" />Punto de equilibrio</Link>}
-          <Link to="/app/transactions" className={`nav-link ${location.pathname.startsWith("/app/transactions") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Transacciones</Link>
-          <Link to="/app/movements" className={`nav-link ${location.pathname.startsWith("/app/movements") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Movimientos</Link>
-          <Link to="/app/alerts" className={`nav-link ${location.pathname.startsWith("/app/alerts") ? "nav-link--active" : ""}`}><BellRing aria-hidden="true" />Alertas</Link>
-          <Link to="/app/reports" className={`nav-link ${location.pathname.startsWith("/app/reports") ? "nav-link--active" : ""}`}><PackageSearch aria-hidden="true" />Reportes</Link>
-          <Link to="/app/audit-log" className={`nav-link ${location.pathname.startsWith("/app/audit-log") ? "nav-link--active" : ""}`}><ClipboardList aria-hidden="true" />Bitácora</Link>
-          {session.permissions.canManageMembers && <Link to="/app/members" className={`nav-link ${location.pathname.startsWith("/app/members") ? "nav-link--active" : ""}`}><UsersRound aria-hidden="true" />Equipo</Link>}
-          {session.user.platformRole === "super_admin" && <Link to="/app/admin" className={`nav-link ${location.pathname.startsWith("/app/admin") ? "nav-link--active" : ""}`}><UsersRound aria-hidden="true" />Administración</Link>}
-          <Link to="/app/settings" className={`nav-link ${location.pathname.startsWith("/app/settings") ? "nav-link--active" : ""}`}><Settings aria-hidden="true" />Configuración</Link>
+        <nav className="sidebar__nav">
+          {visibleGroups.map((group) => {
+            const GroupIcon = group.icon;
+            const expanded = openGroups.includes(group.id);
+            return <section className={`nav-group ${expanded ? "nav-group--expanded" : ""}`} key={group.id}>
+              <button type="button" className={`nav-group__button ${group.id === activeGroup ? "nav-group__button--active" : ""}`} aria-expanded={expanded} onClick={() => toggleGroup(group.id)}>
+                <GroupIcon aria-hidden="true" /><span>{group.label}</span><ChevronDown className="nav-group__chevron" aria-hidden="true" />
+              </button>
+              {expanded && <div className="nav-group__items">{group.items.map((item) => { const ItemIcon = item.icon; const active = item.to === "/app" ? location.pathname === "/app" : location.pathname.startsWith(item.to); return <Link key={`${group.id}-${item.to}-${item.label}`} to={item.to} className={`nav-link ${active ? "nav-link--active" : ""}`} onClick={closeMobileMenu}><ItemIcon aria-hidden="true" /><span>{item.label}</span></Link>; })}</div>}
+            </section>;
+          })}
         </nav>
         <div className="sidebar__footer"><span className="business-chip">{activeBusinessName}</span><Button variant="ghost" onClick={handleLogout}><LogOut aria-hidden="true" />Cerrar sesión</Button></div>
       </aside>
