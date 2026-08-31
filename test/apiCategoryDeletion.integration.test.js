@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 import pg from "pg";
 import request from "supertest";
 
-import { createTestDatabase, dropTestDatabase } from "./helpers/testDatabase.js";
+import { createTestDatabase, dropTestDatabase, withTestTransaction } from "./helpers/testDatabase.js";
 
 const { Client } = pg;
 const hasTestDatabaseUrl = Boolean(process.env.TEST_DATABASE_URL);
@@ -96,14 +96,12 @@ test("eliminación de categorías mediante API", { skip: !hasTestDatabaseUrl }, 
        VALUES($1, $2, 'manager', 'active'), ($1, $3, 'viewer', 'active')`,
       [owner.business_id, manager.rows[0].id, viewer.rows[0].id]
     );
-    const foreignBusiness = (await client.query(
-      "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
-      ["Negocio ajeno eliminación", "negocio-ajeno-eliminacion", foreignUser.rows[0].id]
-    )).rows[0];
-    await client.query(
-      "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
-      [foreignBusiness.id, foreignUser.rows[0].id]
-    );
+    const foreignBusiness = await withTestTransaction(client, async () => {
+      const business = (await client.query("INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id", ["Negocio ajeno eliminación", "negocio-ajeno-eliminacion", foreignUser.rows[0].id])).rows[0];
+      await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [business.id, foreignUser.rows[0].id]);
+      await client.query("INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)", [business.id]);
+      return business;
+    });
 
     const emptyCategory = (await client.query(
       "INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id",

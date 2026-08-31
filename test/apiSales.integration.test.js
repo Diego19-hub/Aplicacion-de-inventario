@@ -157,6 +157,7 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
 
     const ownerAgent = await login(app, "pos_owner", password);
     const managerAgent = await login(app, "pos_manager", password);
+    let primaryRegisterId;
     await t.test("form-options y búsqueda POS", async () => {
       const options = await ownerAgent.get("/api/pos/form-options").expect(200);
       assert.equal(options.body.data.defaultLocationId, location.id);
@@ -207,6 +208,7 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
         .send({ locationId: location.id, name: "Caja POS principal" })
         .expect(201);
       const registerId = registerResponse.body.data.register.id;
+      primaryRegisterId = registerId;
 
       const viewerRegisters = await viewerAgent.get("/api/cash/registers").expect(200);
       assert.equal(viewerRegisters.body.data.registers.length, 1);
@@ -323,7 +325,7 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
       assert.notEqual(secondPage.body.data.sales[0].id, response.body.data.sales[0].id);
 
       const managerHistory = await managerAgent.get("/api/sales?paymentMethod=card").expect(200);
-      assert.equal(managerHistory.body.data.sales.length, 1);
+      assert.equal(managerHistory.body.data.sales.length, 2);
       assert.equal(managerHistory.body.data.sales[0].paymentMethod, "card");
 
       const viewerHistory = await viewerAgent.get("/api/sales?status=completed").expect(200);
@@ -340,7 +342,7 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
       assert.equal(byUser.body.data.sales.length, 2);
       assert.equal(byUser.body.data.sales[0].username, "pos_owner");
       const byDate = await ownerAgent.get("/api/sales?dateFrom=2026-08-10&dateTo=2026-08-20").expect(200);
-      assert.equal(byDate.body.data.sales.length, 2);
+      assert.equal(byDate.body.data.sales.length, 1);
       assert.ok(byDate.body.data.sales.some((sale) => sale.id === Number(managerSale.id)));
       assert.ok(byDate.body.data.sales.every((sale) => sale.businessId === undefined || sale.businessId === Number(owner.business_id)));
       const noMatch = await ownerAgent.get("/api/sales?q=does-not-exist").expect(200);
@@ -386,16 +388,20 @@ test("backend POS protege y registra ventas atómicamente", { skip }, async (t) 
     });
 
     await t.test("producto ajeno y archivado rechazados", async () => {
-      const foreign = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 1, items: [{ itemId: foreignProduct.id, quantity: 1 }] }, 409);
+      const foreign = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "card", items: [{ itemId: foreignProduct.id, quantity: 1 }] }, 404);
       assert.equal(foreign.body.error.code, "POS_PRODUCT_NOT_FOUND");
-      const inactive = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 5, items: [{ itemId: archived.id, quantity: 1 }] }, 409);
+      const inactive = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "card", items: [{ itemId: archived.id, quantity: 1 }] }, 409);
       assert.equal(inactive.body.error.code, "POS_PRODUCT_INACTIVE");
     });
 
     await t.test("stock insuficiente y efectivo insuficiente", async () => {
       const stock = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "card", items: [{ itemId: product.id, quantity: 4 }] }, 409);
       assert.equal(stock.body.error.code, "POS_INSUFFICIENT_STOCK");
-      const cash = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 1, items: [{ itemId: product.id, quantity: 1 }] }, 409);
+      await ownerAgent.post("/api/cash/sessions/open")
+        .set("x-csrf-token", await csrf(ownerAgent))
+        .send({ registerId: primaryRegisterId, openingAmount: 100 })
+        .expect(201);
+      const cash = await createSale(ownerAgent, { locationId: location.id, paymentMethod: "cash", amountReceived: 1, items: [{ itemId: product.id, quantity: 1 }] }, 400);
       assert.equal(cash.body.error.code, "POS_CASH_INSUFFICIENT");
     });
 

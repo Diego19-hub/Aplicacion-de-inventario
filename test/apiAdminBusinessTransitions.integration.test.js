@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import pg from "pg";
 import request from "supertest";
 
-import { createTestDatabase, dropTestDatabase } from "./helpers/testDatabase.js";
+import { createTestDatabase, dropTestDatabase, withTestTransaction } from "./helpers/testDatabase.js";
 
 const { Client } = pg;
 const hasTestDatabaseUrl = Boolean(process.env.TEST_DATABASE_URL);
@@ -22,20 +22,10 @@ function restoreEnvironment() {
   }
 }
 
-function extractCsrfToken(html) {
-  const match = html.match(/<input\s+[^>]*name=["']_csrf["'][^>]*value=["']([^"']+)["'][^>]*>/i);
-  assert.ok(match, "El formulario de login debe incluir CSRF.");
-  return match[1];
-}
-
 async function login(app, identifier, password) {
   const agent = request.agent(app);
-  const loginPage = await agent.get("/auth/login").expect(200);
-  await agent.post("/auth/login").type("form").send({
-    _csrf: extractCsrfToken(loginPage.text),
-    identifier,
-    password
-  }).expect(302);
+  const csrfToken = (await agent.get("/api/csrf-token").expect(200)).body.data.csrfToken;
+  await agent.post("/api/auth/login").set("x-csrf-token", csrfToken).send({ identifier, password }).expect(200);
   return agent;
 }
 
@@ -98,31 +88,21 @@ test(
         "transition_normal_user", "transition-normal@example.test", passwordHash
       ]);
       const ids = Object.fromEntries(users.rows.map((user) => [user.username, user.id]));
-      const business = await client.query(`
-        INSERT INTO businesses (name, slug, created_by)
-        VALUES ($1, $2, $3)
-        RETURNING id
-      `, ["Negocio de transición", "negocio-de-transicion", ids.transition_business_owner]);
-      const businessId = business.rows[0].id;
-      await client.query(`
-        INSERT INTO business_members (business_id, user_id, role, status)
-        VALUES ($1, $2, 'owner', 'active'), ($1, $3, 'viewer', 'suspended')
-      `, [businessId, ids.transition_business_owner, ids.transition_normal_user]);
-      const locations = await client.query(`
-        INSERT INTO business_locations (business_id, name, code, location_type, is_default)
-        VALUES ($1, 'Sucursal principal', 'MAIN', 'branch', true), ($1, 'Bodega transición', 'TRANS-BOD', 'warehouse', false)
-        RETURNING id, code
-      `, [businessId]);
-      const locationIds = Object.fromEntries(locations.rows.map((location) => [location.code, location.id]));
-      const category = await client.query(
-        "INSERT INTO categories (business_id, name, description) VALUES ($1, $2, $3) RETURNING id",
-        [businessId, "Categoría transición", "Categoría para la prueba"]
-      );
+      const fixture = await withTestTransaction(client, async () => {
+        const business = await client.query("INSERT INTO businesses (name, slug, created_by) VALUES ($1, $2, $3) RETURNING id", ["Negocio de transición", "negocio-de-transicion", ids.transition_business_owner]);
+        const businessId = business.rows[0].id;
+        await client.query("INSERT INTO business_members (business_id, user_id, role, status) VALUES ($1, $2, 'owner', 'active'), ($1, $3, 'viewer', 'suspended')", [businessId, ids.transition_business_owner, ids.transition_normal_user]);
+        const locations = await client.query("INSERT INTO business_locations (business_id, name, code, location_type, is_default) VALUES ($1, 'Sucursal principal', 'MAIN', 'branch', true), ($1, 'Bodega transición', 'TRANS-BOD', 'warehouse', false) RETURNING id, code", [businessId]);
+        const category = await client.query("INSERT INTO categories (business_id, name, description, is_default) VALUES ($1, $2, $3, true) RETURNING id", [businessId, "Categoría transición", "Categoría para la prueba"]);
+        return { businessId, locations: locations.rows, categoryId: category.rows[0].id };
+      });
+      const businessId = fixture.businessId;
+      const locationIds = Object.fromEntries(fixture.locations.map((location) => [location.code, location.id]));
       const item = await client.query(`
         INSERT INTO items (business_id, category_id, sku, name, description, brand, price, stock)
         VALUES ($1, $2, 'TRANS-001', 'Producto transición', 'Producto para prueba', 'Prueba', 10, 2)
         RETURNING id
-      `, [businessId, category.rows[0].id]);
+      `, [businessId, fixture.categoryId]);
       const itemId = item.rows[0].id;
       const transferResult = await client.query(`
         INSERT INTO inventory_transfers (business_id, item_id, from_location_id, to_location_id, quantity, reason, created_by)

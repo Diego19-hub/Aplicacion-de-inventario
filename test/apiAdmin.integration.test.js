@@ -7,7 +7,8 @@ import request from "supertest";
 
 import {
   createTestDatabase,
-  dropTestDatabase
+  dropTestDatabase,
+  withTestTransaction
 } from "./helpers/testDatabase.js";
 
 const { Client } = pg;
@@ -25,24 +26,10 @@ function restoreEnvironment() {
   }
 }
 
-function extractCsrfToken(html) {
-  const match = html.match(
-    /<input\s+[^>]*name=["']_csrf["'][^>]*value=["']([^"']+)["'][^>]*>/i
-  );
-
-  assert.ok(match, "El formulario de inicio de sesión debe incluir CSRF.");
-  return match[1];
-}
-
 async function login(app, identifier, password) {
   const agent = request.agent(app);
-  const loginPage = await agent.get("/auth/login").expect(200);
-
-  await agent
-    .post("/auth/login")
-    .type("form")
-    .send({ _csrf: extractCsrfToken(loginPage.text), identifier, password })
-    .expect(302);
+  const csrfToken = (await agent.get("/api/csrf-token").expect(200)).body.data.csrfToken;
+  await agent.post("/api/auth/login").set("x-csrf-token", csrfToken).send({ identifier, password }).expect(200);
 
   return agent;
 }
@@ -130,44 +117,21 @@ test(
       );
       const userIds = Object.fromEntries(users.rows.map((user) => [user.username, user.id]));
 
-      const suspendedBusiness = await client.query(
-        `
-          INSERT INTO businesses (name, slug, status, created_by, created_at)
-          VALUES ($1, $2, 'suspended', $3, clock_timestamp() - interval '2 minutes')
-          RETURNING id
-        `,
-        ["NEGOCIO SUSPENDIDO GLOBAL", "negocio-suspendido-global", userIds.api_suspended_owner]
-      );
-      const activeBusiness = await client.query(
-        `
-          INSERT INTO businesses (name, slug, legal_name, tax_id, created_by, created_at)
-          VALUES ($1, $2, $3, $4, $5, clock_timestamp() - interval '1 minute')
-          RETURNING id
-        `,
-        ["NEGOCIO ACTIVO GLOBAL", "negocio-activo-global", "Razón Global", "RFCGLOBAL001", superAdmin.user_id]
-      );
-      const suspendedBusinessId = suspendedBusiness.rows[0].id;
-      const activeBusinessId = activeBusiness.rows[0].id;
-
-      await client.query(
-        `
-          INSERT INTO business_members (business_id, user_id, role, status)
-          VALUES
-            ($1, $2, 'manager', 'active'),
-            ($1, $3, 'viewer', 'suspended'),
-            ($4, $3, 'owner', 'active'),
-            ($4, $2, 'viewer', 'suspended'),
-            ($5, $6, 'viewer', 'active')
-        `,
-        [
-          superAdmin.business_id,
-          userIds.api_normal_user,
-          userIds.api_suspended_owner,
-          suspendedBusinessId,
-          activeBusinessId,
-          superAdmin.user_id
-        ]
-      );
+      const { suspendedBusinessId, activeBusinessId } = await withTestTransaction(client, async () => {
+        const suspendedBusiness = await client.query("INSERT INTO businesses (name, slug, status, created_by, created_at) VALUES ($1, $2, 'suspended', $3, clock_timestamp() - interval '2 minutes') RETURNING id", ["NEGOCIO SUSPENDIDO GLOBAL", "negocio-suspendido-global", userIds.api_suspended_owner]);
+        const activeBusiness = await client.query("INSERT INTO businesses (name, slug, legal_name, tax_id, created_by, created_at) VALUES ($1, $2, $3, $4, $5, clock_timestamp() - interval '1 minute') RETURNING id", ["NEGOCIO ACTIVO GLOBAL", "negocio-activo-global", "Razón Global", "RFCGLOBAL001", superAdmin.user_id]);
+        const suspendedBusinessId = suspendedBusiness.rows[0].id;
+        const activeBusinessId = activeBusiness.rows[0].id;
+        await client.query(
+          `INSERT INTO business_members (business_id, user_id, role, status)
+           VALUES ($1, $2, 'manager', 'active'), ($1, $3, 'viewer', 'suspended'),
+             ($4, $3, 'owner', 'active'), ($4, $2, 'viewer', 'suspended'),
+             ($5, $6, 'owner', 'active')`,
+          [superAdmin.business_id, userIds.api_normal_user, userIds.api_suspended_owner, suspendedBusinessId, activeBusinessId, superAdmin.user_id]
+        );
+        await client.query("INSERT INTO categories (business_id, name, description, is_default) VALUES ($1, 'General', 'Categoría predeterminada', true), ($2, 'General', 'Categoría predeterminada', true)", [suspendedBusinessId, activeBusinessId]);
+        return { suspendedBusinessId, activeBusinessId };
+      });
 
       const destination = await client.query(
         `

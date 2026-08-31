@@ -89,14 +89,26 @@ test("creación y revocación de invitaciones mediante API", { skip: !hasTestDat
        VALUES($1, $2, 'manager', 'active'), ($1, $3, 'viewer', 'active'), ($1, $4, 'viewer', 'active')`,
       [owner.business_id, manager.id, viewer.id, activeMember.id]
     );
-    const foreignBusiness = (await client.query(
-      "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
-      ["Negocio ajeno invitaciones", "negocio-ajeno-invitaciones", foreignUser.id]
-    )).rows[0];
-    await client.query(
-      "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
-      [foreignBusiness.id, foreignUser.id]
-    );
+    let foreignBusiness;
+    try {
+      await client.query("BEGIN");
+      foreignBusiness = (await client.query(
+        "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
+        ["Negocio ajeno invitaciones", "negocio-ajeno-invitaciones", foreignUser.id]
+      )).rows[0];
+      await client.query(
+        "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
+        [foreignBusiness.id, foreignUser.id]
+      );
+      await client.query(
+        "INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)",
+        [foreignBusiness.id]
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
     const foreignInvitation = (await client.query(
       `INSERT INTO business_invitations(business_id, email_normalized, offered_role, token_hash, invited_by)
        VALUES($1, 'ajena-invitacion@example.test', 'viewer', repeat('a', 64), $2) RETURNING id`,
@@ -131,6 +143,35 @@ test("creación y revocación de invitaciones mediante API", { skip: !hasTestDat
       const listing = await ownerAgent.get("/api/members").expect(200);
       assert.equal(JSON.stringify(listing.body).includes(token), false);
       assert.equal(JSON.stringify(listing.body).includes(stored.rows[0].token_hash), false);
+    });
+
+    await t.test("conserva puntos internos y distingue correos completos", async () => {
+      const dotted = await post(ownerAgent, "/api/members/invitations", {
+        email: "  Dev.3CuartosAg@gmail.com  ",
+        offeredRole: "viewer"
+      }, 201);
+      const plain = await post(ownerAgent, "/api/members/invitations", {
+        email: "dev3cuartosag@gmail.com",
+        offeredRole: "viewer"
+      }, 201);
+
+      assert.equal(dotted.body.data.invitation.email, "dev.3cuartosag@gmail.com");
+      assert.equal(plain.body.data.invitation.email, "dev3cuartosag@gmail.com");
+      assert.notEqual(dotted.body.data.invitation.id, plain.body.data.invitation.id);
+
+      const stored = await client.query(
+        `SELECT email_normalized
+         FROM business_invitations
+         WHERE business_id = $1
+           AND email_normalized IN ($2, $3)
+           AND status = 'pending'
+         ORDER BY email_normalized`,
+        [owner.business_id, "dev.3cuartosag@gmail.com", "dev3cuartosag@gmail.com"]
+      );
+      assert.deepEqual(stored.rows.map((row) => row.email_normalized), [
+        "dev.3cuartosag@gmail.com",
+        "dev3cuartosag@gmail.com"
+      ]);
     });
 
     await t.test("una segunda invitación sustituye transaccionalmente la pendiente anterior", async () => {

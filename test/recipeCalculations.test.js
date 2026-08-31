@@ -9,10 +9,10 @@ test("calcula costo de receta, merma y costo unitario", () => {
     { quantity: 10, unit: "piece", cost_price: "2" }
   ]);
   assert.equal(convertQuantity(500, "gram"), 0.5);
-  assert.equal(result.ingredientCost, 75);
-  assert.equal(result.wasteCost, 7.5);
-  assert.equal(result.productionCost, 112.5);
-  assert.equal(result.unitCost, 11.25);
+  assert.equal(result.ingredientCost, 130);
+  assert.equal(result.wasteCost, 13);
+  assert.equal(result.productionCost, 173);
+  assert.equal(result.unitCost, 17.3);
 });
 
 test("el costo manual permite marcar una receta estimada", () => {

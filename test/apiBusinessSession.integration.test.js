@@ -256,6 +256,11 @@ test(
           canManageInventory: true,
           canDeleteInventory: false,
           canManageMembers: false,
+          canManageCustomers: true,
+          canManageCustomerCharges: true,
+          canRegisterCustomerPayments: true,
+          canCancelCustomerPayments: false,
+          canViewCustomerCollections: true,
           isSuperAdmin: true
         });
 

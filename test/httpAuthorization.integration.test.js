@@ -26,25 +26,10 @@ function restoreEnvironment() {
   }
 }
 
-function extractCsrfToken(html) {
-  const match = html.match(
-    /<input\s+[^>]*name=["']_csrf["'][^>]*value=["']([^"']+)["'][^>]*>/i
-  );
-
-  assert.ok(match, "La página de login debe incluir el campo oculto _csrf.");
-  return match[1];
-}
-
 async function login(app, identifier, password) {
   const agent = request.agent(app);
-  const loginPage = await agent.get("/auth/login").expect(200);
-  const csrfToken = extractCsrfToken(loginPage.text);
-
-  await agent
-    .post("/auth/login")
-    .type("form")
-    .send({ _csrf: csrfToken, identifier, password })
-    .expect(302);
+  const csrfToken = (await agent.get("/api/csrf-token").expect(200)).body.data.csrfToken;
+  await agent.post("/api/auth/login").set("x-csrf-token", csrfToken).send({ identifier, password }).expect(200);
 
   return agent;
 }
@@ -142,9 +127,9 @@ test(
       const { default: importedPool } = await import("../db/pool.js");
       pool = importedPool;
 
-      await t.test("anónimos se redirigen al login", async () => {
-        await request(app).get("/admin").expect(302).expect("Location", "/auth/login");
-        await request(app).get("/items").expect(302).expect("Location", "/auth/login");
+      await t.test("anónimos reciben 401 en la API", async () => {
+        await request(app).get("/api/admin/dashboard").expect(401);
+        await request(app).get("/api/products").expect(401);
       });
 
       const ownerAgent = await login(app, "http_owner", password);
@@ -153,49 +138,48 @@ test(
       const outsiderAgent = await login(app, "http_outsider", password);
 
       await t.test("super_admin accede a administración", async () => {
-        await ownerAgent.get("/admin").expect(200);
+        await ownerAgent.get("/api/admin/dashboard").expect(200);
       });
 
       await t.test("manager y viewer reciben 403 en administración", async () => {
-        await managerAgent.get("/admin").expect(403);
-        await viewerAgent.get("/admin").expect(403);
+        await managerAgent.get("/api/admin/dashboard").expect(403);
+        await viewerAgent.get("/api/admin/dashboard").expect(403);
       });
 
       await t.test("roles activos pueden consultar productos", async () => {
-        await ownerAgent.get("/items").expect(200);
-        await managerAgent.get("/items").expect(200);
-        await viewerAgent.get("/items").expect(200);
+        await ownerAgent.get("/api/products").expect(200);
+        await managerAgent.get("/api/products").expect(200);
+        await viewerAgent.get("/api/products").expect(200);
       });
 
       await t.test("solo owner y manager acceden al formulario de producto", async () => {
-        await ownerAgent.get("/items/new").expect(200);
-        await managerAgent.get("/items/new").expect(200);
-        await viewerAgent.get("/items/new").expect(403);
+        await ownerAgent.get("/api/products/form-options").expect(200);
+        await managerAgent.get("/api/products/form-options").expect(200);
+        await viewerAgent.get("/api/products/form-options").expect(403);
       });
 
       await t.test("solo owner consulta productos archivados", async () => {
-        await ownerAgent.get("/items/archived").expect(200);
-        await managerAgent.get("/items/archived").expect(403);
-        await viewerAgent.get("/items/archived").expect(403);
+        await ownerAgent.get("/api/products/archived").expect(200);
+        await managerAgent.get("/api/products/archived").expect(403);
+        await viewerAgent.get("/api/products/archived").expect(403);
       });
 
       await t.test("un usuario sin membresía no accede al inventario", async () => {
-        await outsiderAgent.get("/items").expect(302).expect("Location", "/businesses/select");
+        await outsiderAgent.get("/api/products").expect(409);
       });
 
       await t.test("un POST sin CSRF no crea productos", async () => {
         const beforeResult = await client.query("SELECT count(*) FROM items");
 
         await ownerAgent
-          .post("/items/new")
-          .type("form")
+          .post("/api/products")
           .send({
             sku: "HTTP-POST-001",
             name: "Producto que no debe crearse",
             description: "Prueba de protección CSRF",
             brand: "Prueba",
             price: "10.00",
-            categoryId: "1"
+            categoryId: 1
           })
           .expect(403);
 

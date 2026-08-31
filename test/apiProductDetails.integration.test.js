@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import bcrypt from "bcrypt";
 import pg from "pg";
 import request from "supertest";
-import { createTestDatabase, dropTestDatabase } from "./helpers/testDatabase.js";
+import { createTestDatabase, dropTestDatabase, withTestTransaction } from "./helpers/testDatabase.js";
 
 const { Client } = pg;
 const hasTestDatabaseUrl = Boolean(process.env.TEST_DATABASE_URL);
@@ -44,8 +44,12 @@ test("GET /api/products/:productId", { skip: !hasTestDatabaseUrl }, async (t) =>
     await client.query("INSERT INTO inventory_movements(business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,created_by) VALUES($1,$2,$3,'opening_balance',3,0,3,$4,$5),($1,$6,$3,'opening_balance',2,0,2,$7,$5)", [owner.business_id, activeLocation.id, product.id, "Saldo inicial activo", owner.id, inactiveLocation.id, "Saldo inicial histórico"]);
     const archived = (await client.query("INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status,archived_at,archived_by,archive_reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'archived',clock_timestamp(),$9,$10) RETURNING id", ["DET-ARC", "Producto archivado", "Descripción", "Marca", 10, 0, category.id, owner.business_id, owner.id, "Archivado para prueba"])).rows[0];
     const foreignUser = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["detail_foreign", "detail-foreign@example.test", hash])).rows[0];
-    const foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio ajeno detalle", "negocio-ajeno-detalle", foreignUser.id])).rows[0];
-    await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusiness.id, foreignUser.id]);
+    const foreignBusiness = await withTestTransaction(client, async () => {
+      const business = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio ajeno detalle", "negocio-ajeno-detalle", foreignUser.id])).rows[0];
+      await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [business.id, foreignUser.id]);
+      await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,'General','Categoría predeterminada',true)", [business.id]);
+      return business;
+    });
     const foreignCategory = (await client.query("INSERT INTO categories(name,description,business_id) VALUES($1,$2,$3) RETURNING id", ["Categoría ajena detalle", "Categoría", foreignBusiness.id])).rows[0];
     const foreignProduct = (await client.query("INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active') RETURNING id", ["DET-FOREIGN", "Producto ajeno detalle", "Descripción", "Marca", 1, 0, foreignCategory.id, foreignBusiness.id])).rows[0];
     const { default: app } = await import("../app.js"); const { default: importedPool } = await import("../db/pool.js"); pool = importedPool;

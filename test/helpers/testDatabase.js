@@ -262,3 +262,15 @@ export async function dropTestDatabase() {
   const config = getTestDatabaseConfig({ allowSameDatabase: true });
   await removeDatabase(config);
 }
+
+export async function withTestTransaction(client, callback) {
+  await client.query("BEGIN");
+  try {
+    const result = await callback();
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  }
+}

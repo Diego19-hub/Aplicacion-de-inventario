@@ -27,25 +27,10 @@ function restoreEnvironment() {
   }
 }
 
-function extractCsrfToken(html) {
-  const match = html.match(
-    /<input\s+[^>]*name=["']_csrf["'][^>]*value=["']([^"']+)["'][^>]*>/i
-  );
-
-  assert.ok(match, "La página de login debe incluir el campo oculto _csrf.");
-  return match[1];
-}
-
 async function login(app, identifier, password) {
   const agent = request.agent(app);
-  const loginPage = await agent.get("/auth/login").expect(200);
-  const csrfToken = extractCsrfToken(loginPage.text);
-
-  await agent
-    .post("/auth/login")
-    .type("form")
-    .send({ _csrf: csrfToken, identifier, password })
-    .expect(302);
+  const csrfToken = (await agent.get("/api/csrf-token").expect(200)).body.data.csrfToken;
+  await agent.post("/api/auth/login").set("x-csrf-token", csrfToken).send({ identifier, password }).expect(200);
 
   return agent;
 }
@@ -59,6 +44,11 @@ const anonymousSession = {
     canManageInventory: false,
     canDeleteInventory: false,
     canManageMembers: false,
+    canManageCustomers: false,
+    canManageCustomerCharges: false,
+    canRegisterCustomerPayments: false,
+    canCancelCustomerPayments: false,
+    canViewCustomerCollections: false,
     isSuperAdmin: false
   }
 };
@@ -207,14 +197,19 @@ test(
           canManageInventory: false,
           canDeleteInventory: false,
           canManageMembers: false,
+          canManageCustomers: false,
+          canManageCustomerCharges: false,
+          canRegisterCustomerPayments: false,
+          canCancelCustomerPayments: false,
+          canViewCustomerCollections: false,
           isSuperAdmin: false
         });
       });
 
       for (const [label, agent, role, permissions] of [
-        ["owner", ownerAgent, "owner", { canManageInventory: true, canDeleteInventory: true, canManageMembers: true, isSuperAdmin: true }],
-        ["manager", managerAgent, "manager", { canManageInventory: true, canDeleteInventory: false, canManageMembers: false, isSuperAdmin: false }],
-        ["viewer", viewerAgent, "viewer", { canManageInventory: false, canDeleteInventory: false, canManageMembers: false, isSuperAdmin: false }]
+        ["owner", ownerAgent, "owner", { canManageInventory: true, canDeleteInventory: true, canManageMembers: true, canManageCustomers: true, canManageCustomerCharges: true, canRegisterCustomerPayments: true, canCancelCustomerPayments: true, canViewCustomerCollections: true, isSuperAdmin: true }],
+        ["manager", managerAgent, "manager", { canManageInventory: true, canDeleteInventory: false, canManageMembers: false, canManageCustomers: true, canManageCustomerCharges: true, canRegisterCustomerPayments: true, canCancelCustomerPayments: false, canViewCustomerCollections: true, isSuperAdmin: false }],
+        ["viewer", viewerAgent, "viewer", { canManageInventory: false, canDeleteInventory: false, canManageMembers: false, canManageCustomers: false, canManageCustomerCharges: false, canRegisterCustomerPayments: false, canCancelCustomerPayments: false, canViewCustomerCollections: true, isSuperAdmin: false }]
       ]) {
         await t.test(`${label} activo recibe permisos calculados en el servidor`, async () => {
           const response = await agent.get("/api/session").expect(200);
@@ -286,15 +281,9 @@ test(
         });
       });
 
-      await t.test("las rutas EJS mantienen su comportamiento HTML", async () => {
-        await request(app)
-          .get("/auth/login")
-          .expect(200)
-          .expect("Content-Type", /html/);
-        await request(app)
-          .get("/items")
-          .expect(302)
-          .expect("Location", "/auth/login");
+      await t.test("las rutas EJS retiradas permanecen inexistentes", async () => {
+        await request(app).get("/auth/login").expect(404);
+        await request(app).get("/items").expect(404);
       });
     } finally {
       if (client) {

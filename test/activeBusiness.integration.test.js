@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import pg from "pg";
 import {
   createTestDatabase,
-  dropTestDatabase
+  dropTestDatabase,
+  withTestTransaction
 } from "./helpers/testDatabase.js";
 
 const { Client } = pg;
@@ -148,23 +149,21 @@ test(
         ]
       );
 
-      const suspendedBusinessResult = await client.query(
-        `
-          INSERT INTO businesses (name, slug, created_by, status)
-          VALUES ($1, $2, $3, 'suspended')
-          RETURNING id
-        `,
-        ["Negocio suspendido de integración", "integration-suspended-business", owner.user_id]
-      );
-      const suspendedBusinessId = suspendedBusinessResult.rows[0].id;
-
-      await client.query(
-        `
-          INSERT INTO business_members (business_id, user_id, role, status)
-          VALUES ($1, $2, 'manager', 'active')
-        `,
-        [suspendedBusinessId, users.integration_manager]
-      );
+      const suspendedBusinessId = await withTestTransaction(client, async () => {
+        const result = await client.query(
+          `INSERT INTO businesses (name, slug, created_by, status)
+           VALUES ($1, $2, $3, 'suspended') RETURNING id`,
+          ["Negocio suspendido de integración", "integration-suspended-business", owner.user_id]
+        );
+        const businessId = result.rows[0].id;
+        await client.query(
+          `INSERT INTO business_members (business_id, user_id, role, status)
+           VALUES ($1, $2, 'owner', 'active'), ($1, $3, 'manager', 'active')`,
+          [businessId, owner.user_id, users.integration_manager]
+        );
+        await client.query("INSERT INTO categories (business_id, name, description, is_default) VALUES ($1, 'General', 'Categoría predeterminada', true)", [businessId]);
+        return businessId;
+      });
 
       await t.test("owner activo carga negocio, membresía y permisos", async () => {
         const req = createRequest({

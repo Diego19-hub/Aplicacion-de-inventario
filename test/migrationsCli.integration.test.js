@@ -44,6 +44,7 @@ test(
   { skip: !hasTestDatabaseUrl },
   async () => {
     let client;
+    const databaseName = new URL(process.env.TEST_DATABASE_URL).pathname.slice(1);
 
     async function movementIndexDefinitions() {
       const result = await client.query(
@@ -78,7 +79,7 @@ test(
 
       const initialStatus = await runCli(["status"]);
       assert.equal(initialStatus.code, 0);
-      assert.match(initialStatus.stdout, /Base: inventory_boxing_integration_test/);
+      assert.match(initialStatus.stdout, new RegExp(`Base: ${databaseName}`));
       assert.match(initialStatus.stdout, /Estado: uninitialized/);
       assert.match(initialStatus.stdout, /pending: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014/);
       assert.equal(
@@ -103,7 +104,7 @@ test(
       );
 
       const upBeforeBaseline = await runCli(["up"], {
-        MIGRATION_UP_CONFIRM: "inventory_boxing_integration_test"
+        MIGRATION_UP_CONFIRM: databaseName
       });
       assert.notEqual(upBeforeBaseline.code, 0);
       assert.match(upBeforeBaseline.stderr, /primero se necesita baseline/);
@@ -129,7 +130,7 @@ test(
       );
 
       const baseline = await runCli(["baseline"], {
-        MIGRATION_BASELINE_CONFIRM: "inventory_boxing_integration_test"
+        MIGRATION_BASELINE_CONFIRM: databaseName
       });
       assert.equal(baseline.code, 0);
       assert.match(baseline.stdout, /Versiones registradas: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010/);
@@ -148,13 +149,13 @@ test(
       assert.match(statusBeforeUp.stdout, /pending: 011, 012, 013, 014/);
 
       const upWithPending = await runCli(["up"], {
-        MIGRATION_UP_CONFIRM: "inventory_boxing_integration_test"
+        MIGRATION_UP_CONFIRM: databaseName
       });
       assert.equal(upWithPending.code, 0);
       assert.match(upWithPending.stdout, /Versiones aplicadas: 011, 012, 013, 014/);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        14
+        29
       );
       const registeredEleven = await client.query(
         "SELECT checksum FROM public.schema_migrations WHERE version = $1",
@@ -263,13 +264,13 @@ test(
       assert.match(rangedPlan, new RegExp(movementIndexes[0]));
 
       const upWithoutPending = await runCli(["up"], {
-        MIGRATION_UP_CONFIRM: "inventory_boxing_integration_test"
+        MIGRATION_UP_CONFIRM: databaseName
       });
       assert.equal(upWithoutPending.code, 0);
       assert.match(upWithoutPending.stdout, /No hay migraciones pendientes/);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        14
+        29
       );
 
       const finalStatus = await runCli(["status"]);
@@ -281,12 +282,12 @@ test(
       assert.match(finalStatus.stdout, /missing_file: ninguna/);
 
       const repeatedBaseline = await runCli(["baseline"], {
-        MIGRATION_BASELINE_CONFIRM: "inventory_boxing_integration_test"
+        MIGRATION_BASELINE_CONFIRM: databaseName
       });
       assert.notEqual(repeatedBaseline.code, 0);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        14
+        29
       );
 
       await recreateDatabase();

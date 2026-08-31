@@ -96,6 +96,11 @@ test(
           canManageInventory: true,
           canDeleteInventory: true,
           canManageMembers: true,
+          canManageCustomers: true,
+          canManageCustomerCharges: true,
+          canRegisterCustomerPayments: true,
+          canCancelCustomerPayments: true,
+          canViewCustomerCollections: true,
           isSuperAdmin: true
         });
         assert.equal(login.body.data.requiresBusinessSelection, false);

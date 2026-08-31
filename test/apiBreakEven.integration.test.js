@@ -92,15 +92,15 @@ test("GET /api/break-even", { skip: !hasTestDatabaseUrl }, async (t) => {
     });
 
     const agent = await login(app, "break_even_owner", password);
-    await t.test("incluye completed, divide anuales y excluye cancelled", async () => {
+    await t.test("incluye completed, prorratea anuales y excluye cancelled", async () => {
       const response = await agent.get("/api/break-even?month=2026-08").expect(200);
       const result = response.body.data;
       assert.equal(result.revenue, 25000);
       assert.equal(result.unitsSold, 100);
       assert.equal(result.variableCosts, 14000);
-      assert.equal(result.fixedCosts, 11000);
-      assert.equal(result.breakEvenUnits, 100);
-      assert.equal(result.breakEvenRevenue, 25000);
+      assert.equal(result.fixedCosts, 10100);
+      assert.equal(result.breakEvenUnits, 92);
+      assert.equal(result.breakEvenRevenue, 22954.55);
     });
 
     await t.test("un mes sin ventas no divide entre cero", async () => {

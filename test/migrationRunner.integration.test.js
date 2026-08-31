@@ -44,7 +44,7 @@ test(
       await baselineMigrationHistory(client, baselineInventory);
 
       temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "inventory-migrations-"));
-      for (const migration of baselineInventory) {
+      for (const migration of baselineInventory.filter((migration) => migration.versionNumber <= 13)) {
         await copyFile(
           migration.up.absolutePath,
           path.join(temporaryDirectory, migration.up.fileName)

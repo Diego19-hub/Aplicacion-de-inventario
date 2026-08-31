@@ -6,7 +6,8 @@ import request from "supertest";
 
 import {
   createTestDatabase,
-  dropTestDatabase
+  dropTestDatabase,
+  withTestTransaction
 } from "./helpers/testDatabase.js";
 
 const { Client } = pg;
@@ -91,14 +92,12 @@ test("POST /api/products", { skip: !hasTestDatabaseUrl }, async (t) => {
       "INSERT INTO users(username, email, password_hash, platform_role) VALUES($1, $2, $3, 'user') RETURNING id",
       ["creation_foreign", "creation-foreign@example.test", passwordHash]
     )).rows[0];
-    const foreignBusiness = (await client.query(
-      "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
-      ["Negocio ajeno creación", "negocio-ajeno-creacion", foreignUser.id]
-    )).rows[0];
-    await client.query(
-      "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
-      [foreignBusiness.id, foreignUser.id]
-    );
+    const foreignBusiness = await withTestTransaction(client, async () => {
+      const business = (await client.query("INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id", ["Negocio ajeno creación", "negocio-ajeno-creacion", foreignUser.id])).rows[0];
+      await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [business.id, foreignUser.id]);
+      await client.query("INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)", [business.id]);
+      return business;
+    });
     const foreignCategory = (await client.query(
       "INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id",
       ["Categoría ajena creación", "Categoría ajena", foreignBusiness.id]

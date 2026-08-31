@@ -41,7 +41,7 @@ test(
     try {
       await recreateDatabase();
 
-      await t.test("registra únicamente 001–010 y deja 011–014 pendientes", async () => {
+      await t.test("registra únicamente 001–010 y deja 011–029 pendientes", async () => {
         await baselineMigrationHistory(client, inventory);
         assert.equal(await historyCount(), 10);
 
@@ -63,7 +63,7 @@ test(
 
         const status = await getMigrationStatus(client, inventory);
         assert.equal(status.summary.applied, 10);
-        assert.equal(status.summary.pending, 4);
+        assert.equal(status.summary.pending, 19);
         assert.equal(status.summary.checksum_mismatch, 0);
         assert.equal(status.summary.name_mismatch, 0);
         assert.equal(status.summary.missing_file, 0);

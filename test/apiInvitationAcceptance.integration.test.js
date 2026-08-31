@@ -85,8 +85,8 @@ test("consulta y aceptación API de invitaciones", { skip: !hasTestDatabaseUrl }
       ["invite_owner", "invite-owner@example.test", passwordHash, owner.id]
     );
 
-    const acceptedUser = await createUser(client, "invite_match", "invite-match@example.test", passwordHash);
-    const mismatchUser = await createUser(client, "invite_other", "invite-other@example.test", passwordHash);
+    const acceptedUser = await createUser(client, "invite_match", "dev.3cuartosag@gmail.com", passwordHash);
+    const mismatchUser = await createUser(client, "invite_other", "dev3cuartosag@gmail.com", passwordHash);
     await createUser(client, "invite_expired", "invite-expired@example.test", passwordHash);
     const suspendedUser = await createUser(client, "invite_suspended", "invite-suspended@example.test", passwordHash);
     const removedUser = await createUser(client, "invite_removed", "invite-removed@example.test", passwordHash);
@@ -103,7 +103,7 @@ test("consulta y aceptación API de invitaciones", { skip: !hasTestDatabaseUrl }
       suspended: "d".repeat(64),
       removed: "e".repeat(64)
     };
-    await createInvitation(client, { businessId: owner.business_id, invitedBy: owner.id, email: "invite-match@example.test", role: "manager", token: tokens.valid });
+    await createInvitation(client, { businessId: owner.business_id, invitedBy: owner.id, email: "dev.3cuartosag@gmail.com", role: "manager", token: tokens.valid });
     await createInvitation(client, { businessId: owner.business_id, invitedBy: owner.id, email: "invite-target@example.test", role: "viewer", token: tokens.mismatch });
     await createInvitation(client, { businessId: owner.business_id, invitedBy: owner.id, email: "invite-suspended@example.test", role: "manager", token: tokens.suspended });
     await createInvitation(client, { businessId: owner.business_id, invitedBy: owner.id, email: "invite-removed@example.test", role: "viewer", token: tokens.removed });
@@ -123,7 +123,7 @@ test("consulta y aceptación API de invitaciones", { skip: !hasTestDatabaseUrl }
     await t.test("consulta válida no expone hashes; vencida e inválida quedan controladas", async () => {
       const valid = await request(app).get(`/api/invitations/${tokens.valid}`).expect(200).expect("Cache-Control", "no-store");
       assert.deepEqual(valid.body.data.invitation.business, { name: "Boxing Inventory", slug: "boxing-inventory" });
-      assert.equal(valid.body.data.invitation.email, "invite-match@example.test");
+      assert.equal(valid.body.data.invitation.email, "dev.3cuartosag@gmail.com");
       assert.equal(valid.body.data.invitation.isExpired, false);
       assert.equal(JSON.stringify(valid.body).includes("token_hash"), false);
 
@@ -146,6 +146,20 @@ test("consulta y aceptación API de invitaciones", { skip: !hasTestDatabaseUrl }
       assert.equal(mismatch.body.error.code, "INVITATION_EMAIL_MISMATCH");
       const status = await client.query("SELECT status FROM business_invitations WHERE token_hash = $1", [hashInvitationToken(tokens.mismatch)]);
       assert.equal(status.rows[0].status, "pending");
+    });
+
+    await t.test("el correo sin punto no puede aceptar la invitación con punto", async () => {
+      const mismatchAgent = await login(app, "invite_other", password);
+      const response = await mismatchAgent
+        .post(`/api/invitations/${tokens.valid}/accept`)
+        .set("x-csrf-token", await csrfToken(mismatchAgent))
+        .expect(403);
+      assert.equal(response.body.error.code, "INVITATION_EMAIL_MISMATCH");
+      const invitation = await client.query(
+        "SELECT status FROM business_invitations WHERE token_hash = $1",
+        [hashInvitationToken(tokens.valid)]
+      );
+      assert.equal(invitation.rows[0].status, "pending");
     });
 
     await t.test("Google OAuth conserva la ruta de invitación al iniciar autenticación", async () => {

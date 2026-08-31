@@ -25,22 +25,10 @@ function restoreEnvironment() {
   }
 }
 
-function extractCsrfToken(html) {
-  const match = html.match(
-    /<input\s+[^>]*name=["']_csrf["'][^>]*value=["']([^"']+)["'][^>]*>/i
-  );
-  assert.ok(match, "El formulario de login debe incluir CSRF.");
-  return match[1];
-}
-
 async function login(app, identifier, password) {
   const agent = request.agent(app);
-  const loginPage = await agent.get("/auth/login").expect(200);
-  await agent.post("/auth/login").type("form").send({
-    _csrf: extractCsrfToken(loginPage.text),
-    identifier,
-    password
-  }).expect(302);
+  const csrfToken = (await agent.get("/api/csrf-token").expect(200)).body.data.csrfToken;
+  await agent.post("/api/auth/login").set("x-csrf-token", csrfToken).send({ identifier, password }).expect(200);
   return agent;
 }
 

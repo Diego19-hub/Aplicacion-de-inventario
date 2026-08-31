@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 import pg from "pg";
 import request from "supertest";
 
-import { createTestDatabase, dropTestDatabase } from "./helpers/testDatabase.js";
+import { createTestDatabase, dropTestDatabase, withTestTransaction } from "./helpers/testDatabase.js";
 
 const { Client } = pg;
 const hasTestDatabaseUrl = Boolean(process.env.TEST_DATABASE_URL);
@@ -100,14 +100,12 @@ test("creación y edición de categorías mediante API", { skip: !hasTestDatabas
       "INSERT INTO users(username, email, password_hash, platform_role) VALUES($1, $2, $3, 'user') RETURNING id",
       ["category_mutation_foreign", "category-mutation-foreign@example.test", passwordHash]
     )).rows[0];
-    const foreignBusiness = (await client.query(
-      "INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id",
-      ["Negocio ajeno mutaciones", "negocio-ajeno-mutaciones", foreignUser.id]
-    )).rows[0];
-    await client.query(
-      "INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')",
-      [foreignBusiness.id, foreignUser.id]
-    );
+    const foreignBusiness = await withTestTransaction(client, async () => {
+      const business = (await client.query("INSERT INTO businesses(name, slug, created_by, status) VALUES($1, $2, $3, 'active') RETURNING id", ["Negocio ajeno mutaciones", "negocio-ajeno-mutaciones", foreignUser.id])).rows[0];
+      await client.query("INSERT INTO business_members(business_id, user_id, role, status) VALUES($1, $2, 'owner', 'active')", [business.id, foreignUser.id]);
+      await client.query("INSERT INTO categories(business_id, name, description, is_default) VALUES($1, 'General', 'Categoría predeterminada', true)", [business.id]);
+      return business;
+    });
     const foreignCategory = (await client.query(
       "INSERT INTO categories(name, description, business_id) VALUES($1, $2, $3) RETURNING id",
       ["Categoría ajena", "Categoría de otro negocio", foreignBusiness.id]
@@ -140,7 +138,8 @@ test("creación y edición de categorías mediante API", { skip: !hasTestDatabas
       assert.deepEqual(updated.body.data.category, {
         id: categoryId,
         name: "Categoría renombrada API",
-        description: "Descripción actualizada para la categoría"
+        description: "Descripción actualizada para la categoría",
+        isDefault: false
       });
       const formOptions = await managerAgent.get("/api/products/form-options").expect(200);
       assert.ok(formOptions.body.data.categories.some((category) => category.id === categoryId && category.name === "Categoría renombrada API"));

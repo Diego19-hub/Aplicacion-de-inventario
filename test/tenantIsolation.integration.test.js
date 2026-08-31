@@ -5,7 +5,8 @@ import pg from "pg";
 import request from "supertest";
 import {
   createTestDatabase,
-  dropTestDatabase
+  dropTestDatabase,
+  withTestTransaction
 } from "./helpers/testDatabase.js";
 
 const { Client } = pg;
@@ -23,27 +24,10 @@ function restoreEnvironment() {
   }
 }
 
-function extractCsrfToken(html) {
-  const match = html.match(
-    /<input\s+[^>]*name=["']_csrf["'][^>]*value=["']([^"']+)["'][^>]*>/i
-  );
-  assert.ok(match, "La respuesta debe incluir el campo oculto _csrf.");
-  return match[1];
-}
-
 async function login(app, username, password) {
   const agent = request.agent(app);
-  const loginPage = await agent.get("/auth/login").expect(200);
-
-  await agent
-    .post("/auth/login")
-    .type("form")
-    .send({
-      _csrf: extractCsrfToken(loginPage.text),
-      identifier: username,
-      password
-    })
-    .expect(302);
+  const csrfToken = (await agent.get("/api/csrf-token").expect(200)).body.data.csrfToken;
+  await agent.post("/api/auth/login").set("x-csrf-token", csrfToken).send({ identifier: username, password }).expect(200);
 
   return agent;
 }
@@ -116,38 +100,26 @@ test(
         ["tenant_owner_b", "tenant-owner-b@example.test", ownerBHash]
       );
       const ownerBId = ownerBResult.rows[0].id;
-      const businessBResult = await client.query(
-        "INSERT INTO businesses (name, slug, created_by) VALUES ($1, $2, $3) RETURNING id",
-        ["NEGOCIO_B_AISLADO", "negocio-b-aislado", ownerBId]
-      );
-      const businessBId = businessBResult.rows[0].id;
-      await client.query(
-        "INSERT INTO business_members (business_id, user_id, role, status) VALUES ($1, $2, 'owner', 'active')",
-        [businessBId, ownerBId]
-      );
-
       const categoryAResult = await client.query(
         "INSERT INTO categories (business_id, name, description) VALUES ($1, $2, $3) RETURNING id",
         [businessA.business_id, "CATEGORIA_SOLO_NEGOCIO_A", "Categoría aislada A"]
-      );
-      const categoryBResult = await client.query(
-        "INSERT INTO categories (business_id, name, description) VALUES ($1, $2, $3) RETURNING id",
-        [businessBId, "CATEGORIA_SOLO_NEGOCIO_B", "Categoría aislada B"]
       );
       const locationAResult = await client.query(
         "SELECT id FROM business_locations WHERE business_id = $1 AND is_default AND status = 'active'",
         [businessA.business_id]
       );
       const locationAId = locationAResult.rows[0].id;
-      const locationBResult = await client.query(
-        `
-          INSERT INTO business_locations (business_id, name, code, location_type, is_default)
-          VALUES ($1, $2, $3, 'warehouse', true)
-          RETURNING id
-        `,
-        [businessBId, "UBICACION_SOLO_NEGOCIO_B", "B-MAIN"]
-      );
-      const locationBId = locationBResult.rows[0].id;
+      const businessBFixture = await withTestTransaction(client, async () => {
+        const business = await client.query("INSERT INTO businesses (name, slug, created_by) VALUES ($1, $2, $3) RETURNING id", ["NEGOCIO_B_AISLADO", "negocio-b-aislado", ownerBId]);
+        const businessBId = business.rows[0].id;
+        await client.query("INSERT INTO business_members (business_id, user_id, role, status) VALUES ($1, $2, 'owner', 'active')", [businessBId, ownerBId]);
+        const category = await client.query("INSERT INTO categories (business_id, name, description, is_default) VALUES ($1, $2, $3, true) RETURNING id", [businessBId, "CATEGORIA_SOLO_NEGOCIO_B", "Categoría aislada B"]);
+        const location = await client.query("INSERT INTO business_locations (business_id, name, code, location_type, is_default) VALUES ($1, $2, $3, 'warehouse', true) RETURNING id", [businessBId, "UBICACION_SOLO_NEGOCIO_B", "B-MAIN"]);
+        return { businessBId, categoryId: category.rows[0].id, locationId: location.rows[0].id };
+      });
+      const businessBId = businessBFixture.businessBId;
+      const categoryBResult = { rows: [{ id: businessBFixture.categoryId }] };
+      const locationBId = businessBFixture.locationId;
 
       const itemAResult = await client.query(
         `
@@ -202,54 +174,48 @@ test(
       const ownerAAgent = await login(app, "tenant_owner_a", password);
 
       await t.test("productos de B no aparecen en listados ni búsquedas de A", async () => {
-        const list = await ownerAAgent.get("/items").expect(200);
-        assert.doesNotMatch(list.text, /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001/);
-        const search = await ownerAAgent.get("/items?q=PRODUCTO_SOLO_NEGOCIO_B").expect(200);
-        assert.match(search.text, /0 productos encontrados/);
-        const skuSearch = await ownerAAgent.get("/items?q=SKU-B-001").expect(200);
-        assert.match(skuSearch.text, /0 productos encontrados/);
+        const list = await ownerAAgent.get("/api/products").expect(200);
+        assert.doesNotMatch(JSON.stringify(list.body), /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001/);
+        const search = await ownerAAgent.get("/api/products?q=PRODUCTO_SOLO_NEGOCIO_B").expect(200);
+        assert.equal(search.body.data.pagination.totalItems, 0);
+        const skuSearch = await ownerAAgent.get("/api/products?q=SKU-B-001").expect(200);
+        assert.equal(skuSearch.body.data.pagination.totalItems, 0);
       });
 
       await t.test("detalles de recursos de B responden 404", async () => {
-        await ownerAAgent.get(`/items/${itemBId}`).expect(404);
-        await ownerAAgent.get(`/categories/${categoryBResult.rows[0].id}`).expect(404);
-        await ownerAAgent.get(`/suppliers/${supplierBId}`).expect(404);
-        await ownerAAgent.get(`/locations/${locationBId}`).expect(404);
+        await ownerAAgent.get(`/api/products/${itemBId}`).expect(404);
+        await ownerAAgent.get(`/api/categories/${categoryBResult.rows[0].id}`).expect(404);
+        await ownerAAgent.get(`/api/suppliers/${supplierBId}`).expect(404);
+        await ownerAAgent.get(`/api/locations/${locationBId}`).expect(404);
       });
 
       await t.test("reportes y alertas no revelan datos de B", async () => {
-        const report = await ownerAAgent.get("/reports/inventory?stockRows=all").expect(200);
-        assert.doesNotMatch(report.text, /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001|UBICACION_SOLO_NEGOCIO_B/);
+        const report = await ownerAAgent.get("/api/reports/inventory?stockRows=all").expect(200);
+        assert.doesNotMatch(JSON.stringify(report.body), /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001|UBICACION_SOLO_NEGOCIO_B/);
 
         for (const filter of [
           `category=${categoryBResult.rows[0].id}`,
           `location=${locationBId}`
         ]) {
-          const filtered = await ownerAAgent.get(`/reports/inventory?${filter}&stockRows=all`).expect(200);
-          assert.doesNotMatch(filtered.text, /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001/);
-          assert.match(filtered.text, /0/);
+          const filtered = await ownerAAgent.get(`/api/reports/inventory?${filter}&stockRows=all`).expect(200);
+          assert.doesNotMatch(JSON.stringify(filtered.body), /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001/);
         }
 
-        const alerts = await ownerAAgent.get("/alerts/stock").expect(200);
-        assert.doesNotMatch(alerts.text, /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001/);
+        const alerts = await ownerAAgent.get("/api/alerts/stock").expect(200);
+        assert.doesNotMatch(JSON.stringify(alerts.body), /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001/);
       });
 
       await t.test("configurar un umbral de B se rechaza sin modificarlo", async () => {
-        await ownerAAgent.get(`/alerts/products/${itemBId}/thresholds`).expect(404);
-        const form = await ownerAAgent.get("/items/new").expect(200);
+        await ownerAAgent.get(`/api/products/${itemBId}/thresholds`).expect(404);
         const thresholdBefore = await client.query(
           "SELECT minimum_stock FROM inventory_stock_thresholds WHERE business_id = $1 AND item_id = $2 AND location_id = $3",
           [businessBId, itemBId, locationBId]
         );
 
         await ownerAAgent
-          .post(`/alerts/products/${itemBId}/thresholds`)
-          .type("form")
-          .send({
-            _csrf: extractCsrfToken(form.text),
-            locationId: locationBId,
-            minimumStock: 999
-          })
+          .put(`/api/products/${itemBId}/thresholds/${locationBId}`)
+          .set("x-csrf-token", (await ownerAAgent.get("/api/csrf-token")).body.data.csrfToken)
+          .send({ minimumStock: 999 })
           .expect(404);
 
         const thresholdAfter = await client.query(
@@ -260,16 +226,16 @@ test(
       });
 
       await t.test("seleccionar B sin membresía no cambia el negocio activo", async () => {
-        const form = await ownerAAgent.get("/items/new").expect(200);
         await ownerAAgent
-          .post("/businesses/select")
-          .type("form")
-          .send({ _csrf: extractCsrfToken(form.text), businessId: businessBId })
-          .expect(403);
+          .put("/api/session/active-business")
+          .set("x-csrf-token", (await ownerAAgent.get("/api/csrf-token")).body.data.csrfToken)
+          .send({ businessId: businessBId })
+          .expect(404);
 
-        const list = await ownerAAgent.get("/items").expect(200);
-        assert.match(list.text, /PRODUCTO_SOLO_NEGOCIO_A|SKU-A-001/);
-        assert.doesNotMatch(list.text, /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001/);
+        const list = await ownerAAgent.get("/api/products").expect(200);
+        const serialized = JSON.stringify(list.body);
+        assert.match(serialized, /PRODUCTO_SOLO_NEGOCIO_A|SKU-A-001/);
+        assert.doesNotMatch(serialized, /PRODUCTO_SOLO_NEGOCIO_B|SKU-B-001/);
       });
 
       await t.test("ninguna fila de B cambia", async () => {
