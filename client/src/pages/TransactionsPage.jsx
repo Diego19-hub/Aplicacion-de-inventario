@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Factory, Filter, Info, ReceiptText, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Factory, Filter, ReceiptText, Search, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { apiRequest } from "../api/client.js";
@@ -11,7 +11,6 @@ import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
 
 const labels = { entry: "Entrada", exit: "Salida", adjustment: "Ajuste", transfer: "Transferencia", sale: "Venta", production: "Producción", return: "Devolución", damage: "Daño", loss: "Pérdida" };
 const icons = { entry: ArrowDownToLine, exit: ArrowUpFromLine, adjustment: SlidersHorizontal, transfer: ArrowLeftRight, sale: ReceiptText, production: Factory };
@@ -36,8 +35,9 @@ function buildSearchParams(filters, page) {
 }
 
 function TransactionHelpCard() {
-  return <HelpInfoPanel moduleKey="transactions" />;
-  return <Card className="transaction-help-card"><div className="transaction-help-card__heading"><Info aria-hidden="true" /><div><p className="eyebrow">Guía rápida</p><h2>¿Cómo funcionan las transacciones?</h2></div></div><p>Las transacciones registran todos los cambios realizados en el inventario y permiten consultar quién hizo cada operación, cuándo ocurrió y qué productos fueron afectados.</p><div className="transaction-help-types">{[["entry", "Registra productos recibidos de un proveedor y aumenta el inventario."], ["exit", "Registra productos vendidos o retirados del inventario."], ["adjustment", "Corrige diferencias: incremento por productos adicionales o disminución por pérdidas, daños o caducidad."], ["transfer", "Mueve productos entre ubicaciones."], ["sale", "Descuenta productos y registra la operación comercial."], ["production", "Descuenta ingredientes y aumenta los productos fabricados."]].map(([type, text]) => { const Icon = icons[type]; return <div key={type}><Icon aria-hidden="true" /><span><strong>{labels[type]}:</strong> {text}</span></div>; })}</div><div className="transaction-help-practices"><strong>Buenas prácticas</strong><ul><li>Usa Entrada cuando recibas mercancía.</li><li>Usa Venta cuando vendas un producto.</li><li>Usa Transferencia cuando cambies un producto de ubicación.</li><li>Usa Ajuste solo para diferencias, pérdidas o correcciones.</li><li>Usa Producción para fabricar mediante una receta.</li></ul></div><p className="transaction-help-important"><strong>Importante:</strong> cada operación actualiza el inventario dentro de una transacción segura. Si ocurre un error, se revierte toda la operación para evitar saldos incorrectos.</p></Card>;
+  const { session } = useAuth();
+  if (!["owner", "manager"].includes(session.membership?.role)) return null;
+  return <div className="transactions-header-actions transaction-exit-action"><Link className="button button--secondary" to="/app/transactions/exits/new">Nueva salida</Link></div>;
 }
 
 export function TransactionsPage() {

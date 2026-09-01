@@ -179,9 +179,10 @@ export default function App() {
       <Route path="/app/reports" element={<SessionGuard><AppShell><ReportsPage /></AppShell></SessionGuard>} />
       <Route path="/app/reports/inventory" element={<SessionGuard><AppShell><InventoryReportPage /></AppShell></SessionGuard>} />
       <Route path="/app/reports/movements" element={<SessionGuard><AppShell><MovementReportPage title="Reporte de movimientos" description="Historial de inventario por ubicación." /></AppShell></SessionGuard>} />
-      <Route path="/app/movements" element={<SessionGuard><AppShell><MovementReportPage /></AppShell></SessionGuard>} />
+      <Route path="/app/movements" element={<SessionGuard><Navigate to="/app/transactions" replace /></SessionGuard>} />
       <Route path="/app/settings" element={<SessionGuard><AppShell><SettingsPage /></AppShell></SessionGuard>} />
       <Route path="/app/point-of-sale" element={<SessionGuard><AppShell><PointOfSalePage /></AppShell></SessionGuard>} />
+      <Route path="/app/pos" element={<SessionGuard><Navigate to="/app/point-of-sale" replace /></SessionGuard>} />
       <Route path="/app/cash" element={<SessionGuard><AppShell><CashPage /></AppShell></SessionGuard>} />
       <Route path="/app/cash/history" element={<SessionGuard><AppShell><CashHistoryPage /></AppShell></SessionGuard>} />
       <Route
@@ -233,6 +234,7 @@ export default function App() {
       <Route path="/app/transactions" element={<SessionGuard><AppShell><TransactionsPage /></AppShell></SessionGuard>} />
       <Route path="/app/transactions/:transactionId" element={<SessionGuard><AppShell><TransactionsPage /></AppShell></SessionGuard>} />
       <Route path="/app/transactions/entries/new" element={<SessionGuard><AppShell><NewInventoryTransactionPage type="entry" /></AppShell></SessionGuard>} />
+      <Route path="/app/transactions/exits/new" element={<SessionGuard><AppShell><NewInventoryTransactionPage type="exit" /></AppShell></SessionGuard>} />
       <Route path="/app/transactions/adjustments/new" element={<SessionGuard><AppShell><NewInventoryTransactionPage type="adjustment" /></AppShell></SessionGuard>} />
       <Route path="/app/purchases" element={<SessionGuard><AppShell><PurchasesPage /></AppShell></SessionGuard>} />
       <Route path="/app/purchases/new" element={<SessionGuard><AppShell><PurchasesPage formOnly /></AppShell></SessionGuard>} />
