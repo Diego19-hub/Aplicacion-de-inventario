@@ -18,7 +18,8 @@ export async function createInventoryExit({ businessId, userId, date, reference:
 
 async function applyInventoryLines({ businessId, userId, date, reference, supplier, reason, notes, locationId, lines, kind }) {
   const client = await pool.connect();
-  const createdAt = date || new Date().toISOString();
+  // created_at es la marca inmutable de registro. Una fecha de formulario sin hora
+  // se interpreta a medianoche y puede enviar una operación nueva fuera de la primera página.
   try {
     await client.query("BEGIN");
     const location = (await client.query("SELECT id FROM business_locations WHERE business_id=$1 AND id=$2 AND status='active' FOR KEY SHARE", [businessId, locationId])).rows[0];
@@ -35,7 +36,7 @@ async function applyInventoryLines({ businessId, userId, date, reference, suppli
       const previous = stock.get(Number(line.itemId)) ?? 0; const resulting = previous + delta;
       if (resulting < 0) return rollback(client, { error: "insufficient_stock", itemId: line.itemId });
       const movementReason = `${kind === "entry" ? "Entrada de inventario" : kind === "exit" ? `Salida manual · ${reason}` : "Ajuste de inventario"}${supplier ? ` · Proveedor: ${supplier}` : ""}${notes ? ` · ${notes}` : ""}`.slice(0, 500);
-      await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [businessId, locationId, line.itemId, kind, delta, previous, resulting, movementReason, reference, userId, createdAt]);
+      await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CURRENT_TIMESTAMP)", [businessId, locationId, line.itemId, kind, delta, previous, resulting, movementReason, reference, userId]);
       await client.query("UPDATE inventory_balances SET stock=$1 WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [resulting, businessId, locationId, line.itemId]);
       await client.query("UPDATE items SET stock=stock+$1, cost_price=CASE WHEN $2::BOOLEAN THEN $3 ELSE cost_price END WHERE business_id=$4 AND id=$5 AND status='active'", [delta, kind === "entry" && line.unitCost !== undefined, line.unitCost ?? null, businessId, line.itemId]);
       stock.set(Number(line.itemId), resulting);
