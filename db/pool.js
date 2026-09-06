@@ -7,6 +7,7 @@ const { Pool } = pg;
 const isProduction = process.env.NODE_ENV === "production";
 
 const databaseSsl = process.env.DATABASE_SSL;
+const databaseTrustPrivateNetwork = process.env.DATABASE_TRUST_PRIVATE_NETWORK;
 
 if (
   databaseSsl !== undefined
@@ -17,9 +18,20 @@ if (
   );
 }
 
-if (isProduction && databaseSsl === "false") {
+if (
+  databaseTrustPrivateNetwork !== undefined
+  && !["true", "false"].includes(databaseTrustPrivateNetwork)
+) {
   throw new Error(
-    "DATABASE_SSL=false no está permitido en producción; PostgreSQL debe usar TLS con validación de certificado."
+    "DATABASE_TRUST_PRIVATE_NETWORK debe ser true o false."
+  );
+}
+
+const trustPrivateNetwork = databaseTrustPrivateNetwork === "true";
+
+if (isProduction && databaseSsl === "false" && !trustPrivateNetwork) {
+  throw new Error(
+    "DATABASE_SSL=false en producción requiere DATABASE_TRUST_PRIVATE_NETWORK=true."
   );
 }
 
