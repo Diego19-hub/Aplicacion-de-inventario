@@ -58,10 +58,10 @@ test("GET /api/break-even", { skip: !hasTestDatabaseUrl }, async (t) => {
       ["BE-001", "Producto equilibrio", "Producto para prueba de equilibrio", "Marca", 250, 140, category.id, owner.business_id]
     )).rows[0];
     await client.query(
-      `INSERT INTO business_costs(business_id, name, amount, cost_type, frequency, created_by, created_at)
-       VALUES($1, 'Renta mensual', 10000, 'fixed', 'monthly', $2, '2026-08-01T00:00:00Z'),
-             ($1, 'Seguro anual', 1200, 'fixed', 'yearly', $2, '2026-08-01T00:00:00Z'),
-             ($1, 'Costo único', 500, 'fixed', 'one_time', $2, '2026-08-01T00:00:00Z')`,
+      `INSERT INTO business_costs(business_id, name, amount, cost_type, frequency, start_date, is_active, created_by, created_at)
+       VALUES($1, 'Renta mensual', 10000, 'fixed', 'monthly', '2026-08-01', true, $2, '2026-08-01T00:00:00Z'),
+             ($1, 'Seguro anual', 1200, 'fixed', 'yearly', '2026-08-01', true, $2, '2026-08-01T00:00:00Z'),
+             ($1, 'Costo único cancelado', 500, 'fixed', 'one_time', '2026-08-01', false, $2, '2026-08-01T00:00:00Z')`,
       [owner.business_id, owner.id]
     );
     const sale = (await client.query(
@@ -108,6 +108,29 @@ test("GET /api/break-even", { skip: !hasTestDatabaseUrl }, async (t) => {
       assert.equal(result.salesCount, 0);
       assert.equal(result.breakEvenUnits, null);
       assert.equal(result.breakEvenRevenue, null);
+    });
+
+    await t.test("usa el snapshot FIFO y excluye ventas FIFO canceladas", async () => {
+      const fifoSale = (await client.query(
+        `INSERT INTO sales(business_id, location_id, created_by, payment_method, subtotal, total, amount_received, change_amount, status, inventory_cost_snapshot, gross_profit_snapshot, valuation_method_snapshot, created_at)
+         VALUES($1, $2, $3, 'card', 100, 100, 100, 0, 'completed', 40, 60, 'fifo', '2026-09-10T12:00:00Z') RETURNING id`,
+        [owner.business_id, location.id, owner.id]
+      )).rows[0];
+      await client.query(
+        `INSERT INTO sale_items(business_id, sale_id, item_id, quantity, unit_price, unit_cost, unit_cost_snapshot, inventory_cost_snapshot, gross_profit_snapshot, valuation_method_snapshot, line_total)
+         VALUES($1, $2, $3, 1, 100, 99, 40, 40, 60, 'fifo', 100)`,
+        [owner.business_id, fifoSale.id, item.id]
+      );
+      await client.query(
+        `INSERT INTO sales(business_id, location_id, created_by, payment_method, subtotal, total, amount_received, change_amount, status, inventory_cost_snapshot, gross_profit_snapshot, valuation_method_snapshot, created_at)
+         VALUES($1, $2, $3, 'card', 999, 999, 999, 0, 'cancelled', 900, 99, 'fifo', '2026-09-11T12:00:00Z')`,
+        [owner.business_id, location.id, owner.id]
+      );
+
+      const result = (await agent.get("/api/break-even?month=2026-09").expect(200)).body.data;
+      assert.equal(result.revenue, 100);
+      assert.equal(result.variableCosts, 40);
+      assert.equal(result.grossProfit, 60);
     });
   } finally {
     if (client) await client.end();

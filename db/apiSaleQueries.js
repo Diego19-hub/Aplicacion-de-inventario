@@ -1,6 +1,7 @@
 import pool from "./pool.js";
 import { auditService } from "../services/auditService.js";
 import { notificationService } from "../services/notificationService.js";
+import { calculateOperationCost, consumeCostLayers, getInventoryValuationMethod, InventoryCostingError } from "../services/inventoryCostingService.js";
 
 const PAYMENT_METHODS = ["cash", "card", "transfer"];
 const UNIT_FACTORS = { piece: 1, kilogram: 1, gram: 0.001, liter: 1, milliliter: 0.001, package: 1, box: 1 };
@@ -155,6 +156,9 @@ export async function getSales({ businessId, paymentMethod, status, dateFrom, da
        s.amount_received,
        s.change_amount,
        s.status,
+       COALESCE(s.inventory_cost_snapshot, SUM(si.quantity * si.unit_cost)) AS inventory_cost,
+       COALESCE(s.gross_profit_snapshot, s.total - SUM(si.quantity * si.unit_cost)) AS gross_profit,
+       COALESCE(s.valuation_method_snapshot, 'average') AS valuation_method,
        u.id AS created_by_id,
        u.username,
        l.id AS location_id,
@@ -170,6 +174,7 @@ export async function getSales({ businessId, paymentMethod, status, dateFrom, da
      WHERE ${where}
      GROUP BY s.id, s.created_at, s.payment_method, s.subtotal, s.total,
               s.amount_received, s.change_amount, s.status,
+              s.inventory_cost_snapshot, s.gross_profit_snapshot, s.valuation_method_snapshot,
               u.id, u.username, l.id, l.name, l.code
      ORDER BY s.created_at DESC, s.id DESC
      LIMIT $${values.length - 1} OFFSET $${values.length}`,
@@ -256,6 +261,7 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
   try {
     await client.query("BEGIN");
     transactionStarted = true;
+    const valuationMethod = await getInventoryValuationMethod(client, { businessId });
 
     const locationResult = await client.query(
       `SELECT id, name, code
@@ -389,21 +395,24 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
     const sale = saleResult.rows[0];
 
     const currentStocks = new Map(stockById);
+    let fifoInventoryCost = "0.0000";
     for (const line of lines) {
       const previousStock = currentStocks.get(Number(line.product.id));
       const resultingStock = previousStock - line.quantity;
       currentStocks.set(Number(line.product.id), resultingStock);
-      await client.query(
+      const saleItem = (await client.query(
         `INSERT INTO sale_items (business_id, sale_id, item_id, quantity, unit_price, unit_cost, line_total)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id,line_total`,
         [businessId, sale.id, line.product.id, line.quantity, centsToDecimal(line.unitPriceCents), line.product.cost_price === null ? null : line.product.cost_price, centsToDecimal(line.lineTotalCents)]
-      );
-      await client.query(
+      ));
+      const movement = (await client.query(
         `INSERT INTO inventory_movements
           (business_id, location_id, item_id, movement_type, quantity_delta, previous_stock, resulting_stock, reason, reference, created_by)
-         VALUES ($1, $2, $3, 'exit', $4, $5, $6, 'Venta en punto de venta', $7, $8)`,
+         VALUES ($1, $2, $3, 'exit', $4, $5, $6, 'Venta en punto de venta', $7, $8)
+         RETURNING id`,
         [businessId, locationId, line.product.id, -line.quantity, previousStock, resultingStock, `SALE-${sale.id}`, userId]
-      );
+      ));
       await client.query(
         `UPDATE inventory_balances
          SET stock = $1
@@ -416,7 +425,18 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
          WHERE business_id = $2 AND id = $3 AND status = 'active'`,
         [line.quantity, businessId, line.product.id]
       );
+      if (valuationMethod === "fifo") {
+        // La fila y el movimiento ya existen dentro de esta misma transacción, por lo que
+        // un rollback revierte también el consumo de capas y sus snapshots.
+        const storedLine = saleItem.rows[0];
+        const consumptions = await consumeCostLayers(client, { businessId, itemId: Number(line.product.id), locationId: Number(locationId), quantity: line.quantity, operationType: "sale", operationId: Number(sale.id), relatedMovementId: Number(movement.rows[0].id), operationReference: `SALE-${sale.id}`, createdBy: userId });
+        const cost = await calculateOperationCost(client, { businessId, operationType: "sale", operationId: Number(sale.id), relatedMovementId: Number(movement.rows[0].id) });
+        await client.query("UPDATE sale_items SET unit_cost=ROUND($1::numeric / quantity,2),unit_cost_snapshot=$1::numeric / quantity,inventory_cost_snapshot=$1::numeric,gross_profit_snapshot=line_total-$1::numeric,valuation_method_snapshot='fifo' WHERE business_id=$2 AND id=$3", [cost, businessId, storedLine.id]);
+        fifoInventoryCost = await calculateOperationCost(client, { businessId, operationType: "sale", operationId: Number(sale.id) });
+      }
     }
+
+    if (valuationMethod === "fifo") await client.query("UPDATE sales SET inventory_cost_snapshot=$1::numeric,gross_profit_snapshot=total-$1::numeric,valuation_method_snapshot='fifo' WHERE business_id=$2 AND id=$3", [fifoInventoryCost, businessId, sale.id]);
 
     for (const [itemId, deduction] of recipeDeductions) {
       const previousStock = currentStocks.get(itemId);
@@ -455,6 +475,9 @@ export async function createPosSale({ businessId, userId, locationId, paymentMet
     };
   } catch (error) {
     if (transactionStarted) await client.query("ROLLBACK").catch(() => {});
+    if (error instanceof InventoryCostingError && error.code === "INSUFFICIENT_COST_LAYER_STOCK") {
+      throw new SaleDomainError("POS_INSUFFICIENT_STOCK", "No hay existencias suficientes para completar la venta.", 409, [{ field: "items", message: "La venta requiere existencias suficientes." }]);
+    }
     throw error;
   } finally {
     client.release();

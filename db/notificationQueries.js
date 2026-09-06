@@ -29,6 +29,21 @@ export async function markNotificationRead({ businessId, userId, notificationId 
 }
 
 export async function markAllNotificationsRead(businessId, userId) {
-  const result = await pool.query("UPDATE notifications SET is_read=true,read_at=COALESCE(read_at,CURRENT_TIMESTAMP) WHERE business_id=$1 AND user_id=$2 AND is_read=false", [businessId, userId]);
-  return result.rowCount;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `UPDATE notifications
+       SET is_read=true, read_at=COALESCE(read_at,CURRENT_TIMESTAMP)
+       WHERE business_id=$1 AND user_id=$2 AND is_read=false`,
+      [businessId, userId]
+    );
+    await client.query("COMMIT");
+    return result.rowCount;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 }

@@ -13,7 +13,7 @@ La arquitectura v2 usa una sola base PostgreSQL para muchos negocios. Los datos 
 - Listado, creación, edición y eliminación protegida de categorías mediante React y API JSON. La categoría predeterminada del negocio permite crear productos sin elegir otra categoría.
 - Listado, creación, edición, archivado y restauración de productos mediante React y API JSON. El listado admite búsqueda por nombre o SKU, filtro por categoría y paginación dentro del negocio activo. El SKU es único por negocio, editable y se genera automáticamente si se omite al crear.
 - Solo el owner puede archivar y restaurar productos. El archivado conserva SKU y datos actuales; el historial completo de archivos/restauraciones se incorporará con la futura auditoría y movimientos de inventario.
-- El stock se conserva para lectura rápida y cambia exclusivamente mediante movimientos inmutables transaccionales; costos y valoración contable quedan pendientes de decisión.
+- El stock se conserva para lectura rápida y cambia exclusivamente mediante movimientos inmutables transaccionales; la valoración admite `average` y FIFO con capas trazables. El detalle de cada producto permite consultar sus capas FIFO y consumos relacionados en modo solo lectura.
 - Registro, inicio y cierre de sesión con bcrypt y sesiones PostgreSQL.
 - Roles globales `user` y `super_admin`; los permisos cotidianos dependen de la membresía activa (`owner`, `manager` o `viewer`).
 - El owner del negocio activo administra miembros e invitaciones; estas usan un token de un solo uso almacenado exclusivamente como hash SHA-256 y vencen a los 30 días.
@@ -127,6 +127,12 @@ NODE_ENV=production npm start
 
 Tablas actuales: `businesses`, `business_members`, `business_invitations`, `categories`, `items`, `inventory_movements`, `business_locations`, `inventory_balances`, `suppliers`, `users` y `user_sessions` (creada por el almacén de sesiones). `items.stock` conserva el total agregado; cada movimiento inmutable pertenece a una ubicación activa y actualiza su balance local y el total en una transacción. Cada negocio tiene una ubicación principal `MAIN`.
 
+Cuando un negocio usa valoración FIFO, las entradas y recepciones crean capas y las salidas, ventas y ajustes negativos las consumen. Un ajuste positivo requiere costo unitario; costo cero solo se admite con el motivo auditable `no_cost_known` (existencia sin costo conocido) y advierte que afecta la valuación y la utilidad. Las capas de `opening_balance` migradas pueden conservar costo cero cuando el costo inicial no era conocido; esa excepción no aplica a ajustes positivos nuevos. El método `average` conserva su flujo existente y no crea capas FIFO.
+
+El método se consulta en `GET /api/business/settings/valuation` y se actualiza en `PATCH /api/business/settings/valuation` con `{ "valuationMethod": "average" | "fifo" }`. Owner y manager pueden actualizarlo; viewer solo puede consultarlo. Activar FIFO no crea capas ni modifica saldos o movimientos históricos: los saldos existentes sin capa requieren inicialización manual.
+
+La trazabilidad FIFO de un producto se consulta en `GET /api/products/:productId/cost-layers`. La respuesta está aislada por el negocio activo, incluye capas disponibles y agotadas, consumos relacionados y costos NUMERIC formateados; este endpoint no permite mutaciones.
+
 ### Inicializar una base vacía
 
 `npm run db:bootstrap` prepara una base PostgreSQL vacía para un primer despliegue. El comando usa únicamente `DATABASE_URL` o `POSTGRES_URL`; no se ejecuta al iniciar la aplicación y requiere confirmación explícita del nombre de la base.
@@ -147,7 +153,7 @@ Uso:
 npm run db:bootstrap
 ```
 
-El bootstrap rechaza bases no vacías o con `schema_migrations` existente. Si pasa las defensas, aplica `db/auth-schema.sql`, `db/schema.sql` y las migraciones `001` a `015` en orden; después registra los checksums SHA-256 actuales en `schema_migrations`. La operación evita imprimir URL, usuario, contraseña o hash. Si ocurre un error durante la preparación transaccional, PostgreSQL revierte el esquema creado en esa ejecución.
+El bootstrap rechaza bases no vacías o con `schema_migrations` existente. Si pasa las defensas, aplica `db/auth-schema.sql`, `db/schema.sql` y todas las migraciones válidas del repositorio en orden (actualmente `001` a `032`); después registra sus checksums SHA-256 en `schema_migrations`. No usa baseline: este solo corresponde a una base existente cuyo esquema ya fue preparado. La operación evita imprimir URL, usuario, contraseña o hash. Si ocurre un error durante la preparación transaccional, PostgreSQL revierte el esquema creado en esa ejecución.
 
 ## Seguridad y autorización
 

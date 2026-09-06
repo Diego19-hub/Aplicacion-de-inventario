@@ -19,7 +19,7 @@ export async function createNotification({ client = pool, businessId, userId, ty
   );
   return result.rows[0] ?? null;
 }
-
+// createNotification: Inserta la alerta en la tabla notifications. Cuenta con dos características clave:Filtro de membresía (WHERE EXISTS): Solo inserta la notificación si el usuario de destino pertenece al negocio y su estado es 'active'.Anti-Duplicidad (ON CONFLICT ... DO NOTHING): Utiliza una clave única (eventKey). Si el sistema intenta enviar exactamente la misma alerta en el mismo día por el mismo evento, la base de datos la ignora para no saturar al usuario con spam de alertas repetidas.
 export async function notifyBusinessUsers({ client = pool, businessId, type, title, message, priority = "normal", link = null, eventKey }) {
   const users = await client.query("SELECT user_id FROM business_members WHERE business_id=$1 AND status='active'", [businessId]);
   const notifications = [];
@@ -29,10 +29,13 @@ export async function notifyBusinessUsers({ client = pool, businessId, type, tit
   }
   return notifications;
 }
+// notifyBusinessUsers: Recorre a todos los empleados activos de la empresa y les genera una copia de la notificación de manera masiva.
 
 export async function notifyStockState({ client = pool, businessId, itemId, locationId, stock }) {
   return syncStockAlertNotifications({ client, businessId });
 }
+
+//
 
 export async function syncStockAlertNotifications({ client = pool, businessId }) {
   const alerts = await client.query(
@@ -63,6 +66,8 @@ export async function syncStockAlertNotifications({ client = pool, businessId })
   else await client.query("UPDATE notifications SET is_read=true,read_at=COALESCE(read_at,CURRENT_TIMESTAMP) WHERE business_id=$1 AND type='stock_alert' AND is_read=false", [businessId]);
 }
 
+//Este bloque cruza datos de tres tablas (inventory_stock_thresholds, items, inventory_balances) y genera alertas según tres situaciones:out_of_stock (Urgente): El producto tiene existencias en 0.low_stock (Alta): Las existencias son menores o iguales al mínimo configurado para esa sucursal.overstock (Media): Las existencias superan el límite máximo permitido.Autolimpieza de alertas: El código genera un eventKey dinámico con el stock exacto. Si el stock cambia o el problema se resuelve, el código ejecuta un UPDATE automático al final para marcar las alertas viejas de esa sucursal como leídas (is_read=true).
+
 export async function syncCollectionNotifications({ client = pool, businessId }) {
   const charges = await client.query(
     `SELECT ch.id, ch.customer_id, c.name AS customer_name, ch.concept, ch.amount, ch.due_date,
@@ -81,5 +86,6 @@ export async function syncCollectionNotifications({ client = pool, businessId })
     await notifyBusinessUsers({ client, businessId, type: overdue ? "collection_overdue" : "collection_due", title: overdue ? "Pago mensual vencido" : "Pago mensual próximo a vencer", message: `${charge.customer_name}: ${charge.concept}. Saldo pendiente $${(Number(charge.amount) - Number(charge.paid)).toFixed(2)}.`, priority: overdue ? "urgent" : "high", link: `/app/collections/customers/${charge.customer_id}`, eventKey: `collection:${charge.id}:${overdue ? "overdue" : `due-${days}`}:${new Date().toISOString().slice(0, 10)}` });
   }
 }
+// Monitorea los cobros recurrentes de tus clientes (customer_charges) y calcula los días restantes para el vencimiento de facturas mensuales:Busca cuentas donde el monto cobrado sea mayor a lo pagado y falten 7 días o menos para la fecha límite (due_date <= CURRENT_DATE + 7).Si ya expiró (Días < 0): Envía una notificación urgente titulada "Pago mensual vencido".Si está por vencer (0 a 7 días): Envía una notificación de prioridad alta titulada "Pago mensual próximo a vencer", calculando el saldo restante pendiente.
 
 export const notificationService = { create: createNotification, notifyBusinessUsers, notifyStockState, syncStockAlertNotifications, syncCollectionNotifications };

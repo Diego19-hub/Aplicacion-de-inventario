@@ -10,6 +10,7 @@ import { EmptyState } from "../components/EmptyState.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { formatSafeMoney, valuationLabels } from "../utils/financialDisplay.js";
 
 const PAYMENT_LABELS = { cash: "Efectivo", card: "Tarjeta", transfer: "Transferencia" };
 const STATUS_LABELS = { completed: "Completada", cancelled: "Cancelada" };
@@ -27,8 +28,8 @@ export function SaleDetailsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [valuationMethod, setValuationMethod] = useState(null);
   const currency = session.activeBusiness?.currency || "MXN";
-  const moneyFormatter = new Intl.NumberFormat("es-MX", { style: "currency", currency });
 
   const loadSale = useCallback(async () => {
     setIsLoading(true);
@@ -43,6 +44,18 @@ export function SaleDetailsPage() {
   }, [saleId]);
 
   useEffect(() => { loadSale(); }, [loadSale]);
+
+  useEffect(() => {
+    let active = true;
+    apiRequest("/business/settings/valuation")
+      .then((result) => {
+        if (active) setValuationMethod(result?.valuationMethod ?? null);
+      })
+      .catch(() => {
+        if (active) setValuationMethod(null);
+      });
+    return () => { active = false; };
+  }, [session.activeBusiness?.id]);
 
   if (isLoading) return <section className="dashboard-state"><Spinner label="Cargando venta" /></section>;
   if (error?.code === "SALE_NOT_FOUND" || error?.code === "VALIDATION_ERROR") {
@@ -71,15 +84,16 @@ export function SaleDetailsPage() {
           <div><dt>Ubicación</dt><dd>{sale.location?.name || "—"}{sale.location?.code ? ` (${sale.location.code})` : ""}</dd></div>
           <div><dt>Método de pago</dt><dd>{PAYMENT_LABELS[sale.paymentMethod] || sale.paymentMethod}</dd></div>
           <div><dt>Estado</dt><dd><span className={`sales-status sales-status--${sale.status}`}>{STATUS_LABELS[sale.status] || sale.status}</span></dd></div>
-          <div><dt>Subtotal</dt><dd>{moneyFormatter.format(Number(sale.subtotal) || 0)}</dd></div>
-          <div><dt>Total</dt><dd className="sale-summary-total">{moneyFormatter.format(Number(sale.total) || 0)}</dd></div>
-          {isCash && <><div><dt>Efectivo recibido</dt><dd>{moneyFormatter.format(Number(sale.amountReceived) || 0)}</dd></div><div><dt>Cambio</dt><dd>{moneyFormatter.format(Number(sale.changeAmount) || 0)}</dd></div></>}
+          <div><dt>Método de valuación</dt><dd>{valuationLabels[valuationMethod] || "No disponible"}</dd></div>
+          <div><dt>Subtotal</dt><dd>{formatSafeMoney(sale.subtotal, currency)}</dd></div>
+          <div><dt>Total</dt><dd className="sale-summary-total">{formatSafeMoney(sale.total, currency)}</dd></div>
+          {isCash && <><div><dt>Efectivo recibido</dt><dd>{formatSafeMoney(sale.amountReceived, currency)}</dd></div><div><dt>Cambio</dt><dd>{formatSafeMoney(sale.changeAmount, currency)}</dd></div></>}
         </dl>
       </Card>
 
       <Card className="sale-items-card">
         <div className="section-heading"><div><p className="eyebrow">Detalle</p><h2>Productos vendidos</h2></div><span className="muted">{items.length} producto(s)</span></div>
-        {items.length === 0 ? <EmptyState title="Sin productos" description="Esta venta no tiene productos registrados." /> : <div className="sale-table-wrap"><table className="sale-table"><caption className="visually-hidden">Productos de la venta #{sale.id}</caption><thead><tr><th>Producto</th><th className="sale-table__optional">SKU</th><th className="sale-table__optional">Código de barras</th><th>Cantidad</th><th>Precio unitario</th><th>Total</th></tr></thead><tbody>{items.map((item) => <tr key={item.itemId}><th scope="row">{item.name}</th><td className="sale-table__optional">{item.sku}</td><td className="sale-table__optional">{item.barcode || "—"}</td><td>{item.quantity}</td><td>{moneyFormatter.format(Number(item.unitPrice) || 0)}</td><td className="sale-table__total">{moneyFormatter.format(Number(item.lineTotal) || 0)}</td></tr>)}</tbody></table></div>}
+        {items.length === 0 ? <EmptyState title="Sin productos" description="Esta venta no tiene productos registrados." /> : <div className="sale-table-wrap"><table className="sale-table"><caption className="visually-hidden">Productos de la venta #{sale.id}</caption><thead><tr><th>Producto</th><th className="sale-table__optional">SKU</th><th className="sale-table__optional">Código de barras</th><th>Cantidad</th><th>Precio unitario</th><th>Costo unitario real</th><th>Costo total de inventario</th><th>Utilidad bruta</th><th>Método</th><th>Total</th></tr></thead><tbody>{items.map((item) => <tr key={item.itemId}><th scope="row">{item.name}</th><td className="sale-table__optional">{item.sku}</td><td className="sale-table__optional">{item.barcode || "—"}</td><td>{item.quantity}</td><td>{formatSafeMoney(item.unitPrice, currency)}</td><td>{formatSafeMoney(item.unitCost, currency, "Costo no disponible")}</td><td>{formatSafeMoney(item.costTotal, currency, "Costo no disponible")}</td><td>{formatSafeMoney(item.marginTotal, currency, "Costo no disponible")}</td><td>{valuationLabels[item.valuationMethod || valuationMethod] || "No disponible"}</td><td className="sale-table__total">{formatSafeMoney(item.lineTotal, currency)}</td></tr>)}</tbody></table></div>}
       </Card>
       </section>
     </div>

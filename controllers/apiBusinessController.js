@@ -32,7 +32,7 @@ export async function listBusinesses(req, res, next) {
   try {
     const businesses = await getActiveBusinessesForUser(req.session.user.id);
 
-    if (process.env.NODE_ENV !== "test") {
+    if (process.env.NODE_ENV !== "production") {
       console.info("[INVITATION BUSINESSES]", {
         authenticatedUserId: req.session.user.id,
         businessesFound: businesses.map((business) => business.id),

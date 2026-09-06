@@ -1,6 +1,7 @@
 import pool from "./pool.js";
 import { auditService } from "../services/auditService.js";
 import { notificationService } from "../services/notificationService.js";
+import { calculateProductionCost, consumeCostLayers, createCostLayer, getInventoryValuationMethod } from "../services/inventoryCostingService.js";
 
 export const RECIPE_UNITS = ["piece", "kilogram", "gram", "liter", "milliliter", "package", "box"];
 
@@ -112,23 +113,46 @@ export async function produceRecipe({ businessId, recipeId, userId, locationId, 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    if (!Number.isInteger(Number(quantity)) || Number(quantity) <= 0) { await client.query("ROLLBACK"); return { error: "invalid_quantity" }; }
+    const valuationMethod = await getInventoryValuationMethod(client, { businessId });
     const detail = await getRecipeWithClient(client, businessId, recipeId);
     if (!detail || detail.recipe.status !== "active") { await client.query("ROLLBACK"); return { error: "not_found" }; }
     const location = (await client.query("SELECT id FROM business_locations WHERE business_id=$1 AND id=$2 AND status='active' FOR KEY SHARE", [businessId, locationId])).rows[0];
     if (!location) { await client.query("ROLLBACK"); return { error: "location_not_found" }; }
-    const itemIds = [...new Set([Number(detail.recipe.product_id), ...detail.ingredients.map((item) => Number(item.item_id))])];
+    const itemIds = [...new Set([Number(detail.recipe.product_id), ...detail.ingredients.map((item) => Number(item.item_id))])].sort((a, b) => a - b);
     await client.query("INSERT INTO inventory_balances (business_id,location_id,item_id,stock) SELECT $1,$2,x,0 FROM unnest($3::INTEGER[]) x ON CONFLICT DO NOTHING", [businessId, locationId, itemIds]);
-    const balances = (await client.query("SELECT item_id,stock FROM inventory_balances WHERE business_id=$1 AND location_id=$2 AND item_id=ANY($3::INTEGER[]) FOR UPDATE", [businessId, locationId, itemIds])).rows;
+    const balances = (await client.query("SELECT item_id,stock FROM inventory_balances WHERE business_id=$1 AND location_id=$2 AND item_id=ANY($3::INTEGER[]) ORDER BY item_id FOR UPDATE", [businessId, locationId, itemIds])).rows;
     const stocks = new Map(balances.map((row) => [Number(row.item_id), Number(row.stock)]));
-    const deductions = detail.ingredients.map((ingredient) => ({ itemId: Number(ingredient.item_id), amount: convertQuantity(ingredient.quantity, ingredient.unit) * Number(quantity) }));
+    const deductions = detail.ingredients.map((ingredient) => ({ itemId: Number(ingredient.item_id), amount: convertQuantity(ingredient.quantity, ingredient.unit) * Number(quantity) })).sort((a, b) => a.itemId - b.itemId);
     for (const deduction of deductions) if ((stocks.get(deduction.itemId) ?? 0) < deduction.amount || !Number.isInteger(deduction.amount)) { await client.query("ROLLBACK"); return { error: "insufficient_stock", itemId: deduction.itemId }; }
-    for (const deduction of deductions) { const previous = stocks.get(deduction.itemId); const resulting = previous - deduction.amount; await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES ($1,$2,$3,'exit',$4,$5,$6,'Producción de receta',$7,$8)", [businessId, locationId, deduction.itemId, -deduction.amount, previous, resulting, `RECIPE-${recipeId}`, userId]); await client.query("UPDATE inventory_balances SET stock=$1 WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [resulting, businessId, locationId, deduction.itemId]); await client.query("UPDATE items SET stock=stock-$1 WHERE business_id=$2 AND id=$3", [deduction.amount, businessId, deduction.itemId]); }
-    const produced = Number(detail.recipe.yield_quantity) * Number(quantity); const finalPrevious = stocks.get(Number(detail.recipe.product_id)) ?? 0; const finalResulting = finalPrevious + produced;
-    await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES ($1,$2,$3,'entry',$4,$5,$6,'Producción de receta',$7,$8)", [businessId, locationId, detail.recipe.product_id, produced, finalPrevious, finalResulting, `RECIPE-${recipeId}`, userId]);
+    const productionMovementIds = [];
+    for (const deduction of deductions) {
+      const previous = stocks.get(deduction.itemId); const resulting = previous - deduction.amount;
+      const movement = (await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES ($1,$2,$3,'exit',$4,$5,$6,'Producción de receta',$7,$8) RETURNING id", [businessId, locationId, deduction.itemId, -deduction.amount, previous, resulting, `RECIPE-${recipeId}`, userId])).rows[0];
+      if (valuationMethod === "fifo") {
+        await consumeCostLayers(client, { businessId, itemId: deduction.itemId, locationId, quantity: deduction.amount, operationType: "production_consumption", operationId: Number(movement.id), relatedMovementId: Number(movement.id), operationReference: `RECIPE-${recipeId}`, createdBy: userId });
+        productionMovementIds.push(Number(movement.id));
+      }
+      await client.query("UPDATE inventory_balances SET stock=$1 WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [resulting, businessId, locationId, deduction.itemId]); await client.query("UPDATE items SET stock=stock-$1 WHERE business_id=$2 AND id=$3", [deduction.amount, businessId, deduction.itemId]);
+      stocks.set(deduction.itemId, resulting);
+    }
+    const produced = Number(detail.recipe.yield_quantity) * Number(quantity);
+    if (!Number.isFinite(produced) || produced <= 0 || !Number.isInteger(produced)) { await client.query("ROLLBACK"); return { error: "invalid_quantity" }; }
+    const finalPrevious = stocks.get(Number(detail.recipe.product_id)) ?? 0; const finalResulting = finalPrevious + produced;
+    const outputMovement = (await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES ($1,$2,$3,'entry',$4,$5,$6,'Producción de receta',$7,$8) RETURNING id", [businessId, locationId, detail.recipe.product_id, produced, finalPrevious, finalResulting, `RECIPE-${recipeId}`, userId])).rows[0];
     await client.query("UPDATE inventory_balances SET stock=$1 WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [finalResulting, businessId, locationId, detail.recipe.product_id]); await client.query("UPDATE items SET stock=stock+$1 WHERE business_id=$2 AND id=$3", [produced, businessId, detail.recipe.product_id]);
+    let fifoCost = null;
+    let ingredientCost = null;
+    if (valuationMethod === "fifo") {
+      const productionCost = await calculateProductionCost(client, { businessId, movementIds: productionMovementIds, wastePercentage: detail.recipe.waste_percentage ?? "0", laborCost: detail.recipe.labor_cost ?? "0", logisticsCost: detail.recipe.logistics_cost ?? "0", producedQuantity: produced });
+      if (!productionCost?.unit_cost || !/^\d+(?:\.\d+)?$/.test(String(productionCost.unit_cost))) { await client.query("ROLLBACK"); return { error: "invalid_cost" }; }
+      ingredientCost = productionCost.ingredient_cost;
+      fifoCost = productionCost.unit_cost;
+      await createCostLayer(client, { businessId, itemId: Number(detail.recipe.product_id), locationId: Number(locationId), quantity: produced, unitCost: fifoCost, sourceOperationType: "production_output", sourceOperationId: Number(outputMovement.id), sourceMovementId: Number(outputMovement.id), sourceReference: `RECIPE-${recipeId}`, createdBy: userId });
+    }
     await notificationService.syncStockAlertNotifications({ client, businessId });
-    await auditService.record({ client, businessId, userId, module: "recipes", action: "create", reference: `RECIPE-${recipeId}`, description: "Lote producido", newValues: { recipeId, locationId, quantity, produced } });
-    await client.query("COMMIT"); return { recipeId: Number(recipeId), produced, productStock: finalResulting };
+    await auditService.record({ client, businessId, userId, module: "recipes", action: "create", reference: `RECIPE-${recipeId}`, description: "Lote producido", newValues: { recipeId, locationId, quantity, produced, valuationMethod, ingredientCost, unitCost: fifoCost } });
+    await client.query("COMMIT"); return { recipeId: Number(recipeId), produced, productStock: finalResulting, ...(valuationMethod === "fifo" ? { ingredientCost, unitCost: fifoCost } : {}) };
   } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
 }
 

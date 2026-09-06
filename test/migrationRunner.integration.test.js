@@ -9,7 +9,12 @@ import {
   defaultMigrationsDirectory,
   getMigrationInventory
 } from "../db/migrationFiles.js";
-import { applyPendingMigrations, extractMigrationBody } from "../db/migrationRunner.js";
+import {
+  applyPendingMigrations,
+  extractMigrationBody,
+  MigrationExecutionError
+} from "../db/migrationRunner.js";
+import { createMigrationHistoryTable } from "../db/migrationHistory.js";
 import {
   createTestDatabase,
   dropTestDatabase
@@ -27,6 +32,86 @@ test("extractMigrationBody extrae solo el cuerpo de una envoltura transaccional"
   assert.throws(() => extractMigrationBody("BEGIN;\nSELECT 1;"), /COMMIT/);
   assert.throws(() => extractMigrationBody("BEGIN SELECT 1; COMMIT;"), /BEGIN/);
 });
+
+test("el error de migración identifica código y versión sin filtrar credenciales", () => {
+  const error = new MigrationExecutionError(
+    { version: 1, name: "multitenancy" },
+    {
+      code: "P0001",
+      message: "Falló en postgresql://usuario:secreto@db.example/inventory?password=otro-secreto"
+    }
+  );
+
+  assert.match(error.message, /Migración 001_multitenancy falló \[P0001\]/);
+  assert.doesNotMatch(error.message, /usuario:secreto|otro-secreto|postgresql:\/\//);
+});
+
+test(
+  "el runner revierte y permite reintentar la primera migración pendiente",
+  { skip: !hasTestDatabaseUrl },
+  async () => {
+    let client;
+    let temporaryDirectory;
+
+    try {
+      await createTestDatabase({ throughVersion: 0 });
+      client = new Client({ connectionString: process.env.TEST_DATABASE_URL });
+      await client.connect();
+      await createMigrationHistoryTable(client);
+      temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "inventory-first-migration-"));
+
+      const upPath = path.join(temporaryDirectory, "001_first_attempt_up.sql");
+      await writeFile(
+        upPath,
+        "BEGIN;\nCREATE TABLE public.first_attempt_probe (id integer PRIMARY KEY);\nSELECT missing_first_attempt_function();\nCOMMIT;\n"
+      );
+      await writeFile(
+        path.join(temporaryDirectory, "001_first_attempt_down.sql"),
+        "BEGIN;\nDROP TABLE public.first_attempt_probe;\nCOMMIT;\n"
+      );
+
+      const failedInventory = await getMigrationInventory(temporaryDirectory);
+      await assert.rejects(
+        applyPendingMigrations(client, failedInventory, { allowEmptyHistory: true }),
+        (error) => {
+          assert.ok(error instanceof MigrationExecutionError);
+          assert.equal(error.code, "42883");
+          assert.deepEqual(error.migration, { version: 1, name: "first_attempt" });
+          assert.match(error.message, /Migración 001_first_attempt falló \[42883\]/);
+          return true;
+        }
+      );
+      assert.equal(
+        (await client.query("SELECT to_regclass('public.first_attempt_probe') AS relation")).rows[0].relation,
+        null
+      );
+      assert.equal(
+        (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
+        0
+      );
+
+      await writeFile(
+        upPath,
+        "BEGIN;\nCREATE TABLE public.first_attempt_probe (id integer PRIMARY KEY);\nCOMMIT;\n"
+      );
+      const retryInventory = await getMigrationInventory(temporaryDirectory);
+      await applyPendingMigrations(client, retryInventory, { allowEmptyHistory: true });
+
+      assert.equal(
+        (await client.query("SELECT to_regclass('public.first_attempt_probe') AS relation")).rows[0].relation,
+        "first_attempt_probe"
+      );
+      assert.equal(
+        (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
+        1
+      );
+    } finally {
+      if (client) await client.end();
+      if (temporaryDirectory) await rm(temporaryDirectory, { recursive: true, force: true });
+      await dropTestDatabase();
+    }
+  }
+);
 
 test(
   "el runner aplica pendientes de forma atómica y rechaza historial incompatible",

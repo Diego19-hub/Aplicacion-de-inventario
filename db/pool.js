@@ -1,5 +1,6 @@
 import "../config/env.js";
 import pg from "pg";
+import fs from "node:fs";
 
 const { Pool } = pg;
 
@@ -16,9 +17,39 @@ if (
   );
 }
 
+if (isProduction && databaseSsl === "false") {
+  throw new Error(
+    "DATABASE_SSL=false no está permitido en producción; PostgreSQL debe usar TLS con validación de certificado."
+  );
+}
+
 const useSsl =
   databaseSsl === "true"
   || (databaseSsl === undefined && isProduction);
+
+function readDatabaseCa() {
+  const configuredCa = process.env.DATABASE_SSL_CA?.trim();
+  const rootCert = process.env.PGSSLROOTCERT?.trim();
+
+  if (configuredCa) return configuredCa;
+  if (!rootCert) return null;
+
+  if (rootCert.includes("BEGIN CERTIFICATE")) return rootCert;
+
+  try {
+    return fs.readFileSync(rootCert, "utf8");
+  } catch (error) {
+    throw new Error(`No se pudo leer el certificado CA de PostgreSQL indicado por PGSSLROOTCERT: ${error.message}`);
+  }
+}
+
+const databaseCa = useSsl ? readDatabaseCa() : null;
+
+if (isProduction && useSsl && !databaseCa) {
+  throw new Error(
+    "La producción requiere DATABASE_SSL_CA o PGSSLROOTCERT para validar el certificado de PostgreSQL."
+  );
+}
 
 const connectionString =
   process.env.DATABASE_URL || process.env.POSTGRES_URL;
@@ -44,7 +75,8 @@ const pool = new Pool({
   connectionTimeoutMillis: databaseOption("DATABASE_CONNECTION_TIMEOUT_MS", 5000),
   ssl: useSsl
     ? {
-        rejectUnauthorized: false
+        rejectUnauthorized: isProduction,
+        ...(databaseCa ? { ca: databaseCa } : {})
       }
     : false
 });

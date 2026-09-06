@@ -1,4 +1,5 @@
 import { body } from "express-validator";
+import { AUTHORIZED_ZERO_COST_ADJUSTMENT_REASON } from "../services/inventoryCostingService.js";
 import { normalizeSku } from "../utils/sku.js";
 
 function createItemValidation({ descriptionOptional = false } = {}) {
@@ -128,6 +129,14 @@ export const apiMovementValidation = [
     .trim()
     .isLength({ min: 1, max: 120 })
     .withMessage("La referencia debe tener hasta 120 caracteres."),
+  body("unitCost")
+    .optional({ values: "undefined" })
+    .custom((value) => /^(?:\d+(?:\.\d+)?)$/.test(String(value).trim()))
+    .withMessage("El costo unitario debe ser cero o mayor."),
+  body("zeroCostReason")
+    .optional({ values: "undefined" })
+    .isIn([AUTHORIZED_ZERO_COST_ADJUSTMENT_REASON])
+    .withMessage("Selecciona un motivo autorizado para registrar costo cero."),
   ...["createdBy", "businessId", "previousStock", "resultingStock", "transferId"].map((field) => (
     body(field).not().exists().withMessage("Este campo no puede enviarse al registrar un movimiento.")
   ))

@@ -27,6 +27,24 @@ export async function migrationHistoryExists(client) {
   return result.rows[0].exists;
 }
 
+export async function isDatabaseEmpty(client) {
+  const result = await client.query(
+    `
+      SELECT NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_class AS relations
+        INNER JOIN pg_catalog.pg_namespace AS namespaces
+          ON namespaces.oid = relations.relnamespace
+        WHERE namespaces.nspname = 'public'
+          AND relations.relkind IN ('r', 'p', 'v', 'm', 'f')
+          AND relations.relname <> 'schema_migrations'
+      ) AS is_empty
+    `
+  );
+
+  return result.rows[0].is_empty;
+}
+
 export async function createMigrationHistoryTable(client) {
   await client.query("BEGIN");
 

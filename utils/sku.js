@@ -1,6 +1,7 @@
 export function normalizeSku(value) {
   return String(value ?? "").trim().toUpperCase();
 }
+//Su objetivo es limpiar el código SKU de un producto para que siempre tenga el mismo formato estricto.
 
 export function categorySkuPrefix(categoryName) {
   const normalized = String(categoryName ?? "")
@@ -12,3 +13,4 @@ export function categorySkuPrefix(categoryName) {
   if (!normalized) return "PRD";
   return normalized.slice(0, 3).padEnd(3, "X");
 }
+// Su objetivo es generar un prefijo de 3 letras basado en el nombre de una categoría para usarlo al inicio de un SKU.

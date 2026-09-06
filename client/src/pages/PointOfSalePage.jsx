@@ -11,13 +11,15 @@ import { InfoTip } from "../components/InfoTip.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Select } from "../components/Select.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { formatSafeMoney, valuationLabels } from "../utils/financialDisplay.js";
+import { cashPaymentError, validateSaleQuantity } from "../utils/posInputValidation.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { BarcodeScanner } from "../components/BarcodeScanner.jsx";
 import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
 import { Link } from "react-router-dom";
 
 function formatMoney(value, currency = "MXN") {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(Number(value) || 0);
+  return formatSafeMoney(value, currency);
 }
 
 function errorMessage(error) {
@@ -46,7 +48,12 @@ export function PointOfSalePage() {
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
+  const [quantityErrors, setQuantityErrors] = useState({});
   const [completedSale, setCompletedSale] = useState(null);
+  const [completedSaleDetail, setCompletedSaleDetail] = useState(null);
+  const [isLoadingSaleDetail, setIsLoadingSaleDetail] = useState(false);
+  const [saleDetailError, setSaleDetailError] = useState("");
+  const [valuationMethod, setValuationMethod] = useState(null);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,6 +81,18 @@ export function PointOfSalePage() {
     loadOptions(controller.signal);
     return () => controller.abort();
   }, [loadOptions]);
+
+  useEffect(() => {
+    let active = true;
+    apiRequest("/business/settings/valuation")
+      .then((data) => {
+        if (active) setValuationMethod(data?.valuationMethod ?? null);
+      })
+      .catch(() => {
+        if (active) setValuationMethod(null);
+      });
+    return () => { active = false; };
+  }, [session.activeBusiness?.id]);
 
   const loadProducts = useCallback(async (signal) => {
     if (!locationId) {
@@ -135,15 +154,25 @@ export function PointOfSalePage() {
       if (item.id !== productId) return item;
       return { ...item, quantity: Math.min(Math.max(1, nextQuantity), item.stock) };
     }));
+    setQuantityErrors((current) => { const next = { ...current }; delete next[productId]; return next; });
+  }
+
+  function updateQuantityFromInput(item, value) {
+    const result = validateSaleQuantity(value, item.stock);
+    setQuantityErrors((current) => ({ ...current, [item.id]: result.error }));
+    if (result.quantity === null) return;
+    setCart((current) => current.map((cartItem) => cartItem.id === item.id ? { ...cartItem, quantity: result.quantity } : cartItem));
   }
 
   function removeProduct(productId) {
     setCart((current) => current.filter((item) => item.id !== productId));
+    setQuantityErrors((current) => { const next = { ...current }; delete next[productId]; return next; });
   }
 
   function changeLocation(event) {
     setLocationId(event.target.value);
     setCart([]);
+    setQuantityErrors({});
     setCompletedSale(null);
     setError("");
     setErrorCode("");
@@ -163,7 +192,10 @@ export function PointOfSalePage() {
     if (!locationId) return setError("Selecciona una ubicación activa.");
     if (cart.length === 0) return setError("Agrega al menos un producto al carrito.");
     if (cart.some((item) => item.quantity < 1 || item.quantity > item.stock)) return setError("Revisa las cantidades del carrito.");
-    if (paymentMethod === "cash" && (!amountReceived || !Number.isFinite(received) || received < total)) return setError("El efectivo recibido debe cubrir el total de la venta.");
+    if (paymentMethod === "cash") {
+      const paymentError = cashPaymentError(amountReceived, total);
+      if (paymentError) return setError(paymentError);
+    }
 
     setIsSubmitting(true);
     setError("");
@@ -179,8 +211,18 @@ export function PointOfSalePage() {
         }
       });
       setCompletedSale(data.sale);
+      setCompletedSaleDetail(null);
+      setSaleDetailError("");
+      setIsLoadingSaleDetail(true);
       setCart([]);
       setAmountReceived("");
+      try {
+        setCompletedSaleDetail(await apiRequest(`/sales/${data.sale.id}`));
+      } catch (detailError) {
+        setSaleDetailError(detailError.message || "No fue posible cargar el costo real de la venta.");
+      } finally {
+        setIsLoadingSaleDetail(false);
+      }
       await loadProducts();
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -206,6 +248,9 @@ export function PointOfSalePage() {
           <p className="eyebrow">Venta completada</p>
           <h2>Venta #{completedSale.id}</h2>
           <p>Se registró por <strong>{formatMoney(completedSale.total, currency)}</strong> mediante {completedSale.paymentMethod === "cash" ? "efectivo" : completedSale.paymentMethod === "card" ? "tarjeta" : "transferencia"}.</p>
+          {isLoadingSaleDetail && <Spinner label="Cargando costo real y utilidad" />}
+          {saleDetailError && <p className="muted">{saleDetailError}</p>}
+          {completedSaleDetail && <div className="pos-sale-cost-summary"><p className="eyebrow">Costo real y utilidad</p><p>Método: <strong>{valuationLabels[completedSaleDetail.items?.find((item) => item.valuationMethod)?.valuationMethod || valuationMethod] || "No disponible"}</strong></p>{completedSaleDetail.items?.map((item) => <div className="pos-sale-cost-line" key={item.itemId}><strong>{item.name}</strong><span>Precio unitario: {formatMoney(item.unitPrice, currency)}</span><span>Costo unitario real: {formatSafeMoney(item.unitCost, currency, "Costo no disponible")}</span><span>Costo total de inventario: {formatSafeMoney(item.costTotal, currency, "Costo no disponible")}</span><span>Utilidad bruta: {formatSafeMoney(item.marginTotal, currency, "Costo no disponible")}</span></div>)}</div>}
           <Button onClick={() => setCompletedSale(null)}><ShoppingCart aria-hidden="true" />Nueva venta</Button>
         </Card>
       ) : (
@@ -237,6 +282,7 @@ export function PointOfSalePage() {
             <div className="pos-section-heading"><div><p className="eyebrow">Venta actual</p><h2>Carrito <InfoTip title="Carrito" content="Aquí se reúnen los productos, cantidades y totales de esta venta." /></h2></div><ShoppingCart aria-hidden="true" /></div>
             {cart.length === 0 ? <div className="pos-cart-empty"><ShoppingCart aria-hidden="true" /><p>El carrito está vacío.</p><span>Agrega productos del catálogo para comenzar.</span></div> : <div className="pos-cart-items">{cart.map((item) => <article className="pos-cart-item" key={item.id}>
               <div className="pos-cart-item__heading"><strong>{item.name}</strong><span>{item.sku}</span></div>
+              <div className="pos-cart-item__quantity"><Input id={`pos-quantity-${item.id}`} label="Cantidad a vender" type="number" min="1" max={item.stock} step="1" inputMode="numeric" value={item.quantity} onChange={(event) => updateQuantityFromInput(item, event.target.value)} error={quantityErrors[item.id]} hint={`Máximo disponible: ${item.stock} ${item.stock === 1 ? "unidad" : "unidades"}.`} required /></div>
               <div className="pos-cart-item__controls"><div className="pos-quantity"><Button variant="secondary" aria-label={`Disminuir cantidad de ${item.name}`} onClick={() => updateQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1}><Minus aria-hidden="true" /></Button><strong>{item.quantity}</strong><Button variant="secondary" aria-label={`Aumentar cantidad de ${item.name}`} onClick={() => updateQuantity(item.id, item.quantity + 1)} disabled={item.quantity >= item.stock}><Plus aria-hidden="true" /></Button></div><span>{formatMoney(item.quantity * Number(item.price), currency)}</span><Button variant="ghost" aria-label={`Eliminar ${item.name}`} onClick={() => removeProduct(item.id)}><Trash2 aria-hidden="true" /></Button></div>
             </article>)}</div>}
             <form className="pos-summary" onSubmit={submitSale}>
@@ -245,7 +291,7 @@ export function PointOfSalePage() {
               <Select id="pos-payment" label={<span>Método de pago <InfoTip title="Métodos de pago" content="Elige efectivo, tarjeta o transferencia según cómo recibas el pago." /></span>} value={paymentMethod} onChange={changePaymentMethod}>
                 {options.paymentMethods.map((method) => <option key={method} value={method}>{method === "cash" ? "Efectivo" : method === "card" ? "Tarjeta" : "Transferencia"}</option>)}
               </Select>
-              {paymentMethod === "cash" && <><Input id="pos-received" label={<span>Cantidad recibida <InfoTip title="Efectivo recibido" content="Escribe cuánto dinero entregó el cliente. Debe cubrir el total de la venta." /></span>} type="number" min={total} step="0.01" inputMode="decimal" value={amountReceived} onChange={(event) => setAmountReceived(event.target.value)} /><div className="pos-change"><span>Cambio <InfoTip title="Cambio" content="Es la diferencia entre el efectivo recibido y el total de la venta." /></span><strong>{formatMoney(change, currency)}</strong></div></>}
+              {paymentMethod === "cash" && <><Input id="pos-received" label={<span>Efectivo recibido <InfoTip title="Efectivo recibido" content="Escribe cuánto dinero entregó el cliente. Debe cubrir el total de la venta." /></span>} type="number" min="0" step="0.01" inputMode="decimal" value={amountReceived} onChange={(event) => setAmountReceived(event.target.value)} /><div className="pos-change"><span>Cambio <InfoTip title="Cambio" content="Es la diferencia entre el efectivo recibido y el total de la venta." /></span><strong>{formatMoney(change, currency)}</strong></div></>}
               <Button type="submit" disabled={isSubmitting || cart.length === 0 || !locationId}>{isSubmitting ? <Spinner label="Procesando venta" /> : "Finalizar venta"}</Button>
             </form>
           </Card>

@@ -79,22 +79,38 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 ## Fase 8 — Decidir frontend entre EJS, React y Angular
 
 - [x] Evaluar EJS, React y Angular. Criterio: React fue elegido por permitir una migración gradual y conservar Express como backend.
-- [!] Migración a React. Criterio: iniciar después de completar la Fase 9 y mediante una rama independiente. Dependencia: seguridad, pruebas y producción estabilizadas.
+- [x] Migración a React. Criterio: iniciar después de completar la Fase 9 y mediante una rama independiente. Dependencia: seguridad, pruebas y producción estabilizadas.
 
 ## Fase 9 — Pruebas, seguridad y producción
 
 - [x] Pruebas de rutas, autorización y aislamiento. Criterio: pruebas unitarias e integración HTTP verifican roles, negocio activo, CSRF, sesión manipulada y aislamiento de recursos entre negocios.
 - [x] Revisar migraciones, índices y consultas. Criterio: migraciones versionadas con checksum, baseline y runner atómico; auditoría de aislamiento e índices completada hasta 011.
-- [~] Preparar Render/Railway y Supabase. Criterio: configuración, sesiones, variables, backups y monitoreo se completarán después de migrar el frontend a React.
+- [x] Preparar Render/Railway y Supabase. Criterio: configuración, sesiones, variables, backups y monitoreo se completarán después de migrar el frontend a React.
 
 ## Fase 10 — Migración gradual a React
 
-- [~] Integrar módulo de Clientes y Cobranza. Criterio: clientes, cargos, pagos, saldos, estados de cuenta, tickets y resumen aislados por `business_id`, con permisos específicos por rol.
+- [x] Integrar módulo de Clientes y Cobranza. Criterio: clientes, cargos, pagos, saldos, estados de cuenta, tickets y resumen aislados por `business_id`, con permisos específicos por rol.
 
-- [ ] Diseñar el contrato de la API JSON. Criterio: autenticación, negocio activo, errores y recursos documentados antes de crear páginas.
-- [ ] Crear `client/` con React, Vite y React Router. Criterio: estructura inicial y desarrollo local integrado con Express.
-- [ ] Migrar autenticación y selector de negocio. Criterio: login, logout, sesión y selección funcionan con cookies y CSRF.
-- [ ] Migrar inventario principal. Criterio: inicio, productos, categorías, movimientos y existencias funcionan en React.
-- [ ] Migrar módulos administrativos. Criterio: proveedores, ubicaciones, transferencias, alertas, reportes, miembros y superadministración funcionan en React.
-- [ ] Retirar EJS. Criterio: React cubre todos los flujos, las pruebas pasan y Express sirve únicamente API y frontend compilado.
-- [ ] Desplegar versión final. Criterio: React + Express desplegados en Render o Railway con Supabase verificada.
+- [x] Diseñar el contrato de la API JSON. Criterio: autenticación, negocio activo, errores y recursos documentados antes de crear páginas.
+- [x] Crear `client/` con React, Vite y React Router. Criterio: estructura inicial y desarrollo local integrado con Express.
+- [x] Migrar autenticación y selector de negocio. Criterio: login, logout, sesión y selección funcionan con cookies y CSRF.
+- [x] Migrar inventario principal. Criterio: inicio, productos, categorías, movimientos y existencias funcionan en React.
+- [x] Migrar módulos administrativos. Criterio: proveedores, ubicaciones, transferencias, alertas, reportes, miembros y superadministración funcionan en React.
+- [x] Retirar EJS. Criterio: React cubre todos los flujos, las pruebas pasan y Express sirve únicamente API y frontend compilado.
+- [x] Desplegar versión final. Criterio: React + Express desplegados en Render o Railway con Supabase verificada.
+
+## PEPS/FIFO — Fase 2
+
+- [x] Integrar capas PEPS en recepciones de compra, entradas y salidas manuales, ajustes positivos y negativos, y ventas. Criterio: para negocios `fifo` crea o consume capas con el cliente transaccional, bloqueos `FOR UPDATE`, balances y movimientos atómicos; `average` conserva su flujo actual. No incluye transferencias, producción, devoluciones ni reportes.
+
+## PEPS/FIFO — Fase 3
+
+- [x] Integrar FIFO en transferencias, producción, daños, pérdidas, devoluciones a proveedor y devoluciones de clientes. Criterio: cada operación usa la misma transacción, bloqueos estables `FOR UPDATE`, trazabilidad de capas, auditoría y alertas antes de `COMMIT`; impide stock negativo y conserva el flujo `average` sin capas FIFO. No incluye reportes ni despliegue.
+
+## PEPS/FIFO — Fase 4
+
+- [x] Configurar el método de valuación por negocio. Criterio: owner y manager pueden consultar y actualizar `average` o `fifo`; viewer solo consulta; el cambio queda aislado por `business_id`, registra auditoría y no crea capas ni modifica balances, movimientos o históricos. Al activar FIFO se advierte que los saldos existentes sin capa requieren inicialización manual.
+
+## PEPS/FIFO — Fase 5
+
+- [x] Visualizar capas FIFO y trazabilidad por producto. Criterio: el detalle de producto consulta capas y consumos del negocio activo en modo solo lectura, muestra cantidades, estados, referencias y costos NUMERIC sin cálculos monetarios imprecisos; `average` informa que no hay capas FIFO visibles.

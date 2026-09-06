@@ -120,7 +120,7 @@ export async function acceptPublicInvitation(req, res, next) {
     await saveSession(req);
     const membership = serializeMembership(activeMembership);
 
-    if (process.env.NODE_ENV !== "test") {
+    if (process.env.NODE_ENV !== "production") {
       console.info("[INVITATION ACCEPTED]", {
         invitationId: result.accepted.id ?? null,
         invitationEmail: result.accepted.email_normalized,

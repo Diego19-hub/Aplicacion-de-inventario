@@ -32,6 +32,8 @@ const requiredTables = [
   "suppliers",
   "sales",
   "sale_items",
+  "inventory_cost_layers",
+  "inventory_layer_consumptions",
   "inventory_stock_thresholds"
 ];
 
@@ -166,7 +168,8 @@ async function executeSqlFile(client, relativePath) {
 
 async function assertRequiredTables(client, throughVersion) {
   const tables = requiredTables.filter((tableName) =>
-    (throughVersion ?? Number.MAX_SAFE_INTEGER) >= 18 || !["sales", "sale_items"].includes(tableName)
+    (throughVersion ?? Number.MAX_SAFE_INTEGER) >= 30
+      || !["sales", "sale_items", "inventory_cost_layers", "inventory_layer_consumptions"].includes(tableName)
   );
   const result = await client.query(
     "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = ANY($1::text[])",
@@ -185,9 +188,11 @@ async function getMigrationsThroughVersion(throughVersion) {
   const latestVersion = migrationInventory.at(-1).versionNumber;
   const requestedVersion = throughVersion ?? latestVersion;
 
-  if (!Number.isInteger(requestedVersion) || requestedVersion <= 0) {
-    throw new Error("throughVersion debe ser un entero positivo.");
+  if (!Number.isInteger(requestedVersion) || requestedVersion < 0) {
+    throw new Error("throughVersion debe ser un entero no negativo.");
   }
+
+  if (requestedVersion === 0) return [];
 
   const requestedMigration = migrationInventory.find(
     (migration) => migration.versionNumber === requestedVersion
@@ -226,18 +231,22 @@ export async function createTestDatabase({ throughVersion } = {}) {
 
     testClient = new Client({ connectionString: config.connectionString });
     await testClient.connect();
-    await executeSqlFile(testClient, "db/auth-schema.sql");
-    await executeSqlFile(testClient, "db/schema.sql");
-    await testClient.query(
-      "INSERT INTO public.users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)",
-      ["test_admin", "test-admin@example.test", "integration-tests-password-hash-disabled", "admin"]
-    );
+    if (migrationInventory.length > 0) {
+      await executeSqlFile(testClient, "db/auth-schema.sql");
+      await executeSqlFile(testClient, "db/schema.sql");
+      await testClient.query(
+        "INSERT INTO public.users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)",
+        ["test_admin", "test-admin@example.test", "integration-tests-password-hash-disabled", "admin"]
+      );
+    }
 
     for (const migration of migrationInventory) {
       await executeSqlFile(testClient, path.join("db/migrations", migration.up.fileName));
     }
 
-    await assertRequiredTables(testClient, migrationInventory.at(-1).versionNumber);
+    if (migrationInventory.length > 0) {
+      await assertRequiredTables(testClient, migrationInventory.at(-1).versionNumber);
+    }
     return { databaseName: config.databaseName };
   } catch (error) {
     await closeQuietly(testClient);

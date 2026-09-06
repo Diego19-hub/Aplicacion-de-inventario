@@ -20,3 +20,6 @@ export async function recordAudit({ client = pool, businessId, userId = null, mo
 }
 
 export const auditService = { record: recordAudit };
+
+
+// Este código es un módulo de auditoría (Audit Log) para una aplicación de Node.js. Su función principal es registrar en una base de datos PostgreSQL cada acción importante que realizan los usuarios dentro de un negocio (por ejemplo: modificar datos, eliminar registros, cambiar configuraciones).

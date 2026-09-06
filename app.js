@@ -106,7 +106,7 @@ if (!isTest) {
   sessionStore = new PostgreSQLStore({
     pool,
     tableName: "user_sessions",
-    createTableIfMissing: true
+    createTableIfMissing: false
   });
 }
 

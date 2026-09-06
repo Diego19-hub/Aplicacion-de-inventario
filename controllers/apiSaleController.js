@@ -116,6 +116,9 @@ export async function listSales(req, res, next) {
           amountReceived: Number(sale.amount_received),
           changeAmount: Number(sale.change_amount),
           status: sale.status,
+          inventoryCost: sale.inventory_cost,
+          grossProfit: sale.gross_profit,
+          valuationMethod: sale.valuation_method,
           itemCount: Number(sale.item_count)
         })),
         filters: {

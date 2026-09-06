@@ -10,6 +10,40 @@ const baselineVersions = Array.from({ length: 10 }, (_, index) => index + 1);
 const leadingTriviaPattern = /^(?:(?:\s+)|(?:--[^\n]*(?:\n|$))|(?:\/\*[\s\S]*?\*\/))*/;
 const trailingTriviaPattern = /(?:(?:\s+)|(?:--[^\n]*(?:\n|$))|(?:\/\*[\s\S]*?\*\/))*$/;
 
+function safeMigrationErrorMessage(error) {
+  const message = typeof error?.message === "string"
+    ? error.message
+    : "Error de PostgreSQL sin mensaje.";
+
+  return message
+    .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[DATABASE_URL redactada]")
+    .replace(/(password\s*=\s*)[^\s;]+/gi, "$1[redactado]");
+}
+
+export class MigrationExecutionError extends Error {
+  constructor(migration, cause) {
+    const version = migration.versionNumber ?? migration.version;
+    const identifier = `${String(version).padStart(3, "0")}_${migration.name}`;
+    const code = typeof cause?.code === "string" ? cause.code : "MIGRATION_ERROR";
+    const causeMessage = safeMigrationErrorMessage(cause);
+    const bootstrapHint = version === 1
+      && code === "P0001"
+      && causeMessage.includes("se requieren las tablas users, categories e items")
+      ? " La migración 001 convierte el esquema legado; una base nueva debe prepararse con el bootstrap oficial, no con baseline."
+      : "";
+
+    const terminalPunctuation = /[.!?]$/.test(causeMessage) ? "" : ".";
+    super(`Migración ${identifier} falló [${code}]: ${causeMessage}${terminalPunctuation}${bootstrapHint}`);
+    this.name = "MigrationExecutionError";
+    this.code = code;
+    this.migration = {
+      version,
+      name: migration.name
+    };
+    this.cause = cause;
+  }
+}
+
 export function extractMigrationBody(sql) {
   if (typeof sql !== "string") {
     throw new TypeError("La migración debe ser texto SQL.");
@@ -73,7 +107,7 @@ function assertCompatibleStatus(status) {
   const appliedVersions = status.migrations
     .filter((migration) => migration.status === "applied")
     .map((migration) => migration.version);
-  const highestApplied = Math.max(...appliedVersions);
+  const highestApplied = Math.max(0, ...appliedVersions);
   const pendingBeforeHighestApplied = status.migrations.some(
     (migration) => migration.status === "pending" && migration.version < highestApplied
   );
@@ -85,10 +119,12 @@ function assertCompatibleStatus(status) {
   return highestApplied;
 }
 
-async function getRunnablePendingMigrations(client, migrationInventory) {
+async function getRunnablePendingMigrations(client, migrationInventory, { allowEmptyHistory = false } = {}) {
   const status = await getMigrationStatus(client, migrationInventory);
 
-  assertValidBaseline(status, migrationInventory);
+  if (!allowEmptyHistory) {
+    assertValidBaseline(status, migrationInventory);
+  }
   const highestApplied = assertCompatibleStatus(status);
 
   return status.migrations
@@ -98,20 +134,21 @@ async function getRunnablePendingMigrations(client, migrationInventory) {
     .sort((first, second) => first.version - second.version);
 }
 
-export async function applyPendingMigrations(client, migrationInventory) {
+export async function applyPendingMigrations(client, migrationInventory, options = {}) {
   if (!await migrationHistoryExists(client)) {
     throw new Error("No se pueden aplicar migraciones sin un baseline válido.");
   }
 
-  await getRunnablePendingMigrations(client, migrationInventory);
+  await getRunnablePendingMigrations(client, migrationInventory, options);
 
   while (true) {
+    let migration;
     await client.query("BEGIN");
 
     try {
       await client.query("SELECT pg_advisory_xact_lock($1::bigint)", [migrationHistoryLockKey]);
-      const pendingMigrations = await getRunnablePendingMigrations(client, migrationInventory);
-      const migration = pendingMigrations[0];
+      const pendingMigrations = await getRunnablePendingMigrations(client, migrationInventory, options);
+      migration = pendingMigrations[0];
 
       if (!migration) {
         await client.query("COMMIT");
@@ -144,7 +181,7 @@ export async function applyPendingMigrations(client, migrationInventory) {
         // Se conserva el error original de la migración.
       }
 
-      throw error;
+      throw migration ? new MigrationExecutionError(migration, error) : error;
     }
   }
 }

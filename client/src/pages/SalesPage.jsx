@@ -10,8 +10,10 @@ import { EmptyState } from "../components/EmptyState.jsx";
 import { InfoTip } from "../components/InfoTip.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { ValuationMethodInfo } from "../components/ValuationMethodInfo.jsx";
 import { getStoredViewMode, ViewModeToggle } from "../components/ViewModeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { formatSafeMoney } from "../utils/financialDisplay.js";
 
 const PAYMENT_LABELS = { cash: "Efectivo", card: "Tarjeta", transfer: "Transferencia" };
 const STATUS_LABELS = { completed: "Completada", cancelled: "Cancelada" };
@@ -41,7 +43,6 @@ export function SalesPage() {
   const [viewMode, setViewMode] = useState(() => getStoredViewMode("sales_view_mode"));
   const query = searchParams.toString();
   const currency = session.activeBusiness?.currency || "MXN";
-  const moneyFormatter = new Intl.NumberFormat("es-MX", { style: "currency", currency });
 
   const loadSales = useCallback(async () => {
     setIsLoading(true);
@@ -112,6 +113,7 @@ export function SalesPage() {
       description={data ? `${pagination.totalItems} venta(s) registradas` : "Consulta el historial de ventas del negocio activo."}
       actions={<Link className="button button--primary" to="/app/point-of-sale"><ReceiptText aria-hidden="true" />Ir al punto de venta</Link>}
     />
+    <ValuationMethodInfo />
 
     <Card className="sales-filter-card">
       <form className="sales-filters" onSubmit={handleSubmit}>
@@ -166,13 +168,13 @@ export function SalesPage() {
               <td>{sale.location?.name || "—"}{sale.location?.code ? ` (${sale.location.code})` : ""}</td>
               <td>{PAYMENT_LABELS[sale.paymentMethod] || sale.paymentMethod}</td>
               <td>{sale.itemCount ?? 0}</td>
-              <td className="sales-table__total">{moneyFormatter.format(Number(sale.total) || 0)}</td>
+              <td className="sales-table__total">{formatSafeMoney(sale.total, currency)}</td>
               <td><span className={`sales-status sales-status--${sale.status}`}>{STATUS_LABELS[sale.status] || sale.status}</span></td>
               <td className="sales-table__actions"><Link className="button button--secondary button--compact" to={`/app/sales/${sale.id}`} aria-label={`Ver detalle de la venta #${sale.id}`} onClick={(event) => event.stopPropagation()}><Eye aria-hidden="true" />Ver detalle</Link></td>
             </tr>)}</tbody>
           </table>
         </div>
-      </Card> : <section className="category-api-grid" aria-label="Ventas en tarjetas">{sales.map((sale) => <Card key={sale.id} className="category-api-card"><div><h2>Venta #{sale.id}</h2><p className="muted"><time dateTime={sale.createdAt}>{formatDate(sale.createdAt)}</time></p></div><dl><div><dt>Usuario</dt><dd>{sale.username || "—"}</dd></div><div><dt>Ubicación</dt><dd>{sale.location?.name || "—"}</dd></div><div><dt>Método</dt><dd>{PAYMENT_LABELS[sale.paymentMethod] || sale.paymentMethod}</dd></div><div><dt>Artículos</dt><dd>{sale.itemCount ?? 0}</dd></div><div><dt>Total</dt><dd>{moneyFormatter.format(Number(sale.total) || 0)}</dd></div><div><dt>Estado</dt><dd><span className={`sales-status sales-status--${sale.status}`}>{STATUS_LABELS[sale.status] || sale.status}</span></dd></div></dl><Link className="button button--secondary button--compact" to={`/app/sales/${sale.id}`}><Eye aria-hidden="true" />Ver detalle</Link></Card>)}</section>}
+      </Card> : <section className="category-api-grid" aria-label="Ventas en tarjetas">{sales.map((sale) => <Card key={sale.id} className="category-api-card"><div><h2>Venta #{sale.id}</h2><p className="muted"><time dateTime={sale.createdAt}>{formatDate(sale.createdAt)}</time></p></div><dl><div><dt>Usuario</dt><dd>{sale.username || "—"}</dd></div><div><dt>Ubicación</dt><dd>{sale.location?.name || "—"}</dd></div><div><dt>Método</dt><dd>{PAYMENT_LABELS[sale.paymentMethod] || sale.paymentMethod}</dd></div><div><dt>Artículos</dt><dd>{sale.itemCount ?? 0}</dd></div><div><dt>Total</dt><dd>{formatSafeMoney(sale.total, currency)}</dd></div><div><dt>Estado</dt><dd><span className={`sales-status sales-status--${sale.status}`}>{STATUS_LABELS[sale.status] || sale.status}</span></dd></div></dl><Link className="button button--secondary button--compact" to={`/app/sales/${sale.id}`}><Eye aria-hidden="true" />Ver detalle</Link></Card>)}</section>}
       {pagination.totalPages > 1 && <nav className="product-pagination" aria-label="Paginación de ventas">
         <Button variant="secondary" disabled={pagination.page === 1} onClick={() => goToPage(pagination.page - 1)}>Anterior</Button>
         {pageNumbers(pagination.page, pagination.totalPages).map((page) => <Button key={page} variant={page === pagination.page ? "primary" : "secondary"} onClick={() => goToPage(page)} aria-current={page === pagination.page ? "page" : undefined}>{page}</Button>)}

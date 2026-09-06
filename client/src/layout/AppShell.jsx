@@ -115,6 +115,15 @@ export function AppShell({ children }) {
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [session.activeBusiness?.id]);
 
+  useEffect(() => {
+    function handleAllNotificationsRead() {
+      setNotifications((current) => ({ ...current, unreadCount: 0, notifications: [] }));
+      setNotificationsOpen(false);
+    }
+    window.addEventListener("notifications:all-read", handleAllNotificationsRead);
+    return () => window.removeEventListener("notifications:all-read", handleAllNotificationsRead);
+  }, []);
+
   async function markNotificationRead(notification) {
     if (notification.is_read) return;
     await apiRequest(`/notifications/${notification.id}/read`, { method: "PATCH", csrf: true });

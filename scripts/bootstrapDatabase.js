@@ -13,7 +13,6 @@ const { Client } = pg;
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const migrationHistoryLockKey = 781042261;
-const expectedLatestMigrationVersion = 14;
 const bootstrapConfirmationVariable = "DATABASE_BOOTSTRAP_CONFIRM";
 const bootstrapUserVariables = {
   username: "BOOTSTRAP_SUPER_ADMIN_USERNAME",
@@ -114,14 +113,22 @@ function normalizeBootstrapUser() {
   return { username, email, password };
 }
 
-function assertExpectedMigrationRange(migrationInventory) {
+export function latestMigrationVersion(migrationInventory) {
   const latestMigration = migrationInventory.at(-1);
 
-  if (latestMigration?.versionNumber !== expectedLatestMigrationVersion) {
-    throw new Error(
-      `El bootstrap espera migraciones 001-${String(expectedLatestMigrationVersion).padStart(3, "0")}.`
-    );
+  if (
+    !latestMigration
+    || !Number.isInteger(latestMigration.versionNumber)
+    || latestMigration.versionNumber < 1
+    || migrationInventory.length !== latestMigration.versionNumber
+    || migrationInventory.some(
+      (migration, index) => migration?.versionNumber !== index + 1
+    )
+  ) {
+    throw new Error("El inventario de migraciones debe ser continuo desde 001.");
   }
+
+  return latestMigration.versionNumber;
 }
 
 async function assertDatabaseIsEmpty(client) {
@@ -241,13 +248,13 @@ async function applyBootstrapSchema(client, migrationInventory, bootstrapUser) {
   }
 }
 
-async function main() {
+export async function bootstrapDatabase() {
   const connectionString = getDatabaseUrl();
   const databaseName = getDatabaseName(connectionString);
   const bootstrapUser = normalizeBootstrapUser();
   const migrationInventory = await getMigrationInventory();
+  const latestVersion = latestMigrationVersion(migrationInventory);
 
-  assertExpectedMigrationRange(migrationInventory);
   requireExactDatabaseConfirmation(databaseName);
 
   const client = new Client({ connectionString });
@@ -259,7 +266,7 @@ async function main() {
 
     console.log(`Base inicializada correctamente: ${databaseName}`);
     console.log(
-      `Migraciones registradas: 001-${String(migrationInventory.at(-1).versionNumber).padStart(3, "0")}`
+      `Migraciones registradas: 001-${String(latestVersion).padStart(3, "0")}`
     );
     console.log("Superadministrador inicial creado.");
   } finally {
@@ -267,9 +274,13 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
+const currentScript = process.argv[1] ? path.resolve(process.argv[1]) : null;
 
-  console.error(`No se pudo inicializar la base: ${sanitizeErrorMessage(message)}`);
-  process.exitCode = 1;
-});
+if (currentScript === fileURLToPath(import.meta.url)) {
+  bootstrapDatabase().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+
+    console.error(`No se pudo inicializar la base: ${sanitizeErrorMessage(message)}`);
+    process.exitCode = 1;
+  });
+}

@@ -33,3 +33,5 @@ export function createCsv(headers, rows) {
 
   return BOM + lines.join("\r\n");
 }
+
+//Este código es un sistema para generar archivos CSV de forma ultra segura en Node.js o el navegador. Su propósito principal es tomar una lista de encabezados y filas de datos, y convertirlos en un texto con formato CSV listo para descargarse, aplicando dos protecciones de seguridad críticas (contra inyección de fórmulas y problemas de lectura en Excel).

@@ -7,11 +7,15 @@ import {
   UserRound,
   UsersRound
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { apiRequest } from "../api/client.js";
+import { Alert } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
 import { Card } from "../components/Card.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
+import { Select } from "../components/Select.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { resetHelpInfoPanels } from "../components/HelpInfoPanel.jsx";
 
@@ -21,6 +25,87 @@ function roleLabel(role) {
 
 function platformRoleLabel(role) {
   return role === "super_admin" ? "Superadministrador" : "Usuario";
+}
+
+const valuationLabels = { average: "Promedio", fifo: "PEPS/FIFO" };
+
+function ValuationSettingsCard({ membership, businessId }) {
+  const canEdit = ["owner", "manager"].includes(membership?.role);
+  const [settings, setSettings] = useState(null);
+  const [method, setMethod] = useState("average");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    setSettings(null);
+    setMethod("average");
+    apiRequest("/business/settings/valuation")
+      .then((data) => {
+        if (!active) return;
+        setSettings(data);
+        setMethod(data.valuationMethod);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "No se pudo cargar el método de valuación.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [businessId]);
+
+  async function save() {
+    if (!canEdit || !settings || method === settings.valuationMethod) return;
+    const confirmation = method === "fifo"
+      ? "Al activar PEPS/FIFO, los saldos existentes sin capa deberán inicializarse manualmente. No se modificarán movimientos históricos."
+      : "¿Confirmar el cambio del método de valuación a Promedio?";
+    if (!window.confirm(confirmation)) {
+      setMethod(settings.valuationMethod);
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const data = await apiRequest("/business/settings/valuation", { method: "PATCH", body: { valuationMethod: method }, csrf: true });
+      setSettings(data);
+      setMethod(data.valuationMethod);
+      setSuccess("Método de valuación actualizado correctamente.");
+    } catch (requestError) {
+      setMethod(settings.valuationMethod);
+      setError(requestError.status === 403
+        ? "No tienes permisos para modificar el método de valuación."
+        : requestError.message || "No se pudo actualizar el método de valuación.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <Card className="settings-card settings-valuation-card">
+    <div className="settings-card__heading"><Building2 aria-hidden="true" className="card-icon" /><div><p className="eyebrow">Inventario</p><h2>Método de valuación del inventario</h2></div></div>
+    {loading ? <p className="muted" role="status">Cargando método actual…</p> : error && !settings ? <Alert>{error}</Alert> : <>
+      <p className="settings-card__description"><strong>Promedio:</strong> conserva el comportamiento actual.</p>
+      <p className="settings-card__description"><strong>PEPS/FIFO:</strong> consume primero las capas más antiguas.</p>
+      {canEdit ? <>
+        <p className="settings-card__note"><strong>Método actual:</strong> {valuationLabels[settings.valuationMethod] ?? settings.valuationMethod}</p>
+        <Select id="valuation-method" label="Método actual" value={method} onChange={(event) => { setMethod(event.target.value); setSuccess(""); }} disabled={saving}>
+          <option value="average">Promedio</option>
+          <option value="fifo">PEPS/FIFO</option>
+        </Select>
+        {method === "fifo" && <p className="settings-warning" role="note">Los saldos existentes sin capa requieren inicialización manual. Activar esta opción no crea capas ni altera movimientos históricos.</p>}
+        <Button onClick={save} disabled={saving || method === settings.valuationMethod}>{saving ? "Guardando…" : "Guardar método"}</Button>
+      </> : <p className="settings-card__note"><strong>Método actual:</strong> {valuationLabels[settings.valuationMethod] ?? settings.valuationMethod}</p>}
+      {success && <Alert variant="success">{success}</Alert>}
+      {error && <Alert>{error}</Alert>}
+      {!canEdit && <p className="muted settings-card__note">Solo owner y manager pueden modificar esta configuración.</p>}
+    </>}
+  </Card>;
 }
 
 export function SettingsPage() {
@@ -47,6 +132,8 @@ export function SettingsPage() {
         </dl>
         <p className="muted settings-card__note">La edición del perfil todavía no está disponible en este espacio.</p>
       </Card>
+
+      <ValuationSettingsCard membership={membership} businessId={activeBusiness?.id} />
 
       <Card className="settings-card">
         <div className="settings-card__heading"><Building2 aria-hidden="true" className="card-icon" /><div><p className="eyebrow">Espacio de trabajo</p><h2>Negocio activo</h2></div></div>

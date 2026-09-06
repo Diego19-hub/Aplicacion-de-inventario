@@ -16,6 +16,11 @@ const movementIndexes = [
   "inventory_movements_business_user_history_index",
   "inventory_movements_business_type_history_index"
 ];
+const allMigrationVersions = Array.from(
+  { length: 32 },
+  (_, index) => String(index + 1).padStart(3, "0")
+);
+const pendingAfterBaseline = allMigrationVersions.slice(10);
 
 async function runCli(argumentsList, environment = {}) {
   try {
@@ -38,6 +43,38 @@ async function runCli(argumentsList, environment = {}) {
     };
   }
 }
+
+test(
+  "el CLI informa la precondición de la primera migración en una base vacía sin baseline",
+  { skip: !hasTestDatabaseUrl },
+  async () => {
+    let client;
+
+    try {
+      await createTestDatabase({ throughVersion: 0 });
+      client = new Client({ connectionString: process.env.TEST_DATABASE_URL });
+      await client.connect();
+      const databaseName = new URL(process.env.TEST_DATABASE_URL).pathname.slice(1);
+
+      const result = await runCli(["up"], { MIGRATION_UP_CONFIRM: databaseName });
+
+      assert.notEqual(result.code, 0);
+      assert.match(result.stderr, /Migración 001_multitenancy falló \[P0001\]/);
+      assert.match(result.stderr, /se requieren las tablas users, categories e items/);
+      assert.equal(
+        (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
+        0
+      );
+      assert.equal(
+        (await client.query("SELECT to_regclass('public.businesses') AS relation")).rows[0].relation,
+        null
+      );
+    } finally {
+      if (client) await client.end();
+      await dropTestDatabase();
+    }
+  }
+);
 
 test(
   "el CLI de migraciones consulta y crea baseline sin revelar credenciales",
@@ -81,7 +118,7 @@ test(
       assert.equal(initialStatus.code, 0);
       assert.match(initialStatus.stdout, new RegExp(`Base: ${databaseName}`));
       assert.match(initialStatus.stdout, /Estado: uninitialized/);
-      assert.match(initialStatus.stdout, /pending: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014/);
+      assert.match(initialStatus.stdout, new RegExp(`pending: ${allMigrationVersions.join(", ")}`));
       assert.equal(
         (await client.query("SELECT to_regclass('public.schema_migrations') AS relation")).rows[0].relation,
         null
@@ -146,16 +183,16 @@ test(
       const statusBeforeUp = await runCli(["status"]);
       assert.equal(statusBeforeUp.code, 0);
       assert.match(statusBeforeUp.stdout, /applied: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010/);
-      assert.match(statusBeforeUp.stdout, /pending: 011, 012, 013, 014/);
+      assert.match(statusBeforeUp.stdout, new RegExp(`pending: ${pendingAfterBaseline.join(", ")}`));
 
       const upWithPending = await runCli(["up"], {
         MIGRATION_UP_CONFIRM: databaseName
       });
       assert.equal(upWithPending.code, 0);
-      assert.match(upWithPending.stdout, /Versiones aplicadas: 011, 012, 013, 014/);
+      assert.match(upWithPending.stdout, new RegExp(`Versiones aplicadas: ${pendingAfterBaseline.join(", ")}`));
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        29
+        32
       );
       const registeredEleven = await client.query(
         "SELECT checksum FROM public.schema_migrations WHERE version = $1",
@@ -270,12 +307,12 @@ test(
       assert.match(upWithoutPending.stdout, /No hay migraciones pendientes/);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        29
+        32
       );
 
       const finalStatus = await runCli(["status"]);
       assert.equal(finalStatus.code, 0);
-      assert.match(finalStatus.stdout, /applied: 001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011, 012, 013, 014/);
+      assert.match(finalStatus.stdout, new RegExp(`applied: ${allMigrationVersions.join(", ")}`));
       assert.match(finalStatus.stdout, /pending: ninguna/);
       assert.match(finalStatus.stdout, /checksum_mismatch: ninguna/);
       assert.match(finalStatus.stdout, /name_mismatch: ninguna/);
@@ -287,7 +324,7 @@ test(
       assert.notEqual(repeatedBaseline.code, 0);
       assert.equal(
         (await client.query("SELECT count(*)::int AS count FROM public.schema_migrations")).rows[0].count,
-        29
+        32
       );
 
       await recreateDatabase();

@@ -69,3 +69,6 @@ export async function productImportTemplateBuffer(headers) {
   sheet.columns = [22, 16, 18, 24, 16, 14, 14, 16, 20, 16, 16].map((width) => ({ width }));
   return workbook.xlsx.writeBuffer();
 }
+
+
+//Este código es un sistema de importación y generación de archivos Excel (XLSX) altamente seguro para Node.js utilizando la librería exceljs. Su función principal es permitir que los usuarios suban plantillas de productos, pero aplicando filtros de ciberseguridad extremos para evitar ataques comunes mediante archivos maliciosos (como virus ocultos, macros peligrosas o desbordamiento de memoria).

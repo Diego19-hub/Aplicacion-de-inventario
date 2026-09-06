@@ -25,16 +25,16 @@ async function writeMigration(directory, version, name, direction, content = "SE
   );
 }
 
-test("el repositorio contiene migraciones 001 a 029 ordenadas", async () => {
+test("el repositorio contiene migraciones 001 a 032 ordenadas", async () => {
   const inventory = await getMigrationInventory(defaultMigrationsDirectory);
 
   assert.deepEqual(
     inventory.map((migration) => migration.version),
-    Array.from({ length: 29 }, (_, index) => String(index + 1).padStart(3, "0"))
+    Array.from({ length: 32 }, (_, index) => String(index + 1).padStart(3, "0"))
   );
   assert.deepEqual(
     inventory.map((migration) => migration.versionNumber),
-    Array.from({ length: 29 }, (_, index) => index + 1)
+    Array.from({ length: 32 }, (_, index) => index + 1)
   );
 });
 

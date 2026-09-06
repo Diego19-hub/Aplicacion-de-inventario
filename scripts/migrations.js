@@ -2,8 +2,15 @@ import "dotenv/config";
 import pg from "pg";
 import { baselineMigrationHistory } from "../db/migrationBaseline.js";
 import { getMigrationInventory } from "../db/migrationFiles.js";
-import { getMigrationStatus } from "../db/migrationHistory.js";
-import { applyPendingMigrations } from "../db/migrationRunner.js";
+import {
+  createMigrationHistoryTable,
+  getMigrationStatus,
+  isDatabaseEmpty
+} from "../db/migrationHistory.js";
+import {
+  applyPendingMigrations,
+  MigrationExecutionError
+} from "../db/migrationRunner.js";
 
 const { Client } = pg;
 const allowedCommands = new Set(["status", "baseline", "up"]);
@@ -107,8 +114,17 @@ async function run() {
 
     const status = await getMigrationStatus(client, inventory);
 
+    const emptyDatabase = await isDatabaseEmpty(client);
+    let allowEmptyHistory = emptyDatabase && (
+      status.state === "uninitialized"
+      || status.summary.applied === 0
+    );
     if (status.state === "uninitialized") {
-      throw new CliError("El historial no está inicializado; primero se necesita baseline.");
+      if (!allowEmptyHistory) {
+        throw new CliError("El historial no está inicializado; primero se necesita baseline.");
+      }
+
+      await createMigrationHistoryTable(client);
     }
 
     const incompatibleHistory = status.summary.checksum_mismatch > 0
@@ -122,7 +138,7 @@ async function run() {
       return;
     }
 
-    await applyPendingMigrations(client, inventory);
+    await applyPendingMigrations(client, inventory, { allowEmptyHistory });
     console.log(`Base: ${databaseName}`);
     console.log(`Versiones aplicadas: ${formatVersions(pending)}`);
   } finally {
@@ -131,7 +147,7 @@ async function run() {
 }
 
 run().catch((error) => {
-  if (error instanceof CliError) {
+  if (error instanceof CliError || error instanceof MigrationExecutionError) {
     console.error(error.message);
   } else {
     console.error("No se pudo completar la operación de migraciones.");

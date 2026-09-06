@@ -22,6 +22,10 @@ async function login(app, identifier, password) {
   return agent;
 }
 
+async function csrf(agent) {
+  return (await agent.get("/api/csrf-token").expect(200)).body.data.csrfToken;
+}
+
 test("GET /api/products/:productId", { skip: !hasTestDatabaseUrl }, async (t) => {
   let client; let pool; let databaseCreated = false;
   try {
@@ -35,6 +39,10 @@ test("GET /api/products/:productId", { skip: !hasTestDatabaseUrl }, async (t) =>
     const ownerResult = await client.query("SELECT u.id,b.id business_id FROM users u JOIN business_members bm ON bm.user_id=u.id JOIN businesses b ON b.id=bm.business_id WHERE u.platform_role='super_admin' AND bm.role='owner' AND bm.status='active' AND b.status='active' LIMIT 1");
     const owner = ownerResult.rows[0];
     await client.query("UPDATE users SET username=$1,email=$2,password_hash=$3 WHERE id=$4", ["detail_owner", "detail-owner@example.test", hash, owner.id]);
+    const viewer = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["detail_viewer", "detail-viewer@example.test", hash])).rows[0];
+    await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'viewer','active')", [owner.business_id, viewer.id]);
+    const manager = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["detail_manager", "detail-manager@example.test", hash])).rows[0];
+    await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'manager','active')", [owner.business_id, manager.id]);
     const activeLocation = (await client.query("SELECT id FROM business_locations WHERE business_id=$1 AND status='active' LIMIT 1", [owner.business_id])).rows[0];
     const inactiveLocation = (await client.query("INSERT INTO business_locations(business_id,name,code,location_type,status,is_default) VALUES($1,$2,$3,'warehouse','inactive',false) RETURNING id", [owner.business_id, "Bodega histórica", "HIST"])).rows[0];
     const category = (await client.query("INSERT INTO categories(name,description,business_id) VALUES($1,$2,$3) RETURNING id", ["Categoría detalle", "Categoría", owner.business_id])).rows[0];
@@ -54,6 +62,8 @@ test("GET /api/products/:productId", { skip: !hasTestDatabaseUrl }, async (t) =>
     const foreignProduct = (await client.query("INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active') RETURNING id", ["DET-FOREIGN", "Producto ajeno detalle", "Descripción", "Marca", 1, 0, foreignCategory.id, foreignBusiness.id])).rows[0];
     const { default: app } = await import("../app.js"); const { default: importedPool } = await import("../db/pool.js"); pool = importedPool;
     const agent = await login(app, "detail_owner", password);
+    const managerAgent = await login(app, "detail_manager", password);
+    const viewerAgent = await login(app, "detail_viewer", password);
     await t.test("devuelve producto, balances y movimientos aislados", async () => {
       const response = await agent.get(`/api/products/${product.id}`).expect(200).expect("Cache-Control", "no-store");
       assert.equal(response.body.data.product.stock, 5);
@@ -73,6 +83,67 @@ test("GET /api/products/:productId", { skip: !hasTestDatabaseUrl }, async (t) =>
     await t.test("ID inválido responde 400", async () => {
       const response = await agent.get("/api/products/1.5").expect(400);
       assert.equal(response.body.error.code, "VALIDATION_ERROR");
+    });
+    await t.test("consulta capas FIFO, consumos y método average sin mutaciones", async () => {
+      const average = await agent.get(`/api/products/${product.id}/cost-layers`).expect(200);
+      assert.equal(average.body.data.valuationMethod, "average");
+      assert.deepEqual(average.body.data.layers, []);
+      assert.deepEqual(average.body.data.consumptions, []);
+
+      await client.query("UPDATE businesses SET inventory_valuation_method='fifo' WHERE id=$1", [owner.business_id]);
+      const firstLayer = (await client.query(
+        `INSERT INTO inventory_cost_layers (business_id,item_id,location_id,source_operation_type,source_operation_id,source_reference,received_at,quantity_original,quantity_available,unit_cost,created_by)
+         VALUES ($1,$2,$3,'manual_entry',901,'LAYER-OLD','2026-01-01T09:00:00Z',5,3,2.0000,$4) RETURNING id`,
+        [owner.business_id, product.id, activeLocation.id, owner.id]
+      )).rows[0];
+      await client.query(
+        `INSERT INTO inventory_cost_layers (business_id,item_id,location_id,source_operation_type,source_operation_id,source_reference,received_at,quantity_original,quantity_available,unit_cost,created_by)
+         VALUES ($1,$2,$3,'purchase_receipt',902,'LAYER-NEW','2026-01-02T09:00:00Z',4,4,3.5000,$4)`,
+        [owner.business_id, product.id, activeLocation.id, owner.id]
+      );
+      await client.query(
+        `INSERT INTO inventory_layer_consumptions (business_id,layer_id,operation_type,operation_id,operation_reference,quantity,unit_cost,created_by)
+         VALUES ($1,$2,'manual_exit',903,'CONSUMPTION-1',2,2.0000,$3)`,
+        [owner.business_id, firstLayer.id, owner.id]
+      );
+
+      const fifo = await agent.get(`/api/products/${product.id}/cost-layers`).expect(200);
+      assert.equal(fifo.body.data.valuationMethod, "fifo");
+      assert.deepEqual(fifo.body.data.layers.map((layer) => ({
+        quantityOriginal: layer.quantityOriginal,
+        quantityAvailable: layer.quantityAvailable,
+        quantityConsumed: layer.quantityConsumed,
+        unitCost: layer.unitCost,
+        availableValue: layer.availableValue,
+        status: layer.status,
+        reference: layer.reference
+      })), [
+        { quantityOriginal: 5, quantityAvailable: 3, quantityConsumed: 2, unitCost: "2.0000", availableValue: "6.0000", status: "partial", reference: "LAYER-OLD" },
+        { quantityOriginal: 4, quantityAvailable: 4, quantityConsumed: 0, unitCost: "3.5000", availableValue: "14.0000", status: "available", reference: "LAYER-NEW" }
+      ]);
+      assert.deepEqual(fifo.body.data.consumptions.map((consumption) => ({
+        quantity: consumption.quantity,
+        unitCost: consumption.unitCost,
+        totalCost: consumption.totalCost,
+        operationType: consumption.operationType,
+        reference: consumption.reference,
+        layerId: consumption.layerId
+      })), [{ quantity: 2, unitCost: "2.0000", totalCost: "4.0000", operationType: "manual_exit", reference: "CONSUMPTION-1", layerId: Number(firstLayer.id) }]);
+      await viewerAgent.get(`/api/products/${product.id}/cost-layers`).expect(200);
+      await managerAgent.get(`/api/products/${product.id}/cost-layers`).expect(200);
+
+      const mutation = await agent.patch(`/api/products/${product.id}/cost-layers`)
+        .set("x-csrf-token", await csrf(agent))
+        .expect(404);
+      assert.equal(mutation.body.error.code, "RESOURCE_NOT_FOUND");
+
+      for (const id of [foreignProduct.id, archived.id]) {
+        const response = await agent.get(`/api/products/${id}/cost-layers`).expect(404);
+        assert.equal(response.body.error.code, "PRODUCT_NOT_FOUND");
+      }
+
+      const invalid = await agent.get("/api/products/1.5/cost-layers").expect(400);
+      assert.equal(invalid.body.error.code, "VALIDATION_ERROR");
     });
   } finally {
     if (client) await client.end(); if (pool) await pool.end();

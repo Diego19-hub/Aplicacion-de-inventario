@@ -157,10 +157,12 @@ export async function getTransferDetails(req, res, next) {
       });
     }
     if (result.error) {
-      console.error("Transferencia con movimientos inconsistentes", {
-        transferId: result.transferId,
-        businessId: req.business.id
-      });
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Transferencia con movimientos inconsistentes", {
+          transferId: result.transferId,
+          businessId: req.business.id
+        });
+      }
       return res.status(500).json({
         error: { code: "INTERNAL_ERROR", message: "Ocurrió un error interno." }
       });

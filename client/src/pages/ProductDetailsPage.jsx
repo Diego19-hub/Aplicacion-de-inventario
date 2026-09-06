@@ -9,6 +9,7 @@ import { Card } from "../components/Card.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { PageHeader } from "../components/PageHeader.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { ProductCostLayersSection } from "../components/ProductCostLayersSection.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const movementLabels = { opening_balance: "Saldo inicial", entry: "Entrada", exit: "Salida", adjustment: "Ajuste", transfer_out: "Transferencia — salida", transfer_in: "Transferencia — entrada" };
@@ -24,6 +25,9 @@ export function ProductDetailsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [costLayers, setCostLayers] = useState(null);
+  const [costLayersError, setCostLayersError] = useState(null);
+  const [costLayersLoading, setCostLayersLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const loadProduct = useCallback(async () => {
@@ -39,6 +43,20 @@ export function ProductDetailsPage() {
   }, [productId]);
 
   useEffect(() => { loadProduct(); }, [loadProduct]);
+
+  const loadCostLayers = useCallback(async () => {
+    setCostLayersLoading(true);
+    setCostLayersError(null);
+    try {
+      setCostLayers(await apiRequest(`/products/${productId}/cost-layers`));
+    } catch (requestError) {
+      setCostLayersError(requestError);
+    } finally {
+      setCostLayersLoading(false);
+    }
+  }, [productId]);
+
+  useEffect(() => { loadCostLayers(); }, [loadCostLayers]);
 
   if (isLoading) return <section className="dashboard-state"><Spinner label="Cargando producto" /></section>;
   if (error?.code === "PRODUCT_NOT_FOUND") return <EmptyState title="Producto no encontrado" description="El producto no está disponible en el negocio activo." action={<Link className="button button--secondary" to="/app/products"><ArrowLeft aria-hidden="true" />Volver a productos</Link>} />;
@@ -64,6 +82,7 @@ export function ProductDetailsPage() {
       <Card><p className="eyebrow">Información del producto</p><p className="product-description">{product.description || "Este producto no tiene una descripción registrada."}</p><dl className="detail-list"><div><dt>SKU</dt><dd>{product.sku}</dd></div><div><dt>Código de barras</dt><dd className="product-barcode-detail"><span>{product.barcode || "Sin configurar"}</span>{product.barcode && <Button type="button" variant="secondary" className="button--compact" onClick={copyBarcode} aria-label="Copiar código de barras">{copied ? <><Check aria-hidden="true" />Copiado</> : <><Copy aria-hidden="true" />Copiar código</>}</Button>}</dd></div><div><dt>Categoría</dt><dd>{product.category.name}</dd></div><div><dt>Marca</dt><dd>{product.brand}</dd></div><div><dt>Precio</dt><dd>{new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(product.price)}</dd></div><div><dt>Costo de adquisición</dt><dd>{product.costPrice === null ? "No configurado" : new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(product.costPrice)}</dd></div>{product.costPrice !== null && <div><dt>Margen estimado</dt><dd className={product.price - product.costPrice >= 0 ? "delta delta--positive" : "delta delta--negative"}>{new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(product.price - product.costPrice)} por unidad</dd></div>}<div><dt>Existencias totales</dt><dd>{product.stock} unidades</dd></div><div><dt>Creado</dt><dd><time dateTime={product.createdAt}>{formatDate(product.createdAt)}</time></dd></div></dl></Card>
       <Card><p className="eyebrow">Existencias por ubicación</p>{balances.length === 0 ? <EmptyState title="Sin ubicaciones disponibles" description="No hay ubicaciones que mostrar para este producto." /> : <ul className="balance-list">{balances.map((balance) => <li key={balance.location.id}><div><strong><MapPin aria-hidden="true" />{balance.location.name}</strong><span>{balance.location.code}{balance.location.isDefault ? " · Principal" : ""}{balance.location.status === "inactive" ? " · Inactiva" : ""}</span></div><div><strong>{balance.stock} unidades</strong><span className={`stock-status stock-status--${balance.alertStatus}`}>{alertLabels[balance.alertStatus]}</span>{balance.minimumStock !== null && <small>Mínimo: {balance.minimumStock}</small>}{balance.maximumStock !== null && <small>Máximo: {balance.maximumStock}</small>}</div></li>)}</ul>}</Card>
     </section>
+    <ProductCostLayersSection data={costLayers} error={costLayersError} isLoading={costLayersLoading} onRetry={loadCostLayers} currency={currency} />
     <Card className="detail-movements"><header className="section-heading"><div><p className="eyebrow">Actividad</p><h2>Movimientos recientes</h2></div><Link className="text-link" to={`/app/products/${product.id}/movements`}>Ver todos los movimientos</Link></header>{recentMovements.length === 0 ? <EmptyState title="Sin movimientos recientes" description="Los movimientos de este producto aparecerán aquí." /> : <div className="movement-list">{recentMovements.map((movement) => <article className="movement-row" key={movement.id}><div className="movement-row__title"><strong>{movementLabels[movement.type] ?? movement.type}</strong><time dateTime={movement.createdAt}>{formatDate(movement.createdAt)}</time><span>{movement.location.name} ({movement.location.code})</span></div><div><strong className={movement.quantityDelta >= 0 ? "delta delta--positive" : "delta delta--negative"}>{movement.quantityDelta >= 0 ? "+" : ""}{movement.quantityDelta}</strong><span>{movement.previousStock} → {movement.resultingStock}</span></div><div><span>{movement.createdBy.username}</span>{movement.transferId !== null && <Link className="text-link" to={`/app/transfers/${movement.transferId}`}>Transferencia #{movement.transferId}</Link>}</div><p className="movement-reason">{movement.reason}</p></article>)}</div>}</Card>
   </>;
 }

@@ -64,6 +64,7 @@ import {
   updateProduct
 } from "../controllers/apiProductsController.js";
 import { getProductDetails } from "../controllers/apiProductDetailsController.js";
+import { getProductCostLayersController } from "../controllers/apiProductCostLayersController.js";
 import { confirmProductImport, downloadProductImportTemplate, previewProductImport } from "../controllers/apiProductImportController.js";
 import { rateLimit } from "express-rate-limit";
 import { handleProductImportUploadError, productImportUpload } from "../middleware/productImportUpload.js";
@@ -121,7 +122,14 @@ import {
   apiMemberActionValidation,
   apiMemberRoleValidation
 } from "../middleware/memberValidation.js";
-import { authLimiter, invitationLimiter } from "../middleware/securityMiddleware.js";
+import {
+  adminMutationLimiter,
+  authLimiter,
+  invitationLimiter,
+  inventoryMutationLimiter,
+  reportLimiter,
+  salesLimiter
+} from "../middleware/securityMiddleware.js";
 import { googleCallback, startGoogleAuth } from "../controllers/apiGoogleAuthController.js";
 import { createSale, getPosFormOptionsController, getPosProductsController, getSaleDetailsController, listSales } from "../controllers/apiSaleController.js";
 import { apiSaleValidation } from "../middleware/saleValidation.js";
@@ -167,6 +175,8 @@ import { customerValidation, customerStatusValidation, chargeValidation, chargeS
 import { listCustomers, createCustomer, getCustomer, updateCustomer, setCustomerStatus, listCharges, createCharge, getCharge, updateCharge, updateChargeStatus, listPayments, getPayment, createPayment, cancelPayment, accountStatement, balance, collectionsSummary, collectionAlerts, receipt } from "../controllers/apiCustomerCollectionsController.js";
 import { getAuditLog } from "../controllers/apiAuditController.js";
 import { listNotificationsController, markAllNotificationsReadController, markNotificationReadController, notificationsSummary } from "../controllers/apiNotificationsController.js";
+import { getValuationSettingsController, updateValuationSettingsController } from "../controllers/apiBusinessValuationController.js";
+import { businessValuationValidation } from "../middleware/businessValuationValidation.js";
 
 const apiRouter = Router();
 
@@ -195,38 +205,40 @@ apiRouter.get("/dashboard", requireApiAuth, requireApiActiveBusiness, getDashboa
 apiRouter.get("/break-even", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), breakEvenValidation, getBreakEven);
 apiRouter.get("/pos/products", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), getPosProductsController);
 apiRouter.get("/pos/form-options", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), getPosFormOptionsController);
-apiRouter.post("/sales", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), apiSaleValidation, createSale);
+apiRouter.post("/sales", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), salesLimiter, apiSaleValidation, createSale);
 apiRouter.get("/sales", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listSales);
 apiRouter.get("/sales/:saleId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getSaleDetailsController);
 apiRouter.get("/business-costs", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listBusinessCosts);
 apiRouter.post("/business-costs", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostValidation, createBusinessCostController);
 apiRouter.put("/business-costs/:costId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostValidation, updateBusinessCostController);
 apiRouter.patch("/business-costs/:costId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessCostStatusValidation, updateBusinessCostStatusController);
+apiRouter.get("/business/settings/valuation", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getValuationSettingsController);
+apiRouter.patch("/business/settings/valuation", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), businessValuationValidation, updateValuationSettingsController);
 apiRouter.get("/recipes", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listRecipesController);
 apiRouter.get("/recipes/options", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), recipeOptions);
 apiRouter.post("/recipes", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeValidation, createRecipeController);
 apiRouter.get("/recipes/:recipeId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getRecipeController);
 apiRouter.put("/recipes/:recipeId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeValidation, updateRecipeController);
 apiRouter.patch("/recipes/:recipeId/status", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeStatusValidation, updateRecipeStatusController);
-apiRouter.post("/recipes/:recipeId/produce", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), recipeProductionValidation, produceRecipeController);
+apiRouter.post("/recipes/:recipeId/produce", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryMutationLimiter, recipeProductionValidation, produceRecipeController);
 apiRouter.get("/transactions", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listTransactionsController);
 apiRouter.get("/transactions/options", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), transactionOptions);
 apiRouter.get("/transactions/:transactionId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getTransactionController);
-apiRouter.get("/reports/inventory-center", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), inventoryCenterApi);
-apiRouter.get("/reports/inventory-center.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryCenterCsvApi);
-apiRouter.get("/reports/inventory-center.xlsx", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryCenterExcelApi);
-apiRouter.post("/transactions/entries", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryEntryValidation, createEntry);
-apiRouter.post("/transactions/adjustments", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryAdjustmentValidation, createAdjustment);
-apiRouter.post("/transactions/exits", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryExitValidation, createExit);
+apiRouter.get("/reports/inventory-center", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), reportLimiter, inventoryCenterApi);
+apiRouter.get("/reports/inventory-center.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), reportLimiter, inventoryCenterCsvApi);
+apiRouter.get("/reports/inventory-center.xlsx", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), reportLimiter, inventoryCenterExcelApi);
+apiRouter.post("/transactions/entries", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryMutationLimiter, inventoryEntryValidation, createEntry);
+apiRouter.post("/transactions/adjustments", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryMutationLimiter, inventoryAdjustmentValidation, createAdjustment);
+apiRouter.post("/transactions/exits", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryMutationLimiter, inventoryExitValidation, createExit);
 apiRouter.get("/purchases/options", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), purchaseOptions);
 apiRouter.get("/purchases", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listPurchasesController);
 apiRouter.post("/purchases", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), purchaseValidation, createPurchaseController);
 apiRouter.get("/purchases/:purchaseId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getPurchaseController);
 apiRouter.put("/purchases/:purchaseId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), purchaseValidation, updatePurchaseController);
-apiRouter.post("/purchases/:purchaseId/receive", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), receiveValidation, receivePurchaseController);
+apiRouter.post("/purchases/:purchaseId/receive", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryMutationLimiter, receiveValidation, receivePurchaseController);
 apiRouter.post("/purchases/:purchaseId/cancel", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cancelPurchaseController);
 apiRouter.get("/returns", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listReturnsController);
-apiRouter.post("/returns", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), returnValidation, createReturnController);
+apiRouter.post("/returns", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), inventoryMutationLimiter, returnValidation, createReturnController);
 apiRouter.get("/returns/:returnId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getReturnController);
 apiRouter.post("/returns/:returnId/cancel", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), cancelReturnController);
 apiRouter.get("/customers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listCustomers);
@@ -259,31 +271,31 @@ apiRouter.post("/cash/sessions/:sessionId/close", requireApiAuth, requireApiActi
 apiRouter.get("/admin/dashboard", requireApiAuth, requireApiSuperAdmin, adminDashboard);
 apiRouter.get("/admin/businesses", requireApiAuth, requireApiSuperAdmin, adminBusinesses);
 apiRouter.get("/admin/businesses/form-options", requireApiAuth, requireApiSuperAdmin, adminBusinessFormOptions);
-apiRouter.post("/admin/businesses", requireApiAuth, requireApiSuperAdmin, createAdminBusiness);
+apiRouter.post("/admin/businesses", requireApiAuth, requireApiSuperAdmin, adminMutationLimiter, createAdminBusiness);
 apiRouter.get("/admin/businesses/:businessId/edit", requireApiAuth, requireApiSuperAdmin, getAdminBusinessEdit);
-apiRouter.put("/admin/businesses/:businessId", requireApiAuth, requireApiSuperAdmin, updateAdminBusiness);
+apiRouter.put("/admin/businesses/:businessId", requireApiAuth, requireApiSuperAdmin, adminMutationLimiter, updateAdminBusiness);
 apiRouter.get("/admin/businesses/:businessId/change-owner/options", requireApiAuth, requireApiSuperAdmin, adminBusinessOwnerOptions);
-apiRouter.post("/admin/businesses/:businessId/change-owner", requireApiAuth, requireApiSuperAdmin, changeAdminBusinessOwner);
-apiRouter.post("/admin/businesses/:businessId/suspend", requireApiAuth, requireApiSuperAdmin, (req, res, next) => {
+apiRouter.post("/admin/businesses/:businessId/change-owner", requireApiAuth, requireApiSuperAdmin, adminMutationLimiter, changeAdminBusinessOwner);
+apiRouter.post("/admin/businesses/:businessId/suspend", requireApiAuth, requireApiSuperAdmin, adminMutationLimiter, (req, res, next) => {
   req.params.action = "suspend";
   transitionAdminBusiness(req, res, next);
 });
-apiRouter.post("/admin/businesses/:businessId/reactivate", requireApiAuth, requireApiSuperAdmin, (req, res, next) => {
+apiRouter.post("/admin/businesses/:businessId/reactivate", requireApiAuth, requireApiSuperAdmin, adminMutationLimiter, (req, res, next) => {
   req.params.action = "reactivate";
   transitionAdminBusiness(req, res, next);
 });
-apiRouter.post("/admin/businesses/:businessId/archive", requireApiAuth, requireApiSuperAdmin, (req, res, next) => {
+apiRouter.post("/admin/businesses/:businessId/archive", requireApiAuth, requireApiSuperAdmin, adminMutationLimiter, (req, res, next) => {
   req.params.action = "archive";
   transitionAdminBusiness(req, res, next);
 });
 apiRouter.get("/admin/businesses/:businessId", requireApiAuth, requireApiSuperAdmin, adminBusinessDetail);
 apiRouter.get("/alerts/stock", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), listStockAlerts);
 apiRouter.patch("/alerts/stock/:thresholdId/review", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), reviewStockAlert);
-apiRouter.get("/reports/inventory", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), inventoryReportApi);
-apiRouter.get("/reports/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementReportApi);
-apiRouter.get("/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementReportApi);
-apiRouter.get("/reports/inventory.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), inventoryCsvApi);
-apiRouter.get("/reports/movements.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), movementCsvApi);
+apiRouter.get("/reports/inventory", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), reportLimiter, inventoryReportApi);
+apiRouter.get("/reports/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), reportLimiter, movementReportApi);
+apiRouter.get("/movements", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), reportLimiter, movementReportApi);
+apiRouter.get("/reports/inventory.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), reportLimiter, inventoryCsvApi);
+apiRouter.get("/reports/movements.csv", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner","manager","viewer"), reportLimiter, movementCsvApi);
 apiRouter.get("/products/:productId/thresholds", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), getThresholds);
 apiRouter.put("/products/:productId/thresholds/:locationId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), apiThresholdValidation, saveThreshold);
 apiRouter.delete("/products/:productId/thresholds/:locationId", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager"), removeThreshold);
@@ -481,6 +493,7 @@ apiRouter.post(
   requireApiAuth,
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager"),
+  inventoryMutationLimiter,
   apiTransferValidation,
   createTransfer
 );
@@ -588,6 +601,7 @@ apiRouter.post(
   requireApiAuth,
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager"),
+  inventoryMutationLimiter,
   apiMovementValidation,
   createProductMovement
 );
@@ -604,6 +618,7 @@ apiRouter.post(
   onboardingBusinessValidation,
   createOnboardingBusiness
 );
+apiRouter.get("/products/:productId/cost-layers", requireApiAuth, requireApiActiveBusiness, requireApiBusinessRole("owner", "manager", "viewer"), getProductCostLayersController);
 apiRouter.get("/products/:productId", requireApiAuth, requireApiActiveBusiness, getProductDetails);
 
 apiRouter.use((req, res) => {

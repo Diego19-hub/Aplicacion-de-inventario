@@ -12,7 +12,15 @@ const original = { NODE_ENV: process.env.NODE_ENV, SESSION_SECRET: process.env.S
 
 function restoreEnvironment() { for (const [key, value] of Object.entries(original)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } }
 async function csrf(agent) { return (await agent.get("/api/csrf-token").expect(200)).body.data.csrfToken; }
-async function login(app, identifier, password) { const agent = request.agent(app); await agent.post("/api/auth/login").set("x-csrf-token", await csrf(agent)).send({ identifier, password }).expect(200); return agent; }
+async function login(app, identifier, password) {
+  const agent = request.agent(app);
+  const token = await csrf(agent);
+  const response = await agent.post("/api/auth/login")
+    .set("x-csrf-token", token)
+    .send({ identifier, password });
+  assert.equal(response.status, 200, `Login respondió ${response.status}: ${JSON.stringify(response.body)}`);
+  return agent;
+}
 async function create(agent, path, body) { return agent.post(path).set("x-csrf-token", await csrf(agent)).send(body).expect(201); }
 
 test("entradas, salidas y ajustes nuevos aparecen primero en el historial del negocio activo", { skip: !available }, async () => {
@@ -23,21 +31,70 @@ test("entradas, salidas y ajustes nuevos aparecen primero en el historial del ne
     client = new Client({ connectionString: process.env.TEST_DATABASE_URL }); await client.connect();
     const password = "transaction-history-password"; const hash = await bcrypt.hash(password, 10);
     const owner = (await client.query("SELECT u.id,b.id AS business_id FROM users u JOIN business_members bm ON bm.user_id=u.id JOIN businesses b ON b.id=bm.business_id WHERE u.platform_role='super_admin' AND bm.role='owner' AND bm.status='active' AND b.status='active' LIMIT 1")).rows[0];
+    assert.ok(owner, "El fixture requiere un negocio activo con owner activo.");
     await client.query("UPDATE users SET username=$1,email=$2,password_hash=$3 WHERE id=$4", ["history_owner", "history-owner@example.test", hash, owner.id]);
+    const loginFixture = (await client.query(
+      `SELECT u.username,u.email,u.password_hash,u.platform_role,b.status AS business_status,
+              bm.role,bm.status AS membership_status
+       FROM users u
+       JOIN business_members bm ON bm.user_id=u.id AND bm.business_id=$2
+       JOIN businesses b ON b.id=bm.business_id
+       WHERE u.id=$1`,
+      [owner.id, owner.business_id]
+    )).rows[0];
+    assert.deepEqual({
+      username: loginFixture.username,
+      email: loginFixture.email,
+      platformRole: loginFixture.platform_role,
+      businessStatus: loginFixture.business_status,
+      membershipRole: loginFixture.role,
+      membershipStatus: loginFixture.membership_status
+    }, {
+      username: "history_owner",
+      email: "history-owner@example.test",
+      platformRole: "super_admin",
+      businessStatus: "active",
+      membershipRole: "owner",
+      membershipStatus: "active"
+    });
+    assert.equal(await bcrypt.compare(password, loginFixture.password_hash), true);
     const category = (await client.query("INSERT INTO categories(business_id,name,description) VALUES($1,$2,$3) RETURNING id", [owner.business_id, "Historial", "Pruebas de historial"])).rows[0];
     const location = (await client.query("SELECT id FROM business_locations WHERE business_id=$1 AND status='active' ORDER BY id LIMIT 1", [owner.business_id])).rows[0];
+    assert.ok(location, "El negocio principal requiere una ubicación activa.");
     const products = (await client.query("INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status) VALUES($1,$2,'Descripción','Marca',10,$3,$4,$5,'active'),($6,$7,'Descripción','Marca',10,$8,$4,$5,'active'),($9,$10,'Descripción','Marca',10,$11,$4,$5,'active'),($12,$13,'Descripción','Marca',10,$14,$4,$5,'active') RETURNING id", ["HIST-ENTRY", "Producto entrada", 0, category.id, owner.business_id, "HIST-EXIT", "Producto salida", 10, "HIST-ADJUST", "Producto ajuste", 8, "HIST-SEED", "Producto semilla", 25])).rows;
     const [entry, exit, adjustment, seed] = products;
     await client.query("INSERT INTO inventory_balances(business_id,location_id,item_id,stock) VALUES($1,$2,$3,0),($1,$2,$4,10),($1,$2,$5,8),($1,$2,$6,25)", [owner.business_id, location.id, entry.id, exit.id, adjustment.id, seed.id]);
     await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by,created_at) SELECT $1,$2,$3,'entry',1,n - 1,n,'Movimiento reciente de prueba','SEED-' || n,$4,clock_timestamp() - INTERVAL '1 minute' FROM generate_series(1,25) n", [owner.business_id, location.id, seed.id, owner.id]);
 
-    const foreignUser = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["history_foreign", "history-foreign@example.test", hash])).rows[0];
-    const foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio historial ajeno", "negocio-historial-ajeno", foreignUser.id])).rows[0];
-    await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusiness.id, foreignUser.id]);
-    const foreignCategory = (await client.query("INSERT INTO categories(business_id,name,description) VALUES($1,$2,$3) RETURNING id", [foreignBusiness.id, "General", "Categoría ajena"])).rows[0];
-    const foreignLocation = (await client.query("INSERT INTO business_locations(business_id,name,code,location_type,status,is_default) VALUES($1,$2,$3,'warehouse','active',true) RETURNING id", [foreignBusiness.id, "Bodega ajena", "AJENA", ])).rows[0];
-    const foreignProduct = (await client.query("INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status) VALUES('FOREIGN-HISTORY','Producto ajeno','Descripción','Marca',10,1,$1,$2,'active') RETURNING id", [foreignCategory.id, foreignBusiness.id])).rows[0];
-    await client.query("INSERT INTO inventory_movements(business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES($1,$2,$3,'entry',1,0,1,'Movimiento ajeno','FOREIGN-HISTORY',$4)", [foreignBusiness.id, foreignLocation.id, foreignProduct.id, foreignUser.id]);
+    await client.query("BEGIN");
+    try {
+      const foreignUser = (await client.query("INSERT INTO users(username,email,password_hash,platform_role) VALUES($1,$2,$3,'user') RETURNING id", ["history_foreign", "history-foreign@example.test", hash])).rows[0];
+      const foreignBusiness = (await client.query("INSERT INTO businesses(name,slug,created_by,status) VALUES($1,$2,$3,'active') RETURNING id", ["Negocio historial ajeno", "negocio-historial-ajeno", foreignUser.id])).rows[0];
+      await client.query("INSERT INTO business_members(business_id,user_id,role,status) VALUES($1,$2,'owner','active')", [foreignBusiness.id, foreignUser.id]);
+      const foreignCategory = (await client.query("INSERT INTO categories(business_id,name,description,is_default) VALUES($1,$2,$3,true) RETURNING id", [foreignBusiness.id, "General", "Categoría ajena"])).rows[0];
+      const foreignLocation = (await client.query("INSERT INTO business_locations(business_id,name,code,location_type,status,is_default) VALUES($1,$2,$3,'warehouse','active',true) RETURNING id", [foreignBusiness.id, "Bodega ajena", "AJENA"])).rows[0];
+      const foreignProduct = (await client.query("INSERT INTO items(sku,name,description,brand,price,stock,category_id,business_id,status) VALUES('FOREIGN-HISTORY','Producto ajeno','Descripción','Marca',10,1,$1,$2,'active') RETURNING id", [foreignCategory.id, foreignBusiness.id])).rows[0];
+      await client.query("INSERT INTO inventory_movements(business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by) VALUES($1,$2,$3,'entry',1,0,1,'Movimiento ajeno','FOREIGN-HISTORY',$4)", [foreignBusiness.id, foreignLocation.id, foreignProduct.id, foreignUser.id]);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
+    const foreignFixture = (await client.query(
+      `SELECT b.id,
+              (SELECT COUNT(*) FROM business_members bm WHERE bm.business_id=b.id AND bm.role='owner' AND bm.status='active') AS active_owners,
+              (SELECT COUNT(*) FROM categories c WHERE c.business_id=b.id AND c.is_default) AS default_categories,
+              (SELECT COUNT(*) FROM business_locations l WHERE l.business_id=b.id AND l.status='active') AS active_locations,
+              (SELECT COUNT(*) FROM items i WHERE i.business_id=b.id AND i.status='active') AS active_items
+       FROM businesses b WHERE b.slug='negocio-historial-ajeno'`,
+    )).rows[0];
+    assert.ok(foreignFixture, "El fixture secundario debe existir.");
+    assert.deepEqual({
+      activeOwners: Number(foreignFixture.active_owners),
+      defaultCategories: Number(foreignFixture.default_categories),
+      activeLocations: Number(foreignFixture.active_locations),
+      activeItems: Number(foreignFixture.active_items)
+    }, { activeOwners: 1, defaultCategories: 1, activeLocations: 1, activeItems: 1 });
 
     const { default: app } = await import("../app.js"); const { default: importedPool } = await import("../db/pool.js"); pool = importedPool;
     const agent = await login(app, "history_owner", password); const today = new Date().toISOString().slice(0, 10);

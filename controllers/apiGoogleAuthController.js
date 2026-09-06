@@ -48,7 +48,7 @@ export async function startGoogleAuth(req, res, next) {
     const returnTo = isSafeReturnTo(req.query.returnTo) ? req.query.returnTo : null;
     req.session.googleOAuth = { state: request.state, nonce: request.nonce, codeVerifier: request.codeVerifier, returnTo };
     await saveSession(req);
-    if (process.env.NODE_ENV !== "test") console.info("[GOOGLE OAUTH INVITATION]", { tokenPreserved: Boolean(returnTo?.startsWith("/invitations/")), redirectPath: returnTo });
+    if (process.env.NODE_ENV !== "production") console.info("[GOOGLE OAUTH INVITATION]", { tokenPreserved: Boolean(returnTo?.startsWith("/invitations/")), redirectPath: returnTo });
     return res.redirect(request.url.href);
   } catch (error) {
     if (error.code === "GOOGLE_NOT_CONFIGURED") return oauthErrorRedirect(req, error.code, req.query.returnTo);
@@ -79,7 +79,7 @@ export async function googleCallback(req, res, next) {
     const activeBusinessId = businesses.length === 1 ? businesses[0].id : null;
     await establishAuthenticatedSession(req, user, { activeBusinessId, returnTo });
     const redirectPath = returnTo || (businesses.length === 1 ? "/app" : "/select-business");
-    if (process.env.NODE_ENV !== "test") console.info("[GOOGLE OAUTH INVITATION]", { authenticatedUserId: user.id, authenticatedEmail: user.email, tokenPreserved: Boolean(returnTo?.startsWith("/invitations/")), redirectPath });
+    if (process.env.NODE_ENV !== "production") console.info("[GOOGLE OAUTH INVITATION]", { authenticatedUserId: user.id, authenticatedEmail: user.email, tokenPreserved: Boolean(returnTo?.startsWith("/invitations/")), redirectPath });
     return res.redirect(frontendPath(redirectPath));
   } catch (error) {
     logGoogleCallbackError(error);

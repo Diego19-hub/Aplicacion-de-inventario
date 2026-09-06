@@ -1,15 +1,114 @@
 import pool from "./pool.js";
 import { auditService } from "../services/auditService.js";
 import { notificationService } from "../services/notificationService.js";
+import { calculateOperationCost, consumeCostLayers, createCostLayer, getInventoryValuationMethod } from "../services/inventoryCostingService.js";
 
-const typeLabels={supplier_return:"Devolución a proveedor",damage:"Mercancía dañada",loss:"Pérdida",destroyed:"Destrucción",expired:"Caducidad"};
-function mapReturn(row){return {id:Number(row.id),returnType:row.return_type,returnTypeLabel:typeLabels[row.return_type],purchaseOrderId:row.purchase_order_id?Number(row.purchase_order_id):null,supplierName:row.supplier_name,locationName:row.location_name,reference:row.reference,reason:row.reason,notes:row.notes,status:row.status,createdBy:row.username,createdAt:row.created_at,registeredAt:row.registered_at};}
+const typeLabels={supplier_return:"Devolución a proveedor",customer_return:"Devolución de cliente",damage:"Mercancía dañada",loss:"Pérdida",destroyed:"Destrucción",expired:"Caducidad"};
+function finiteNumeric(value, field) {
+  if (value === undefined || value === null || value === "") throw new Error(`La columna ${field} no fue devuelta por PostgreSQL.`);
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error(`La columna ${field} contiene un valor numérico inválido.`);
+  return parsed;
+}
+function mapReturn(row){return {id:Number(row.id),returnType:row.return_type,returnTypeLabel:typeLabels[row.return_type]||"Devolución de cliente",purchaseOrderId:row.purchase_order_id?Number(row.purchase_order_id):null,saleId:row.sale_id?Number(row.sale_id):null,supplierName:row.supplier_name,locationName:row.location_name,reference:row.reference,reason:row.reason,notes:row.notes,status:row.status,createdBy:row.username,createdAt:row.created_at,registeredAt:row.registered_at};}
 const select=`SELECT r.*,s.name supplier_name,l.name location_name,u.username FROM inventory_returns r LEFT JOIN suppliers s ON s.id=r.supplier_id AND s.business_id=r.business_id JOIN business_locations l ON (l.business_id,l.id)=(r.business_id,r.location_id) JOIN users u ON u.id=r.created_by`;
 export async function listReturns({businessId,returnType="",status="",q="",limit,offset}){const v=[businessId],w=["r.business_id=$1"];if(returnType){v.push(returnType);w.push(`r.return_type=$${v.length}`)}if(status){v.push(status);w.push(`r.status=$${v.length}`)}if(q){v.push(`%${q}%`);w.push(`(r.reference ILIKE $${v.length} OR r.reason ILIKE $${v.length})`)}const count=await pool.query(`SELECT count(*)::int count FROM inventory_returns r WHERE ${w.join(" AND ")}`,v);const pv=[...v,limit,offset];const rows=await pool.query(`${select} WHERE ${w.join(" AND ")} ORDER BY r.created_at DESC,r.id DESC LIMIT $${pv.length-1} OFFSET $${pv.length}`,pv);return {count:Number(count.rows[0].count),rows:rows.rows.map(mapReturn)};}
-export async function getReturn(businessId,id){const row=(await pool.query(`${select} WHERE r.business_id=$1 AND r.id=$2`,[businessId,id])).rows[0];if(!row)return null;const items=(await pool.query("SELECT x.*,i.name,i.sku FROM inventory_return_items x JOIN items i ON (i.business_id,i.id)=(x.business_id,x.item_id) WHERE x.business_id=$1 AND x.return_id=$2 ORDER BY x.id",[businessId,id])).rows.map(x=>({id:Number(x.id),itemId:Number(x.item_id),name:x.name,sku:x.sku,quantity:Number(x.quantity),unitCost:Number(x.unit_cost),lineTotal:Number(x.quantity)*Number(x.unit_cost)}));return {return:mapReturn(row),items};}
+export async function getReturn(businessId,id){const row=(await pool.query(`${select} WHERE r.business_id=$1 AND r.id=$2`,[businessId,id])).rows[0];if(!row)return null;const items=(await pool.query("SELECT x.*,i.name,i.sku FROM inventory_return_items x JOIN items i ON (i.business_id,i.id)=(x.business_id,x.item_id) WHERE x.business_id=$1 AND x.return_id=$2 ORDER BY x.id",[businessId,id])).rows.map(x=>{const quantity=finiteNumeric(x.quantity,"inventory_return_items.quantity");const unitCost=finiteNumeric(x.unit_cost,"inventory_return_items.unit_cost");return {id:Number(x.id),itemId:Number(x.item_id),saleItemId:x.sale_item_id?Number(x.sale_item_id):null,condition:x.item_condition||"good",name:x.name,sku:x.sku,quantity,unitCost,lineTotal:quantity*unitCost};});return {return:mapReturn(row),items};}
 function reference(type){return `${type==='supplier_return'?'RETURN':type==='damage'?'DAMAGE':'LOSS'}-${Date.now()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;}
-export async function createReturn({businessId,userId,data}){const client=await pool.connect();try{await client.query("BEGIN");let order=null,supplierId=null;if(data.returnType==="supplier_return"){order=(await client.query("SELECT * FROM purchase_orders WHERE business_id=$1 AND id=$2 AND status IN ('partially_received','received') FOR UPDATE",[businessId,data.purchaseOrderId])).rows[0];if(!order)return rollback(client,{error:"order_not_found"});supplierId=order.supplier_id;if(Number(order.location_id)!==Number(data.locationId))return rollback(client,{error:"location_mismatch"});}else if(data.purchaseOrderId)return rollback(client,{error:"invalid_order"});const ref=reference(data.returnType);const created=(await client.query("INSERT INTO inventory_returns (business_id,return_type,purchase_order_id,supplier_id,location_id,reference,reason,notes,status,created_by,registered_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'registered',$9,NOW()) RETURNING id",[businessId,data.returnType,data.returnType==='supplier_return'?data.purchaseOrderId:null,supplierId,data.locationId,ref,data.reason,data.notes||null,userId])).rows[0];for(const line of data.items){let unitCost=0,orderItem=null;if(order){orderItem=(await client.query("SELECT * FROM purchase_order_items WHERE business_id=$1 AND purchase_order_id=$2 AND item_id=$3 FOR UPDATE",[businessId,order.id,line.itemId])).rows[0];if(!orderItem)return rollback(client,{error:"item_not_received"});const available=Number(orderItem.quantity_received)-Number(orderItem.quantity_returned||0);if(line.quantity>available)return rollback(client,{error:"return_exceeds_received"});unitCost=Number(orderItem.unit_cost);}
-const product=(await client.query("SELECT id,cost_price,status FROM items WHERE business_id=$1 AND id=$2 FOR UPDATE",[businessId,line.itemId])).rows[0];if(!product||product.status!=="active")return rollback(client,{error:"product_not_found"});const bal=(await client.query("SELECT stock FROM inventory_balances WHERE business_id=$1 AND location_id=$2 AND item_id=$3 FOR UPDATE",[businessId,data.locationId,line.itemId])).rows[0];const previous=Number(bal?.stock||0);if(line.quantity>previous)return rollback(client,{error:"insufficient_stock"});const resulting=previous-line.quantity;await client.query("UPDATE inventory_balances SET stock=$1,updated_at=NOW() WHERE business_id=$2 AND location_id=$3 AND item_id=$4",[resulting,businessId,data.locationId,line.itemId]);await client.query("UPDATE items SET stock=stock-$1 WHERE business_id=$2 AND id=$3 AND stock >= $1",[line.quantity,businessId,line.itemId]);await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by,created_at) VALUES ($1,$2,$3,'exit',$4,$5,$6,$7,$8,$9,NOW())",[businessId,data.locationId,line.itemId,-line.quantity,previous,resulting,`${typeLabels[data.returnType]}: ${data.reason}`,ref,userId]);await client.query("INSERT INTO inventory_return_items (business_id,return_id,item_id,purchase_order_item_id,quantity,unit_cost) VALUES ($1,$2,$3,$4,$5,$6)",[businessId,created.id,line.itemId,orderItem?.id||null,line.quantity,unitCost||Number(product.cost_price||0)]);if(orderItem)await client.query("UPDATE purchase_order_items SET quantity_returned=quantity_returned+$1 WHERE business_id=$2 AND id=$3",[line.quantity,businessId,orderItem.id]);}
-await notificationService.notifyBusinessUsers({client,businessId,type:data.returnType==="supplier_return"?"return_registered":"inventory_damage",title:data.returnType==="supplier_return"?"Devolución registrada":"Mercancía dañada registrada",message:`Se registró ${typeLabels[data.returnType].toLowerCase()} con referencia ${ref}.`,priority:"normal",link:`/app/returns/${created.id}`,eventKey:`return:${created.id}`});await auditService.record({client,businessId,userId,module:"returns",action:"create",reference:ref,description:data.returnType==="supplier_return"?"Devolución a proveedor registrada":"Incidencia de inventario registrada",newValues:{returnId:created.id,returnType:data.returnType,items:data.items}});await client.query("COMMIT");return getReturn(businessId,created.id);}catch(e){await client.query("ROLLBACK").catch(()=>{});throw e}finally{client.release()}}
+export async function createReturn({ businessId, userId, data }) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const valuationMethod = await getInventoryValuationMethod(client, { businessId });
+    let order = null; let supplierId = null; let sale = null;
+    if (data.returnType === "supplier_return") {
+      order = (await client.query("SELECT * FROM purchase_orders WHERE business_id=$1 AND id=$2 AND status IN ('partially_received','received') FOR UPDATE", [businessId, data.purchaseOrderId])).rows[0];
+      if (!order) return rollback(client, { error: "order_not_found" });
+      supplierId = order.supplier_id;
+      if (Number(order.location_id) !== Number(data.locationId)) return rollback(client, { error: "location_mismatch" });
+    } else if (data.returnType === "customer_return") {
+      if (!data.saleId) return rollback(client, { error: "sale_not_found" });
+      sale = (await client.query("SELECT id,location_id,status FROM sales WHERE business_id=$1 AND id=$2 AND status='completed' FOR UPDATE", [businessId, data.saleId])).rows[0];
+      if (!sale) return rollback(client, { error: "sale_not_found" });
+      if (Number(sale.location_id) !== Number(data.locationId)) return rollback(client, { error: "location_mismatch" });
+    } else if (data.purchaseOrderId || data.saleId) return rollback(client, { error: "invalid_order" });
+    const ref = reference(data.returnType);
+    const created = (await client.query("INSERT INTO inventory_returns (business_id,return_type,purchase_order_id,supplier_id,sale_id,location_id,reference,reason,notes,status,created_by,registered_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'registered',$10,NOW()) RETURNING id", [businessId, data.returnType, data.returnType === "supplier_return" ? data.purchaseOrderId : null, supplierId, data.returnType === "customer_return" ? data.saleId : null, data.locationId, ref, data.reason, data.notes || null, userId])).rows[0];
+    // Todas las líneas bloquean productos, balances y capas en orden estable
+    // para evitar interbloqueos cuando una devolución contiene varios artículos.
+    const lines = [...data.items].sort((a, b) => {
+      const itemOrder = Number(a.itemId) - Number(b.itemId);
+      return itemOrder || (Number(a.saleItemId || 0) - Number(b.saleItemId || 0));
+    });
+    for (const line of lines) {
+      let orderItem = null;
+      let saleItem = null;
+      let customerReturnCost = 0;
+      let customerSourceLayerId = null;
+      const itemCondition = line.condition || (line.isDamaged ? "damaged" : "good");
+      if (order) {
+        orderItem = (await client.query("SELECT * FROM purchase_order_items WHERE business_id=$1 AND purchase_order_id=$2 AND item_id=$3 FOR UPDATE", [businessId, order.id, line.itemId])).rows[0];
+        if (!orderItem) return rollback(client, { error: "item_not_received" });
+        const available = Number(orderItem.quantity_received) - Number(orderItem.quantity_returned || 0);
+        if (line.quantity > available) return rollback(client, { error: "return_exceeds_received" });
+      }
+      if (sale) {
+        saleItem = (await client.query("SELECT * FROM sale_items WHERE business_id=$1 AND sale_id=$2 AND id=$3 FOR UPDATE", [businessId, sale.id, line.saleItemId])).rows[0];
+        if (!saleItem || Number(saleItem.item_id) !== Number(line.itemId)) return rollback(client, { error: "sale_item_not_found" });
+        const prior = (await client.query("SELECT COALESCE(SUM(ri.quantity),0)::int AS quantity FROM inventory_return_items ri JOIN inventory_returns r ON (r.business_id,r.id)=(ri.business_id,ri.return_id) WHERE r.business_id=$1 AND r.sale_id=$2 AND ri.sale_item_id=$3 AND r.return_type='customer_return' AND r.status='registered'", [businessId, sale.id, line.saleItemId])).rows[0];
+        if (Number(prior.quantity) + Number(line.quantity) > Number(saleItem.quantity)) return rollback(client, { error: "return_exceeds_sold" });
+        const originalCost = (await client.query("SELECT COALESCE(SUM(c.quantity*c.unit_cost),0)::numeric(18,10) AS total_cost, COALESCE(SUM(c.quantity),0)::int AS quantity, MIN(c.layer_id) AS source_layer_id, COUNT(DISTINCT c.layer_id)::int AS layer_count FROM inventory_layer_consumptions c JOIN inventory_movements m ON (m.business_id,m.id)=(c.business_id,c.related_movement_id) WHERE c.business_id=$1 AND c.operation_type='sale' AND c.operation_id=$2 AND m.item_id=$3 AND m.location_id=$4", [businessId, sale.id, line.itemId, data.locationId])).rows[0];
+        if (Number(originalCost.quantity) > 0) {
+          customerReturnCost = (await client.query("SELECT ($1::numeric / $2::numeric)::numeric(18,10) AS unit_cost", [originalCost.total_cost, originalCost.quantity])).rows[0].unit_cost;
+        } else {
+          customerReturnCost = String(saleItem.unit_cost_snapshot ?? saleItem.unit_cost ?? "0");
+        }
+        if (!customerReturnCost || !/^\d+(?:\.\d+)?$/.test(String(customerReturnCost))) return rollback(client, { error: "invalid_cost" });
+        customerSourceLayerId = Number(originalCost.layer_count) === 1 ? Number(originalCost.source_layer_id) : null;
+      }
+      const product = (await client.query("SELECT id,cost_price,status FROM items WHERE business_id=$1 AND id=$2 FOR UPDATE", [businessId, line.itemId])).rows[0];
+      if (!product || product.status !== "active") return rollback(client, { error: "product_not_found" });
+      const bal = (await client.query("SELECT stock FROM inventory_balances WHERE business_id=$1 AND location_id=$2 AND item_id=$3 FOR UPDATE", [businessId, data.locationId, line.itemId])).rows[0];
+      const previous = Number(bal?.stock || 0);
+      if (!sale && line.quantity > previous) return rollback(client, { error: "insufficient_stock" });
+      let totalCost = sale ? null : Number(orderItem?.unit_cost ?? product.cost_price ?? 0) * line.quantity;
+      let movement = null;
+      if (!sale) {
+        const resulting = previous - line.quantity;
+        movement = (await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by,created_at) VALUES ($1,$2,$3,'exit',$4,$5,$6,$7,$8,$9,NOW()) RETURNING id", [businessId, data.locationId, line.itemId, -line.quantity, previous, resulting, `${typeLabels[data.returnType]}: ${data.reason}`, ref, userId])).rows[0];
+      }
+      let fifoUnitCost = null;
+      if (valuationMethod === "fifo" && !sale) {
+        const operationType = data.returnType === "supplier_return" ? "supplier_return" : "damage_loss";
+        await consumeCostLayers(client, { businessId, itemId: Number(line.itemId), locationId: Number(data.locationId), quantity: line.quantity, operationType, operationId: Number(movement.id), relatedMovementId: Number(movement.id), operationReference: ref, createdBy: userId });
+        totalCost = await calculateOperationCost(client, { businessId, operationType, operationId: Number(movement.id), relatedMovementId: Number(movement.id) });
+        fifoUnitCost = (await client.query("SELECT ($1::NUMERIC / NULLIF($2::NUMERIC,0))::NUMERIC(18,10) AS unit_cost", [totalCost, line.quantity])).rows[0].unit_cost;
+        if (!fifoUnitCost || !/^\d+(?:\.\d+)?$/.test(String(fifoUnitCost))) return rollback(client, { error: "invalid_cost" });
+      }
+      const unitCost = valuationMethod === "fifo" && !sale ? fifoUnitCost : (line.quantity ? totalCost / line.quantity : 0);
+      if (!sale) {
+        const resulting = previous - line.quantity;
+        await client.query("UPDATE inventory_balances SET stock=$1,updated_at=NOW() WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [resulting, businessId, data.locationId, line.itemId]);
+        const itemUpdate = await client.query("UPDATE items SET stock=stock-$1 WHERE business_id=$2 AND id=$3 AND stock >= $1", [line.quantity, businessId, line.itemId]);
+        if (itemUpdate.rowCount !== 1) return rollback(client, { error: "insufficient_stock" });
+      } else if (itemCondition === "good") {
+        await client.query("UPDATE inventory_balances SET stock=stock+$1,updated_at=NOW() WHERE business_id=$2 AND location_id=$3 AND item_id=$4", [line.quantity, businessId, data.locationId, line.itemId]);
+        await client.query("UPDATE items SET stock=stock+$1 WHERE business_id=$2 AND id=$3", [line.quantity, businessId, line.itemId]);
+        await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by,created_at) VALUES ($1,$2,$3,'entry',$4,$5,$6,$7,$8,$9,NOW())", [businessId, data.locationId, line.itemId, line.quantity, previous, previous + line.quantity, `${typeLabels[data.returnType]}: ${data.reason}`, ref, userId]);
+        if (valuationMethod === "fifo") await createCostLayer(client, { businessId, itemId: Number(line.itemId), locationId: Number(data.locationId), quantity: line.quantity, unitCost: customerReturnCost, sourceOperationType: "customer_return", sourceOperationId: Number(created.id), sourceMovementId: null, sourceLayerId: customerSourceLayerId, sourceReference: ref, createdBy: userId });
+      } else {
+        // Una devolución dañada queda trazada en inventory_return_items y no vuelve al stock disponible.
+      }
+      const storedUnitCost = sale ? customerReturnCost : unitCost;
+      await client.query("INSERT INTO inventory_return_items (business_id,return_id,item_id,purchase_order_item_id,sale_item_id,item_condition,quantity,unit_cost) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", [businessId, created.id, line.itemId, orderItem?.id || null, saleItem?.id || null, itemCondition, line.quantity, storedUnitCost]);
+      if (orderItem) await client.query("UPDATE purchase_order_items SET quantity_returned=quantity_returned+$1 WHERE business_id=$2 AND id=$3", [line.quantity, businessId, orderItem.id]);
+    }
+    await notificationService.syncStockAlertNotifications({ client, businessId });
+    await notificationService.notifyBusinessUsers({ client, businessId, type: data.returnType === "supplier_return" ? "return_registered" : "inventory_damage", title: data.returnType === "supplier_return" ? "Devolución registrada" : "Mercancía dañada registrada", message: `Se registró ${typeLabels[data.returnType].toLowerCase()} con referencia ${ref}.`, priority: "normal", link: `/app/returns/${created.id}`, eventKey: `return:${created.id}` });
+    await auditService.record({ client, businessId, userId, module: "returns", action: "create", reference: ref, description: data.returnType === "supplier_return" ? "Devolución a proveedor registrada" : "Incidencia de inventario registrada", newValues: { returnId: created.id, returnType: data.returnType, items: data.items, valuationMethod } });
+    await client.query("COMMIT");
+    return getReturn(businessId, created.id);
+  } catch (error) { await client.query("ROLLBACK").catch(() => {}); throw error; } finally { client.release(); }
+}
 async function rollback(client,result){await client.query("ROLLBACK");return result;}
 export async function cancelReturn(businessId,id,userId){const client=await pool.connect();try{await client.query("BEGIN");const row=(await client.query("SELECT * FROM inventory_returns WHERE business_id=$1 AND id=$2 AND status='registered' FOR UPDATE",[businessId,id])).rows[0];if(!row)return rollback(client,{error:"not_cancellable"});const items=(await client.query("SELECT * FROM inventory_return_items WHERE business_id=$1 AND return_id=$2",[businessId,id])).rows;for(const item of items){const bal=(await client.query("SELECT stock FROM inventory_balances WHERE business_id=$1 AND location_id=$2 AND item_id=$3 FOR UPDATE",[businessId,row.location_id,item.item_id])).rows[0];const stock=Number(bal?.stock||0);await client.query("UPDATE inventory_balances SET stock=$1,updated_at=NOW() WHERE business_id=$2 AND location_id=$3 AND item_id=$4",[stock+Number(item.quantity),businessId,row.location_id,item.item_id]);await client.query("UPDATE items SET stock=stock+$1 WHERE business_id=$2 AND id=$3",[item.quantity,businessId,item.item_id]);await client.query("INSERT INTO inventory_movements (business_id,location_id,item_id,movement_type,quantity_delta,previous_stock,resulting_stock,reason,reference,created_by,created_at) VALUES ($1,$2,$3,'entry',$4,$5,$6,$7,$8,$9,NOW())",[businessId,row.location_id,item.item_id,item.quantity,stock,stock+Number(item.quantity),"Cancelación de devolución",`RETURN-CANCEL-${id}`,userId]);if(item.purchase_order_item_id)await client.query("UPDATE purchase_order_items SET quantity_returned=quantity_returned-$1 WHERE business_id=$2 AND id=$3",[item.quantity,businessId,item.purchase_order_item_id]);}await client.query("UPDATE inventory_returns SET status='cancelled',cancelled_at=NOW(),cancelled_by=$1 WHERE business_id=$2 AND id=$3",[userId,businessId,id]);await auditService.record({client,businessId,userId,module:"returns",action:"cancel",reference:`RETURN-${id}`,description:"Devolución o pérdida cancelada",newValues:{returnId:id,status:"cancelled"}});await client.query("COMMIT");return getReturn(businessId,id);}catch(e){await client.query("ROLLBACK").catch(()=>{});throw e}finally{client.release()}}
