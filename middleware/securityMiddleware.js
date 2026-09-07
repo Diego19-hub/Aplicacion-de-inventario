@@ -64,3 +64,8 @@ export const adminMutationLimiter = createScopedLimiter(
   60,
   "Demasiadas operaciones administrativas en poco tiempo. Espera unos minutos antes de continuar."
 );
+
+export const assistantLimiter = createScopedLimiter(
+  30,
+  "Has realizado demasiadas preguntas. Espera unos minutos antes de continuar."
+);
