@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Button } from "../components/Button.jsx";
+import { AssistantChat } from "../components/AssistantChat.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { HelpInfoPanel } from "../components/HelpInfoPanel.jsx";
 import { apiRequest } from "../api/client.js";
@@ -234,6 +235,7 @@ export function AppShell({ children }) {
         </header>
         <main className="main-content">{helpModule && <HelpInfoPanel moduleKey={helpModule} businessId={session.activeBusiness?.id} />}{children}</main>
       </div>
+      <AssistantChat businessId={session.activeBusiness?.id} />
     </div>
   );
 }
