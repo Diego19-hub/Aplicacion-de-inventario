@@ -18,6 +18,7 @@ La arquitectura v2 usa una sola base PostgreSQL para muchos negocios. Los datos 
 - Roles globales `user` y `super_admin`; los permisos cotidianos dependen de la membresía activa (`owner`, `manager` o `viewer`).
 - El owner del negocio activo administra miembros e invitaciones; estas usan un token de un solo uso almacenado exclusivamente como hash SHA-256 y vencen a los 30 días.
 - Validación de formularios, CSRF en mutaciones de la API, Helmet y rate limiting para autenticación.
+- Asistente de inventario de solo lectura: guía el uso según la pantalla, ofrece enlaces internos sin ejecutar acciones y puede consultar stock, ventas y movimientos autorizados. Si Gemini no está disponible, usa la base de conocimiento local; en desarrollo muestra `source: gemini` o `source: local`.
 
 ## Stack y arquitectura
 

@@ -114,3 +114,7 @@ Estados: `[ ]` pendiente · `[~]` en progreso · `[x]` completado · `[!]` bloqu
 ## PEPS/FIFO — Fase 5
 
 - [x] Visualizar capas FIFO y trazabilidad por producto. Criterio: el detalle de producto consulta capas y consumos del negocio activo en modo solo lectura, muestra cantidades, estados, referencias y costos NUMERIC sin cálculos monetarios imprecisos; `average` informa que no hay capas FIFO visibles.
+
+## Asistente de inventario
+
+- [x] Convertir el asistente en guía contextual de solo lectura. Criterio: base de conocimiento local por módulo, respuestas numeradas, sugerencias por pantalla, enlaces internos no mutables, contexto de ruta/rol/negocio derivado en servidor, respaldo útil ante Gemini y diagnóstico de origen solo en desarrollo.
