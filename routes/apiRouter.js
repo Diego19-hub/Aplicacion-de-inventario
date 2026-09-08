@@ -1,3 +1,4 @@
+import { assistantChat } from "../controllers/apiAssistantController.js";
 import { Router } from "express";
 
 import {
@@ -124,6 +125,7 @@ import {
 } from "../middleware/memberValidation.js";
 import {
   adminMutationLimiter,
+  assistantLimiter,
   authLimiter,
   invitationLimiter,
   inventoryMutationLimiter,
@@ -510,6 +512,14 @@ apiRouter.get(
   requireApiActiveBusiness,
   requireApiBusinessRole("owner", "manager", "viewer"),
   getTransferDetails
+);
+apiRouter.post(
+  "/assistant/chat",
+  requireApiAuth,
+  requireApiActiveBusiness,
+  requireApiBusinessRole("owner", "manager", "viewer"),
+  assistantLimiter,
+  assistantChat
 );
 apiRouter.get("/products", requireApiAuth, requireApiActiveBusiness, listProducts);
 apiRouter.get(
