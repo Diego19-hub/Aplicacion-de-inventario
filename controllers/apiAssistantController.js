@@ -1,5 +1,6 @@
 import { getAssistantBusinessContext } from "../db/assistantQueries.js";
 import { generateAssistantReply } from "../services/assistantService.js";
+import { getAssistantModule } from "../services/assistantKnowledge.js";
 
 function validHistory(value) {
   if (!Array.isArray(value)) return [];
@@ -26,7 +27,13 @@ export async function assistantChat(req, res, next) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
+    const pathname = typeof req.body?.pathname === "string" && req.body.pathname.startsWith("/app")
+      ? req.body.pathname.slice(0, 200)
+      : "/app";
     const context = await getAssistantBusinessContext(req.business.id);
+    context.pathname = pathname;
+    context.currentModule = getAssistantModule(pathname);
+    context.activeBusiness = { id: req.business.id };
     const answer = await generateAssistantReply({
       message,
       history: validHistory(req.body?.history),

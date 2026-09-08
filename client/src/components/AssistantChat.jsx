@@ -1,16 +1,21 @@
 import { Bot, Send, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { apiRequest } from "../api/client.js";
 
-const greeting = { role: "assistant", content: "Hola. Puedo ayudarte con stock, ventas, movimientos y el uso de la aplicación." };
-const suggestions = [
-  "¿Cuánto inventario tengo?",
-  "¿Cómo van mis ventas?",
-  "Últimos movimientos",
-  "Ayuda con FIFO"
-];
+const greeting = { role: "assistant", content: "Hola. Soy tu guía de Inventario: te explico esta pantalla paso a paso y puedo consultar datos autorizados." };
+
+const pageSuggestions = (pathname) => {
+  if (pathname.startsWith("/app/cash")) return ["¿Cómo registro una entrada de efectivo?", "¿Cómo cierro caja?", "¿Qué significa efectivo esperado?"];
+  if (pathname.startsWith("/app/point-of-sale")) return ["¿Cómo finalizo una venta?", "¿Por qué no puedo vender más unidades?"];
+  if (pathname.startsWith("/app/products")) return ["¿Cómo agrego un producto?", "¿Cómo registro inventario inicial?", "¿Qué son las capas FIFO?"];
+  if (pathname.startsWith("/app/break-even")) return ["¿Cómo se calcula?", "¿Qué significa margen de contribución?"];
+  if (pathname.startsWith("/app/reports")) return ["¿Cómo filtro por sucursal?", "¿Qué reporte necesito?"];
+  return ["¿Cómo funciona esta pantalla?", "¿Cómo agrego un producto?", "¿Cómo registro una venta?", "¿Qué es FIFO?"];
+};
 
 export function AssistantChat({ businessId }) {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([greeting]);
   const [input, setInput] = useState("");
@@ -40,8 +45,8 @@ export function AssistantChat({ businessId }) {
     setInput("");
     setPending(true);
     try {
-      const data = await apiRequest("/assistant/chat", { method: "POST", csrf: true, body: { message, history } });
-      setMessages((current) => [...current, { role: "assistant", content: data.message }]);
+      const data = await apiRequest("/assistant/chat", { method: "POST", csrf: true, body: { message, history, pathname: location.pathname } });
+      setMessages((current) => [...current, { role: "assistant", content: data.message, links: data.links, source: data.source }]);
     } catch (error) {
       setMessages((current) => [...current, { role: "assistant", content: error.message || "No pude responder en este momento." }]);
     } finally {
@@ -55,6 +60,7 @@ export function AssistantChat({ businessId }) {
   }
 
   const showSuggestions = messages.length === 1;
+  const suggestions = pageSuggestions(location.pathname);
 
   function closePanel() {
     if (closing) return;
@@ -82,7 +88,7 @@ export function AssistantChat({ businessId }) {
         <button type="button" className="assistant-chat__close" onClick={closePanel} aria-label="Cerrar asistente" title="Cerrar asistente"><X aria-hidden="true" /></button>
       </header>
       <div className="assistant-chat__messages" role="log" aria-live="polite" aria-relevant="additions text" aria-busy={pending}>
-        {messages.map((item, index) => <p key={index} className={`assistant-chat__message assistant-chat__message--${item.role}`}>{item.content}</p>)}
+        {messages.map((item, index) => <div key={index} className={`assistant-chat__message assistant-chat__message--${item.role}`}><p>{item.content}</p>{item.links?.length > 0 && <span className="assistant-chat__links">{item.links.map((link) => <Link key={link.to} to={link.to}>{link.label}</Link>)}</span>}{import.meta.env.DEV && item.role === "assistant" && item.source && <small className="assistant-chat__source">source: {item.source}</small>}</div>)}
         {pending && <p className="assistant-chat__message assistant-chat__message--assistant assistant-chat__thinking"><span>Pensando</span><i aria-hidden="true"><b /><b /><b /></i></p>}
         <span ref={endRef} />
       </div>
